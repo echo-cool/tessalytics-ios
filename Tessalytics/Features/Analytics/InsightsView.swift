@@ -1,0 +1,128 @@
+import SwiftUI
+
+private enum AnalysisSection: String, CaseIterable, Identifiable {
+    case overview = "Overview"
+    case driving = "Drive"
+    case charging = "Charge"
+    case forecast = "Forecast"
+    case battery = "Battery"
+
+    var id: Self { self }
+
+    var helpTitle: String {
+        switch self {
+        case .overview, .driving, .charging: "Dashboard help"
+        case .forecast: "Forecast help"
+        case .battery: "Battery help"
+        }
+    }
+
+    var helpText: String {
+        switch self {
+        case .overview, .driving, .charging:
+            "Charts summarize synchronized drives and charging sessions for the selected period. Drag across supported charts to inspect a day."
+        case .forecast:
+            "Forecasts use recent synchronized history. The shaded range shows expected variation; predictions are estimates, not vehicle commands."
+        case .battery:
+            "Battery values are TeslaMateApi estimates derived from charging and range data. Temperature, calibration, and data coverage can affect them."
+        }
+    }
+}
+
+struct InsightsView: View {
+    @State private var section = AnalysisSection.overview
+    @State private var showingHelp = false
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                AnalysisModeBar(selection: $section)
+
+                switch section {
+                case .overview:
+                    AnalyticsDashboardView(embedded: true, initialSection: .overview, showsSectionControl: false)
+                case .driving:
+                    AnalyticsDashboardView(embedded: true, initialSection: .driving, showsSectionControl: false)
+                case .charging:
+                    AnalyticsDashboardView(embedded: true, initialSection: .charging, showsSectionControl: false)
+                case .forecast:
+                    IntelligenceView(embedded: true)
+                case .battery:
+                    BatteryHealthView(embedded: true)
+                }
+            }
+            .background { TessalyticsBackdrop() }
+            .navigationTitle("Analysis")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Help", systemImage: "questionmark.circle") { showingHelp = true }
+                        .labelStyle(.iconOnly)
+                }
+            }
+            .sheet(isPresented: $showingHelp) {
+                AnalysisHelpSheet(section: section)
+                    .presentationDetents([.medium])
+            }
+        }
+        .accessibilityIdentifier("insights-screen")
+    }
+}
+
+private struct AnalysisModeBar: View {
+    @Binding var selection: AnalysisSection
+
+    var body: some View {
+        ScrollView(.horizontal) {
+            HStack(spacing: 6) {
+                ForEach(AnalysisSection.allCases) { section in
+                    Button(section.rawValue) { selection = section }
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(selection == section ? Color.white : Color.primary)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
+                        .background(
+                            selection == section ? TessalyticsTheme.accent : Color.secondary.opacity(0.10),
+                            in: .capsule
+                        )
+                        .buttonStyle(.plain)
+                        .accessibilityAddTraits(selection == section ? .isSelected : [])
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+        }
+        .scrollIndicators(.hidden)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Analysis mode")
+    }
+}
+
+private struct AnalysisHelpSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let section: AnalysisSection
+
+    var body: some View {
+        NavigationStack {
+            TessalyticsScreen {
+                VStack(alignment: .leading, spacing: 16) {
+                    Image(systemName: "questionmark.circle.fill")
+                        .font(.title)
+                        .foregroundStyle(TessalyticsTheme.accent)
+                        .accessibilityHidden(true)
+                    Text(section.helpText)
+                        .font(.body)
+                    Spacer(minLength: 0)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(20)
+            }
+            .navigationTitle(section.helpTitle)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+    }
+}

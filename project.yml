@@ -1,0 +1,62 @@
+name: Tessalytics
+options:
+  bundleIdPrefix: com.echocool
+  deploymentTarget:
+    iOS: "18.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: 6.0
+    DEVELOPMENT_TEAM: P8FYZDZ6AA
+    CODE_SIGN_STYLE: Automatic
+    CURRENT_PROJECT_VERSION: 4
+    MARKETING_VERSION: 1.1.0
+    ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS: YES
+targets:
+  Tessalytics:
+    type: application
+    platform: iOS
+    sources:
+      - path: Tessalytics
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.echocool.Tessalytics
+        PRODUCT_NAME: Tessalytics
+        INFOPLIST_KEY_CFBundleDisplayName: Tessalytics
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
+        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsArbitraryLoads: NO
+        INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO
+        INFOPLIST_KEY_NSFaceIDUsageDescription: Confirm vehicle commands before Tessalytics sends them.
+        GENERATE_INFOPLIST_FILE: YES
+        TARGETED_DEVICE_FAMILY: "1"
+        SWIFT_EMIT_LOC_STRINGS: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CODE_SIGN_ENTITLEMENTS: Tessalytics/Tessalytics.entitlements
+    scheme:
+      testTargets:
+        - TessalyticsTests
+        - TessalyticsUITests
+  TessalyticsTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: TessalyticsTests
+    dependencies:
+      - target: Tessalytics
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.echocool.TessalyticsTests
+        GENERATE_INFOPLIST_FILE: YES
+  TessalyticsUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: TessalyticsUITests
+    dependencies:
+      - target: Tessalytics
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.echocool.TessalyticsUITests
+        GENERATE_INFOPLIST_FILE: YES

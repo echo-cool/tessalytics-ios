@@ -1,0 +1,272 @@
+import Foundation
+
+enum OwnerAPIError: Error, Equatable, LocalizedError, Sendable {
+    case credentialsMissing
+    case invalidCredentials
+    case refreshRejected
+    case vehicleUnavailable
+    case rateLimited
+    case commandRejected(String)
+    case unexpectedStatus(Int)
+    case invalidResponse
+    case transport
+
+    var errorDescription: String? {
+        switch self {
+        case .credentialsMissing: "Paste both Owner API tokens to connect."
+        case .invalidCredentials: "The Owner API token was rejected. Generate a fresh token pair and try again."
+        case .refreshRejected: "Tesla rejected the refresh token. Generate a new Owner API token pair."
+        case .vehicleUnavailable: "The vehicle is asleep or temporarily unavailable. Tessalytics did not wake it."
+        case .rateLimited: "Tesla is receiving too many requests. Try again shortly."
+        case .commandRejected(let reason): reason.isEmpty ? "The vehicle rejected the command." : reason
+        case .unexpectedStatus(let status): "Tesla returned an unexpected response (HTTP \(status))."
+        case .invalidResponse: "Tesla returned data this version of Tessalytics could not read."
+        case .transport: "Tesla could not be reached. Check the network connection."
+        }
+    }
+}
+
+enum OwnerVehicleCommand: String, CaseIterable, Identifiable, Sendable {
+    case lock
+    case unlock
+    case climateOn
+    case climateOff
+    case chargeStart
+    case chargeStop
+    case openTrunk
+    case openFrunk
+
+    var id: Self { self }
+    var title: String {
+        switch self {
+        case .lock: "Lock"
+        case .unlock: "Unlock"
+        case .climateOn: "Climate on"
+        case .climateOff: "Climate off"
+        case .chargeStart: "Start charge"
+        case .chargeStop: "Stop charge"
+        case .openTrunk: "Open trunk"
+        case .openFrunk: "Open frunk"
+        }
+    }
+    var symbol: String {
+        switch self {
+        case .lock: "lock.fill"
+        case .unlock: "lock.open.fill"
+        case .climateOn: "fan.fill"
+        case .climateOff: "fan.slash.fill"
+        case .chargeStart: "bolt.fill"
+        case .chargeStop: "bolt.slash.fill"
+        case .openTrunk: "car.rear.waves.up"
+        case .openFrunk: "car.front.waves.up"
+        }
+    }
+    fileprivate var endpoint: String {
+        switch self {
+        case .lock: "door_lock"
+        case .unlock: "door_unlock"
+        case .climateOn: "auto_conditioning_start"
+        case .climateOff: "auto_conditioning_stop"
+        case .chargeStart: "charge_start"
+        case .chargeStop: "charge_stop"
+        case .openTrunk, .openFrunk: "actuate_trunk"
+        }
+    }
+    fileprivate var body: [String: String] {
+        switch self {
+        case .openTrunk: ["which_trunk": "rear"]
+        case .openFrunk: ["which_trunk": "front"]
+        default: [:]
+        }
+    }
+}
+
+actor OwnerAPISession {
+    private let store: any OwnerCredentialStore
+    private let transport: any HTTPTransport
+    private let decoder: JSONDecoder
+    private var cachedCredentials: OwnerAPICredentials?
+    private var refreshTask: Task<OwnerAPICredentials, any Error>?
+
+    init(store: any OwnerCredentialStore = KeychainOwnerCredentialStore(), transport: any HTTPTransport = URLSession.shared) {
+        self.store = store
+        self.transport = transport
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        self.decoder = decoder
+    }
+
+    func isConfigured() -> Bool {
+        (try? credentials())?.isUsable == true
+    }
+
+    func configure(accessToken: String, refreshToken: String, region: OwnerAPIRegion) async throws -> [OwnerVehicle] {
+        let credentials = OwnerAPICredentials(accessToken: accessToken, refreshToken: refreshToken, region: region)
+        guard credentials.isUsable else { throw OwnerAPIError.credentialsMissing }
+        try store.save(credentials)
+        cachedCredentials = credentials
+        return try await vehicles()
+    }
+
+    func disconnect() throws {
+        try store.delete()
+        cachedCredentials = nil
+    }
+
+    func vehicles() async throws -> [OwnerVehicle] {
+        let envelope: OwnerAPIEnvelope<[OwnerVehicle]> = try await authenticatedRequest(path: "api/1/vehicles")
+        return envelope.response
+    }
+
+    func vehicleData(vehicleID: Int64) async throws -> OwnerVehicleData {
+        let envelope: OwnerAPIEnvelope<OwnerVehicleData> = try await authenticatedRequest(path: "api/1/vehicles/\(vehicleID)/vehicle_data")
+        return envelope.response
+    }
+
+    func send(_ command: OwnerVehicleCommand, vehicleID: Int64) async throws {
+        let envelope: OwnerAPIEnvelope<OwnerCommandResponse> = try await authenticatedRequest(
+            path: "api/1/vehicles/\(vehicleID)/command/\(command.endpoint)",
+            method: "POST",
+            body: command.body
+        )
+        guard envelope.response.result else {
+            throw OwnerAPIError.commandRejected(envelope.response.reason ?? "The vehicle rejected the command.")
+        }
+    }
+
+    private func authenticatedRequest<Response: Decodable & Sendable>(
+        path: String,
+        method: String = "GET",
+        body: [String: String]? = nil
+    ) async throws -> Response {
+        var current = try credentials()
+        if current.needsRefresh() { current = try await refresh(current) }
+
+        let first = try await perform(path: path, method: method, body: body, credentials: current)
+        if first.statusCode == 401 {
+            current = try await refresh(current)
+            let retry = try await perform(path: path, method: method, body: body, credentials: current)
+            try validate(retry.statusCode)
+            return try decode(Response.self, from: retry.data)
+        }
+        try validate(first.statusCode)
+        return try decode(Response.self, from: first.data)
+    }
+
+    private func credentials() throws -> OwnerAPICredentials {
+        if let cachedCredentials { return cachedCredentials }
+        guard let stored = try store.credentials(), stored.isUsable else { throw OwnerAPIError.credentialsMissing }
+        cachedCredentials = stored
+        return stored
+    }
+
+    private func refresh(_ credentials: OwnerAPICredentials) async throws -> OwnerAPICredentials {
+        if let refreshTask { return try await refreshTask.value }
+
+        let store = store
+        let transport = transport
+        let task = Task {
+            try await Self.requestRefreshedCredentials(
+                from: credentials,
+                store: store,
+                transport: transport
+            )
+        }
+        refreshTask = task
+        defer { refreshTask = nil }
+        let replacement = try await task.value
+        cachedCredentials = replacement
+        return replacement
+    }
+
+    private nonisolated static func requestRefreshedCredentials(
+        from credentials: OwnerAPICredentials,
+        store: any OwnerCredentialStore,
+        transport: any HTTPTransport
+    ) async throws -> OwnerAPICredentials {
+        let url = credentials.region.authenticationURL.appending(path: "oauth2/v3/token")
+        var request = URLRequest(url: url, timeoutInterval: 20)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Content-Type")
+        request.setValue(Self.userAgent, forHTTPHeaderField: "User-Agent")
+        request.setValue(Self.teslaUserAgent, forHTTPHeaderField: "X-Tesla-User-Agent")
+        request.httpBody = try JSONSerialization.data(withJSONObject: [
+            "grant_type": "refresh_token",
+            "scope": "openid email offline_access",
+            "client_id": "ownerapi",
+            "refresh_token": credentials.refreshToken
+        ])
+
+        let data: Data
+        let response: URLResponse
+        do { (data, response) = try await transport.data(for: request) }
+        catch is CancellationError { throw CancellationError() }
+        catch { throw OwnerAPIError.transport }
+        guard let http = response as? HTTPURLResponse else { throw OwnerAPIError.transport }
+        guard (200...299).contains(http.statusCode) else {
+            if [400, 401, 403].contains(http.statusCode) { throw OwnerAPIError.refreshRejected }
+            throw OwnerAPIError.unexpectedStatus(http.statusCode)
+        }
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let token: OwnerTokenResponse
+        do { token = try decoder.decode(OwnerTokenResponse.self, from: data) }
+        catch { throw OwnerAPIError.invalidResponse }
+        let replacement = OwnerAPICredentials(
+            accessToken: token.accessToken,
+            refreshToken: token.refreshToken,
+            expiresAt: .now.addingTimeInterval(TimeInterval(token.expiresIn)),
+            region: credentials.region
+        )
+        try store.save(replacement)
+        return replacement
+    }
+
+    private func perform(
+        path: String,
+        method: String,
+        body: [String: String]?,
+        credentials: OwnerAPICredentials
+    ) async throws -> (data: Data, statusCode: Int) {
+        let url = credentials.region.ownerAPIURL.appending(path: path)
+        var request = URLRequest(url: url, timeoutInterval: 25)
+        request.httpMethod = method
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(credentials.accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue(Self.userAgent, forHTTPHeaderField: "User-Agent")
+        request.setValue(Self.teslaUserAgent, forHTTPHeaderField: "X-Tesla-User-Agent")
+        if let body { request.httpBody = try JSONSerialization.data(withJSONObject: body) }
+        do {
+            let (data, response) = try await transport.data(for: request)
+            guard let http = response as? HTTPURLResponse else { throw OwnerAPIError.transport }
+            return (data, http.statusCode)
+        } catch is CancellationError { throw CancellationError() }
+        catch let error as OwnerAPIError { throw error }
+        catch { throw OwnerAPIError.transport }
+    }
+
+    private func validate(_ status: Int) throws {
+        switch status {
+        case 200...299: return
+        case 401, 403: throw OwnerAPIError.invalidCredentials
+        case 408, 423: throw OwnerAPIError.vehicleUnavailable
+        case 429: throw OwnerAPIError.rateLimited
+        default: throw OwnerAPIError.unexpectedStatus(status)
+        }
+    }
+
+    private func decode<Value: Decodable>(_ type: Value.Type, from data: Data) throws -> Value {
+        do { return try decoder.decode(type, from: data) }
+        catch { throw OwnerAPIError.invalidResponse }
+    }
+
+    private nonisolated static var userAgent: String {
+        "Tessalytics/\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1")"
+    }
+
+    private nonisolated static var teslaUserAgent: String {
+        "TeslaApp/4.12.0/Tessalytics/\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1")"
+    }
+}

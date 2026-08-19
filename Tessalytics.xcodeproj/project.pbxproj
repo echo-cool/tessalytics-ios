@@ -1,0 +1,944 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0173D1FA94D37FA5638AE371 /* APIClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F02F7809DE22E208B7856FD /* APIClientTests.swift */; };
+		0B6B85C03D4249E2940DA470 /* TessalyticsUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FEA925D0919803CE2855ADF /* TessalyticsUITests.swift */; };
+		0E498FF594E7C44C2F8D8B1B /* UtilitiesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31E504FBBABA689C16A7479 /* UtilitiesTests.swift */; };
+		0F4F801C8F6DE89482942C5D /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89DEB8D112678AA392F7F3FD /* Components.swift */; };
+		18E0299F637D2564DF650B48 /* OwnerAPIConnectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC61115DA5C3905E142D231E /* OwnerAPIConnectionView.swift */; };
+		2094523147802F90DC61E7FE /* status.json in Resources */ = {isa = PBXBuildFile; fileRef = 9F0EC991E0D93F84AA26F15F /* status.json */; };
+		258F2A5E9F6127C845D9904A /* SecretRedactor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3796E1397AB56D8301C1342B /* SecretRedactor.swift */; };
+		27AEBAB2940A2E7297506211 /* AnalyticsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28F714155C63878469AC8259 /* AnalyticsService.swift */; };
+		2CE4DCA0CE99FCE2DD9650E3 /* OwnerAPIModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44A0AAB02406CBDCC84AD0A9 /* OwnerAPIModels.swift */; };
+		2FD0061B933B4B37A44AD0E0 /* TessalyticsApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41EA5A79668C1BA3EBF6D516 /* TessalyticsApp.swift */; };
+		3EFEDFAFDC076A7CE0DA779A /* IntelligenceNotificationSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F03C152D0943CB501CCA498 /* IntelligenceNotificationSettingsView.swift */; };
+		410B5F354F6D9D748F68023F /* DriveHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7446B53828176F148D1D102 /* DriveHistoryView.swift */; };
+		43BF97A0471A4C967A366CFC /* InsightsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F6420EFA70BE1BF7180F124 /* InsightsView.swift */; };
+		43E82B745562E70822DBBBEA /* DomainModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 281016CEF613667E547D30BD /* DomainModels.swift */; };
+		44A20F378B3FF54279C0CED2 /* ValueFormatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00D5950AF2AA3008BDB48C0C /* ValueFormatting.swift */; };
+		4D144803EC7234101FFB5D41 /* IntelligenceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E57175F82AA81155CABC906 /* IntelligenceView.swift */; };
+		4F70EBE4D78239142119E587 /* VehicleIntelligence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 415B42439C1E98208603B922 /* VehicleIntelligence.swift */; };
+		500A93FD681BB216A203E726 /* KeychainCredentialStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5227425F3855306646A64C42 /* KeychainCredentialStore.swift */; };
+		5393643C00CF9A53248FF4D0 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 199B8523D2A11AB11E7022C1 /* MainTabView.swift */; };
+		5CB009978514DA946E6E3552 /* HistoryRepositories.swift in Sources */ = {isa = PBXBuildFile; fileRef = 736A99C71F59EF76B9A1A2CA /* HistoryRepositories.swift */; };
+		5D03304900DBC394899F7B67 /* KeychainAbstractionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB43F3834B7C5193D15AFA59 /* KeychainAbstractionTests.swift */; };
+		608EF2948A18F688BEB5C03A /* cars.json in Resources */ = {isa = PBXBuildFile; fileRef = E505EEDA32AFF8AD8938C27A /* cars.json */; };
+		616325FCDB89DE10CACDAEBA /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC8E2BBB853FCEEA2FE25424 /* DashboardView.swift */; };
+		62D1BD53F29F1B0223138BD2 /* charges.json in Resources */ = {isa = PBXBuildFile; fileRef = B1188E6A2EA09BC3DC19035C /* charges.json */; };
+		6F21CDB15689A47553C549AF /* drives.json in Resources */ = {isa = PBXBuildFile; fileRef = 9422653083765E928907924D /* drives.json */; };
+		7B8F2E9602339BCA4F461991 /* AppEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8799A0636A222A24A9C5375 /* AppEnvironment.swift */; };
+		831E2499CE20C203347D593D /* BatteryHealthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69B44CC97FFD4A1612AE9764 /* BatteryHealthView.swift */; };
+		8A94177F597861F71C347FBE /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = AB56D93B2E638559734F5B3B /* PrivacyInfo.xcprivacy */; };
+		92A4E2CDDC065BD0EB906145 /* RouteSimplifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4C3B06649DD536D2563AE43 /* RouteSimplifier.swift */; };
+		9403C2A5150621FF5101861C /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE3DAE5214CDEEF2FCE5C095 /* OnboardingView.swift */; };
+		97E39E72F61662B40B33BA1A /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3C10EA5F7393F88E2105AA5 /* AboutView.swift */; };
+		9ABF6177BE29205A3F6019FF /* OwnerAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 702DCF1C2DDA8272CF7B1819 /* OwnerAPIClient.swift */; };
+		A053217C9B3E28E8B1581C81 /* APIModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70EF7E9E2D84547312F453C6 /* APIModels.swift */; };
+		A2D0741E7C29C94641044C57 /* OwnerAPICredentials.swift in Sources */ = {isa = PBXBuildFile; fileRef = 398D3A521A8AB7475EBE15DA /* OwnerAPICredentials.swift */; };
+		A79B925305CDB8B8455F5FC5 /* PersistenceModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08A89399E7A14E5325B9538A /* PersistenceModels.swift */; };
+		B700A4372E697A2C4E395D9B /* OwnerCommandAuthorization.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C51341E85FE293B71D96C15 /* OwnerCommandAuthorization.swift */; };
+		C0ACF08BE24101EC74FC08B2 /* TeslaMateAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B5CEF80D3420EE0C255CBA5 /* TeslaMateAPIClient.swift */; };
+		C5F45DC6E0947445550E284E /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DD4E74EF9DBC45F5220DCEB /* SettingsView.swift */; };
+		D7961131595CD7781ADD839E /* DriveDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CD584522562EB3ABFF0F119 /* DriveDetailView.swift */; };
+		DBF9DB2FCFAA76600E57034B /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 094D6DA296DE1FE4F160411F /* RootView.swift */; };
+		DC684EF770524BC1181C6A5C /* ChargeDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7B8D7F048243F298540FDCC /* ChargeDetailView.swift */; };
+		E0E6960CE176CA992B863D50 /* AnalyticsDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C94E6BD412F4C91F394DE58F /* AnalyticsDashboardView.swift */; };
+		E2C137F996B8D8252D415B20 /* IntelligenceNotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA8CC225422B884D999C24A4 /* IntelligenceNotificationService.swift */; };
+		E5628545558925B693CE596A /* ModelDecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B92F07630474019681927473 /* ModelDecodingTests.swift */; };
+		E5EAAC09CD72E6945F3D97BF /* DirectTeslaControlsCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8628070B08C47B53C21DA09 /* DirectTeslaControlsCard.swift */; };
+		EA2B9CD453301B1DCE7CEEBE /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1AAABDA0F97A80B7609ED65C /* Assets.xcassets */; };
+		EBAF49258554D280F75F2370 /* ChargeHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 319AF3BD02E14B748ED2921C /* ChargeHistoryView.swift */; };
+		ED1AEAE4351A61EC0963FAAA /* PersistenceAndPollingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5580DB0A8373ACFDFB1FDC7 /* PersistenceAndPollingTests.swift */; };
+		F07ED61D5F3E2D1C6F453F93 /* OwnerAPIClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 567AB74937F928DC869A3C2A /* OwnerAPIClientTests.swift */; };
+		F34ADBCF628380A9EDDBA036 /* SoftwareUpdatesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3D4DC173E043F24BDD0CDF2 /* SoftwareUpdatesView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		5A4ADAF0C3A6F20C349531BF /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 884FC6C02694C95E2440E509 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = DF15A27043C782EB898E8A84;
+			remoteInfo = Tessalytics;
+		};
+		B71F744B0561DF93D0146FBE /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 884FC6C02694C95E2440E509 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = DF15A27043C782EB898E8A84;
+			remoteInfo = Tessalytics;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		00D5950AF2AA3008BDB48C0C /* ValueFormatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ValueFormatting.swift; sourceTree = "<group>"; };
+		08A89399E7A14E5325B9538A /* PersistenceModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceModels.swift; sourceTree = "<group>"; };
+		094D6DA296DE1FE4F160411F /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		0B5CEF80D3420EE0C255CBA5 /* TeslaMateAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeslaMateAPIClient.swift; sourceTree = "<group>"; };
+		199B8523D2A11AB11E7022C1 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
+		1AAABDA0F97A80B7609ED65C /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		1F02F7809DE22E208B7856FD /* APIClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClientTests.swift; sourceTree = "<group>"; };
+		1F03C152D0943CB501CCA498 /* IntelligenceNotificationSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntelligenceNotificationSettingsView.swift; sourceTree = "<group>"; };
+		281016CEF613667E547D30BD /* DomainModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DomainModels.swift; sourceTree = "<group>"; };
+		28F714155C63878469AC8259 /* AnalyticsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsService.swift; sourceTree = "<group>"; };
+		2FEA925D0919803CE2855ADF /* TessalyticsUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TessalyticsUITests.swift; sourceTree = "<group>"; };
+		319AF3BD02E14B748ED2921C /* ChargeHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChargeHistoryView.swift; sourceTree = "<group>"; };
+		3796E1397AB56D8301C1342B /* SecretRedactor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecretRedactor.swift; sourceTree = "<group>"; };
+		398D3A521A8AB7475EBE15DA /* OwnerAPICredentials.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OwnerAPICredentials.swift; sourceTree = "<group>"; };
+		415B42439C1E98208603B922 /* VehicleIntelligence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VehicleIntelligence.swift; sourceTree = "<group>"; };
+		41EA5A79668C1BA3EBF6D516 /* TessalyticsApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TessalyticsApp.swift; sourceTree = "<group>"; };
+		4225BCAA98813B1DBD1E32A6 /* Tessalytics.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Tessalytics.entitlements; sourceTree = "<group>"; };
+		44A0AAB02406CBDCC84AD0A9 /* OwnerAPIModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OwnerAPIModels.swift; sourceTree = "<group>"; };
+		4E57175F82AA81155CABC906 /* IntelligenceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntelligenceView.swift; sourceTree = "<group>"; };
+		5227425F3855306646A64C42 /* KeychainCredentialStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainCredentialStore.swift; sourceTree = "<group>"; };
+		567AB74937F928DC869A3C2A /* OwnerAPIClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OwnerAPIClientTests.swift; sourceTree = "<group>"; };
+		69B44CC97FFD4A1612AE9764 /* BatteryHealthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatteryHealthView.swift; sourceTree = "<group>"; };
+		6F6420EFA70BE1BF7180F124 /* InsightsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightsView.swift; sourceTree = "<group>"; };
+		702DCF1C2DDA8272CF7B1819 /* OwnerAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OwnerAPIClient.swift; sourceTree = "<group>"; };
+		70EF7E9E2D84547312F453C6 /* APIModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIModels.swift; sourceTree = "<group>"; };
+		736A99C71F59EF76B9A1A2CA /* HistoryRepositories.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryRepositories.swift; sourceTree = "<group>"; };
+		76C8D46D72289817E0BBE732 /* Tessalytics.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Tessalytics.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		7CD584522562EB3ABFF0F119 /* DriveDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriveDetailView.swift; sourceTree = "<group>"; };
+		89DEB8D112678AA392F7F3FD /* Components.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components.swift; sourceTree = "<group>"; };
+		8C51341E85FE293B71D96C15 /* OwnerCommandAuthorization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OwnerCommandAuthorization.swift; sourceTree = "<group>"; };
+		9422653083765E928907924D /* drives.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = drives.json; sourceTree = "<group>"; };
+		9DD4E74EF9DBC45F5220DCEB /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		9F0EC991E0D93F84AA26F15F /* status.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = status.json; sourceTree = "<group>"; };
+		A53FFB1409818A554B11027F /* TessalyticsUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = TessalyticsUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A7446B53828176F148D1D102 /* DriveHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriveHistoryView.swift; sourceTree = "<group>"; };
+		A8628070B08C47B53C21DA09 /* DirectTeslaControlsCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DirectTeslaControlsCard.swift; sourceTree = "<group>"; };
+		AB56D93B2E638559734F5B3B /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		AC8E2BBB853FCEEA2FE25424 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
+		B1188E6A2EA09BC3DC19035C /* charges.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = charges.json; sourceTree = "<group>"; };
+		B25C25B6FA77D65477A996C5 /* TessalyticsTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = TessalyticsTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		B92F07630474019681927473 /* ModelDecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelDecodingTests.swift; sourceTree = "<group>"; };
+		BB43F3834B7C5193D15AFA59 /* KeychainAbstractionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainAbstractionTests.swift; sourceTree = "<group>"; };
+		BC61115DA5C3905E142D231E /* OwnerAPIConnectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OwnerAPIConnectionView.swift; sourceTree = "<group>"; };
+		C5580DB0A8373ACFDFB1FDC7 /* PersistenceAndPollingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceAndPollingTests.swift; sourceTree = "<group>"; };
+		C94E6BD412F4C91F394DE58F /* AnalyticsDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsDashboardView.swift; sourceTree = "<group>"; };
+		D8799A0636A222A24A9C5375 /* AppEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppEnvironment.swift; sourceTree = "<group>"; };
+		DE3DAE5214CDEEF2FCE5C095 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
+		E31E504FBBABA689C16A7479 /* UtilitiesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UtilitiesTests.swift; sourceTree = "<group>"; };
+		E3C10EA5F7393F88E2105AA5 /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
+		E3D4DC173E043F24BDD0CDF2 /* SoftwareUpdatesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoftwareUpdatesView.swift; sourceTree = "<group>"; };
+		E505EEDA32AFF8AD8938C27A /* cars.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = cars.json; sourceTree = "<group>"; };
+		E7B8D7F048243F298540FDCC /* ChargeDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChargeDetailView.swift; sourceTree = "<group>"; };
+		EA8CC225422B884D999C24A4 /* IntelligenceNotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntelligenceNotificationService.swift; sourceTree = "<group>"; };
+		F4C3B06649DD536D2563AE43 /* RouteSimplifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RouteSimplifier.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		0497B4D5D3BE126DF3180E4F /* SharedUI */ = {
+			isa = PBXGroup;
+			children = (
+				89DEB8D112678AA392F7F3FD /* Components.swift */,
+			);
+			path = SharedUI;
+			sourceTree = "<group>";
+		};
+		19F8E23BFF9D8EA90F447DB4 /* Analytics */ = {
+			isa = PBXGroup;
+			children = (
+				28F714155C63878469AC8259 /* AnalyticsService.swift */,
+			);
+			path = Analytics;
+			sourceTree = "<group>";
+		};
+		1C1C1DB8D81200787E1EBDEB /* Charges */ = {
+			isa = PBXGroup;
+			children = (
+				E7B8D7F048243F298540FDCC /* ChargeDetailView.swift */,
+				319AF3BD02E14B748ED2921C /* ChargeHistoryView.swift */,
+			);
+			path = Charges;
+			sourceTree = "<group>";
+		};
+		246F5FA1BA71151EF1B19890 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				1AAABDA0F97A80B7609ED65C /* Assets.xcassets */,
+				AB56D93B2E638559734F5B3B /* PrivacyInfo.xcprivacy */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		26EE1695BF61DB00459C78E1 /* Synchronization */ = {
+			isa = PBXGroup;
+			children = (
+				736A99C71F59EF76B9A1A2CA /* HistoryRepositories.swift */,
+			);
+			path = Synchronization;
+			sourceTree = "<group>";
+		};
+		2D53E83977E82D9B1A64BA9F /* Drives */ = {
+			isa = PBXGroup;
+			children = (
+				7CD584522562EB3ABFF0F119 /* DriveDetailView.swift */,
+				A7446B53828176F148D1D102 /* DriveHistoryView.swift */,
+			);
+			path = Drives;
+			sourceTree = "<group>";
+		};
+		405184D3907F35D497C980D5 /* About */ = {
+			isa = PBXGroup;
+			children = (
+				E3C10EA5F7393F88E2105AA5 /* AboutView.swift */,
+			);
+			path = About;
+			sourceTree = "<group>";
+		};
+		43D1634BBF8DECAE96C78296 /* Authentication */ = {
+			isa = PBXGroup;
+			children = (
+				5227425F3855306646A64C42 /* KeychainCredentialStore.swift */,
+			);
+			path = Authentication;
+			sourceTree = "<group>";
+		};
+		753DE61BC4B4CBA14856B4D9 /* Features */ = {
+			isa = PBXGroup;
+			children = (
+				405184D3907F35D497C980D5 /* About */,
+				A68AAB31E1625209ED4FE2B7 /* Analytics */,
+				8B51CD0A7ED9C48A296F7BA6 /* Battery */,
+				1C1C1DB8D81200787E1EBDEB /* Charges */,
+				E8B48B18F1C2E0F0C5D78449 /* Dashboard */,
+				2D53E83977E82D9B1A64BA9F /* Drives */,
+				AE764CF170501C2BC20FC69F /* Intelligence */,
+				AABC3BE6B403D33FA36B0FB6 /* Onboarding */,
+				D2C2FB45C937CEE6A02A4B23 /* Settings */,
+				E8691A8F409CF69B95FEBB33 /* Updates */,
+			);
+			path = Features;
+			sourceTree = "<group>";
+		};
+		8B51CD0A7ED9C48A296F7BA6 /* Battery */ = {
+			isa = PBXGroup;
+			children = (
+				69B44CC97FFD4A1612AE9764 /* BatteryHealthView.swift */,
+			);
+			path = Battery;
+			sourceTree = "<group>";
+		};
+		8EA4B89BC56F8805B83FF5D5 /* OwnerAPI */ = {
+			isa = PBXGroup;
+			children = (
+				702DCF1C2DDA8272CF7B1819 /* OwnerAPIClient.swift */,
+				398D3A521A8AB7475EBE15DA /* OwnerAPICredentials.swift */,
+				44A0AAB02406CBDCC84AD0A9 /* OwnerAPIModels.swift */,
+				8C51341E85FE293B71D96C15 /* OwnerCommandAuthorization.swift */,
+			);
+			path = OwnerAPI;
+			sourceTree = "<group>";
+		};
+		95DB646B7DEB9ED5B4615C70 /* Core */ = {
+			isa = PBXGroup;
+			children = (
+				19F8E23BFF9D8EA90F447DB4 /* Analytics */,
+				D4754BF6C49C702A07569D6D /* API */,
+				43D1634BBF8DECAE96C78296 /* Authentication */,
+				AB47B43174F3FB867E8D26DC /* Formatting */,
+				E76EBF5AA6D4E30C3A5921CA /* Intelligence */,
+				E171500E6D723853DD85DF6C /* Models */,
+				D45F90E35D25590F444E4A42 /* Notifications */,
+				8EA4B89BC56F8805B83FF5D5 /* OwnerAPI */,
+				E87B001E1557BB268270D254 /* Persistence */,
+				26EE1695BF61DB00459C78E1 /* Synchronization */,
+				EAD310774C47E6E88076E4CC /* Utilities */,
+			);
+			path = Core;
+			sourceTree = "<group>";
+		};
+		A5E834B129CC464AEDA96273 = {
+			isa = PBXGroup;
+			children = (
+				BF51E7FCC2EE2F9A236C4262 /* Tessalytics */,
+				FFBE75E771176A096B21267D /* TessalyticsTests */,
+				ACCB99D5DC4E2E9F384C5D15 /* TessalyticsUITests */,
+				EDE9DDC8F945E560E3B9BB85 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A68AAB31E1625209ED4FE2B7 /* Analytics */ = {
+			isa = PBXGroup;
+			children = (
+				C94E6BD412F4C91F394DE58F /* AnalyticsDashboardView.swift */,
+				6F6420EFA70BE1BF7180F124 /* InsightsView.swift */,
+			);
+			path = Analytics;
+			sourceTree = "<group>";
+		};
+		AABC3BE6B403D33FA36B0FB6 /* Onboarding */ = {
+			isa = PBXGroup;
+			children = (
+				DE3DAE5214CDEEF2FCE5C095 /* OnboardingView.swift */,
+			);
+			path = Onboarding;
+			sourceTree = "<group>";
+		};
+		AB47B43174F3FB867E8D26DC /* Formatting */ = {
+			isa = PBXGroup;
+			children = (
+				00D5950AF2AA3008BDB48C0C /* ValueFormatting.swift */,
+			);
+			path = Formatting;
+			sourceTree = "<group>";
+		};
+		ACCB99D5DC4E2E9F384C5D15 /* TessalyticsUITests */ = {
+			isa = PBXGroup;
+			children = (
+				2FEA925D0919803CE2855ADF /* TessalyticsUITests.swift */,
+			);
+			path = TessalyticsUITests;
+			sourceTree = "<group>";
+		};
+		AE764CF170501C2BC20FC69F /* Intelligence */ = {
+			isa = PBXGroup;
+			children = (
+				4E57175F82AA81155CABC906 /* IntelligenceView.swift */,
+			);
+			path = Intelligence;
+			sourceTree = "<group>";
+		};
+		B2B8F2EFBA8D7FFC2C461786 /* Fixtures */ = {
+			isa = PBXGroup;
+			children = (
+				E505EEDA32AFF8AD8938C27A /* cars.json */,
+				B1188E6A2EA09BC3DC19035C /* charges.json */,
+				9422653083765E928907924D /* drives.json */,
+				9F0EC991E0D93F84AA26F15F /* status.json */,
+			);
+			path = Fixtures;
+			sourceTree = "<group>";
+		};
+		BF51E7FCC2EE2F9A236C4262 /* Tessalytics */ = {
+			isa = PBXGroup;
+			children = (
+				4225BCAA98813B1DBD1E32A6 /* Tessalytics.entitlements */,
+				FCC6FA40694F9875D1400A32 /* App */,
+				95DB646B7DEB9ED5B4615C70 /* Core */,
+				753DE61BC4B4CBA14856B4D9 /* Features */,
+				246F5FA1BA71151EF1B19890 /* Resources */,
+				0497B4D5D3BE126DF3180E4F /* SharedUI */,
+			);
+			path = Tessalytics;
+			sourceTree = "<group>";
+		};
+		D2C2FB45C937CEE6A02A4B23 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				1F03C152D0943CB501CCA498 /* IntelligenceNotificationSettingsView.swift */,
+				BC61115DA5C3905E142D231E /* OwnerAPIConnectionView.swift */,
+				9DD4E74EF9DBC45F5220DCEB /* SettingsView.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
+		D45F90E35D25590F444E4A42 /* Notifications */ = {
+			isa = PBXGroup;
+			children = (
+				EA8CC225422B884D999C24A4 /* IntelligenceNotificationService.swift */,
+			);
+			path = Notifications;
+			sourceTree = "<group>";
+		};
+		D4754BF6C49C702A07569D6D /* API */ = {
+			isa = PBXGroup;
+			children = (
+				0B5CEF80D3420EE0C255CBA5 /* TeslaMateAPIClient.swift */,
+			);
+			path = API;
+			sourceTree = "<group>";
+		};
+		E171500E6D723853DD85DF6C /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				70EF7E9E2D84547312F453C6 /* APIModels.swift */,
+				281016CEF613667E547D30BD /* DomainModels.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		E76EBF5AA6D4E30C3A5921CA /* Intelligence */ = {
+			isa = PBXGroup;
+			children = (
+				415B42439C1E98208603B922 /* VehicleIntelligence.swift */,
+			);
+			path = Intelligence;
+			sourceTree = "<group>";
+		};
+		E8691A8F409CF69B95FEBB33 /* Updates */ = {
+			isa = PBXGroup;
+			children = (
+				E3D4DC173E043F24BDD0CDF2 /* SoftwareUpdatesView.swift */,
+			);
+			path = Updates;
+			sourceTree = "<group>";
+		};
+		E87B001E1557BB268270D254 /* Persistence */ = {
+			isa = PBXGroup;
+			children = (
+				08A89399E7A14E5325B9538A /* PersistenceModels.swift */,
+			);
+			path = Persistence;
+			sourceTree = "<group>";
+		};
+		E8B48B18F1C2E0F0C5D78449 /* Dashboard */ = {
+			isa = PBXGroup;
+			children = (
+				AC8E2BBB853FCEEA2FE25424 /* DashboardView.swift */,
+				A8628070B08C47B53C21DA09 /* DirectTeslaControlsCard.swift */,
+				199B8523D2A11AB11E7022C1 /* MainTabView.swift */,
+			);
+			path = Dashboard;
+			sourceTree = "<group>";
+		};
+		EAD310774C47E6E88076E4CC /* Utilities */ = {
+			isa = PBXGroup;
+			children = (
+				F4C3B06649DD536D2563AE43 /* RouteSimplifier.swift */,
+				3796E1397AB56D8301C1342B /* SecretRedactor.swift */,
+			);
+			path = Utilities;
+			sourceTree = "<group>";
+		};
+		EDE9DDC8F945E560E3B9BB85 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				76C8D46D72289817E0BBE732 /* Tessalytics.app */,
+				B25C25B6FA77D65477A996C5 /* TessalyticsTests.xctest */,
+				A53FFB1409818A554B11027F /* TessalyticsUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		FCC6FA40694F9875D1400A32 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				D8799A0636A222A24A9C5375 /* AppEnvironment.swift */,
+				094D6DA296DE1FE4F160411F /* RootView.swift */,
+				41EA5A79668C1BA3EBF6D516 /* TessalyticsApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		FFBE75E771176A096B21267D /* TessalyticsTests */ = {
+			isa = PBXGroup;
+			children = (
+				1F02F7809DE22E208B7856FD /* APIClientTests.swift */,
+				BB43F3834B7C5193D15AFA59 /* KeychainAbstractionTests.swift */,
+				B92F07630474019681927473 /* ModelDecodingTests.swift */,
+				567AB74937F928DC869A3C2A /* OwnerAPIClientTests.swift */,
+				C5580DB0A8373ACFDFB1FDC7 /* PersistenceAndPollingTests.swift */,
+				E31E504FBBABA689C16A7479 /* UtilitiesTests.swift */,
+				B2B8F2EFBA8D7FFC2C461786 /* Fixtures */,
+			);
+			path = TessalyticsTests;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		4A5F0A8C26DD2882F1A93D10 /* TessalyticsUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3295531996AF6458626CF5A5 /* Build configuration list for PBXNativeTarget "TessalyticsUITests" */;
+			buildPhases = (
+				C53ACB169634EF723F1DF912 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				9DBAC0DA0B1B762EEC660E50 /* PBXTargetDependency */,
+			);
+			name = TessalyticsUITests;
+			packageProductDependencies = (
+			);
+			productName = TessalyticsUITests;
+			productReference = A53FFB1409818A554B11027F /* TessalyticsUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		CE4EFA5B78CDD8E7E36CDFA1 /* TessalyticsTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 68F22DC29DDCAD62057A66AB /* Build configuration list for PBXNativeTarget "TessalyticsTests" */;
+			buildPhases = (
+				31A1B94740EE54EF6B8643E5 /* Sources */,
+				981ECF65FEE27D60871CE760 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				AEC5F211E899716977738C32 /* PBXTargetDependency */,
+			);
+			name = TessalyticsTests;
+			packageProductDependencies = (
+			);
+			productName = TessalyticsTests;
+			productReference = B25C25B6FA77D65477A996C5 /* TessalyticsTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		DF15A27043C782EB898E8A84 /* Tessalytics */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CC6FAB5D9C387818F954261B /* Build configuration list for PBXNativeTarget "Tessalytics" */;
+			buildPhases = (
+				3441EA6AE26D374F3211A055 /* Sources */,
+				C58CC064EBBE71A47F116BEF /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Tessalytics;
+			packageProductDependencies = (
+			);
+			productName = Tessalytics;
+			productReference = 76C8D46D72289817E0BBE732 /* Tessalytics.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		884FC6C02694C95E2440E509 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					4A5F0A8C26DD2882F1A93D10 = {
+						DevelopmentTeam = P8FYZDZ6AA;
+						ProvisioningStyle = Automatic;
+						TestTargetID = DF15A27043C782EB898E8A84;
+					};
+					CE4EFA5B78CDD8E7E36CDFA1 = {
+						DevelopmentTeam = P8FYZDZ6AA;
+						ProvisioningStyle = Automatic;
+					};
+					DF15A27043C782EB898E8A84 = {
+						DevelopmentTeam = P8FYZDZ6AA;
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = B50AD36F44DCB0D1EF28898B /* Build configuration list for PBXProject "Tessalytics" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = A5E834B129CC464AEDA96273;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = EDE9DDC8F945E560E3B9BB85 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				DF15A27043C782EB898E8A84 /* Tessalytics */,
+				CE4EFA5B78CDD8E7E36CDFA1 /* TessalyticsTests */,
+				4A5F0A8C26DD2882F1A93D10 /* TessalyticsUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		981ECF65FEE27D60871CE760 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				608EF2948A18F688BEB5C03A /* cars.json in Resources */,
+				62D1BD53F29F1B0223138BD2 /* charges.json in Resources */,
+				6F21CDB15689A47553C549AF /* drives.json in Resources */,
+				2094523147802F90DC61E7FE /* status.json in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C58CC064EBBE71A47F116BEF /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				EA2B9CD453301B1DCE7CEEBE /* Assets.xcassets in Resources */,
+				8A94177F597861F71C347FBE /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		31A1B94740EE54EF6B8643E5 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0173D1FA94D37FA5638AE371 /* APIClientTests.swift in Sources */,
+				5D03304900DBC394899F7B67 /* KeychainAbstractionTests.swift in Sources */,
+				E5628545558925B693CE596A /* ModelDecodingTests.swift in Sources */,
+				F07ED61D5F3E2D1C6F453F93 /* OwnerAPIClientTests.swift in Sources */,
+				ED1AEAE4351A61EC0963FAAA /* PersistenceAndPollingTests.swift in Sources */,
+				0E498FF594E7C44C2F8D8B1B /* UtilitiesTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3441EA6AE26D374F3211A055 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A053217C9B3E28E8B1581C81 /* APIModels.swift in Sources */,
+				97E39E72F61662B40B33BA1A /* AboutView.swift in Sources */,
+				E0E6960CE176CA992B863D50 /* AnalyticsDashboardView.swift in Sources */,
+				27AEBAB2940A2E7297506211 /* AnalyticsService.swift in Sources */,
+				7B8F2E9602339BCA4F461991 /* AppEnvironment.swift in Sources */,
+				831E2499CE20C203347D593D /* BatteryHealthView.swift in Sources */,
+				DC684EF770524BC1181C6A5C /* ChargeDetailView.swift in Sources */,
+				EBAF49258554D280F75F2370 /* ChargeHistoryView.swift in Sources */,
+				0F4F801C8F6DE89482942C5D /* Components.swift in Sources */,
+				616325FCDB89DE10CACDAEBA /* DashboardView.swift in Sources */,
+				E5EAAC09CD72E6945F3D97BF /* DirectTeslaControlsCard.swift in Sources */,
+				43E82B745562E70822DBBBEA /* DomainModels.swift in Sources */,
+				D7961131595CD7781ADD839E /* DriveDetailView.swift in Sources */,
+				410B5F354F6D9D748F68023F /* DriveHistoryView.swift in Sources */,
+				5CB009978514DA946E6E3552 /* HistoryRepositories.swift in Sources */,
+				43BF97A0471A4C967A366CFC /* InsightsView.swift in Sources */,
+				E2C137F996B8D8252D415B20 /* IntelligenceNotificationService.swift in Sources */,
+				3EFEDFAFDC076A7CE0DA779A /* IntelligenceNotificationSettingsView.swift in Sources */,
+				4D144803EC7234101FFB5D41 /* IntelligenceView.swift in Sources */,
+				500A93FD681BB216A203E726 /* KeychainCredentialStore.swift in Sources */,
+				5393643C00CF9A53248FF4D0 /* MainTabView.swift in Sources */,
+				9403C2A5150621FF5101861C /* OnboardingView.swift in Sources */,
+				9ABF6177BE29205A3F6019FF /* OwnerAPIClient.swift in Sources */,
+				18E0299F637D2564DF650B48 /* OwnerAPIConnectionView.swift in Sources */,
+				A2D0741E7C29C94641044C57 /* OwnerAPICredentials.swift in Sources */,
+				2CE4DCA0CE99FCE2DD9650E3 /* OwnerAPIModels.swift in Sources */,
+				B700A4372E697A2C4E395D9B /* OwnerCommandAuthorization.swift in Sources */,
+				A79B925305CDB8B8455F5FC5 /* PersistenceModels.swift in Sources */,
+				DBF9DB2FCFAA76600E57034B /* RootView.swift in Sources */,
+				92A4E2CDDC065BD0EB906145 /* RouteSimplifier.swift in Sources */,
+				258F2A5E9F6127C845D9904A /* SecretRedactor.swift in Sources */,
+				C5F45DC6E0947445550E284E /* SettingsView.swift in Sources */,
+				F34ADBCF628380A9EDDBA036 /* SoftwareUpdatesView.swift in Sources */,
+				C0ACF08BE24101EC74FC08B2 /* TeslaMateAPIClient.swift in Sources */,
+				2FD0061B933B4B37A44AD0E0 /* TessalyticsApp.swift in Sources */,
+				44A20F378B3FF54279C0CED2 /* ValueFormatting.swift in Sources */,
+				4F70EBE4D78239142119E587 /* VehicleIntelligence.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C53ACB169634EF723F1DF912 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0B6B85C03D4249E2940DA470 /* TessalyticsUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		9DBAC0DA0B1B762EEC660E50 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = DF15A27043C782EB898E8A84 /* Tessalytics */;
+			targetProxy = 5A4ADAF0C3A6F20C349531BF /* PBXContainerItemProxy */;
+		};
+		AEC5F211E899716977738C32 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = DF15A27043C782EB898E8A84 /* Tessalytics */;
+			targetProxy = B71F744B0561DF93D0146FBE /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		073564073209356E81A31802 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.echocool.TessalyticsUITests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Tessalytics;
+			};
+			name = Release;
+		};
+		0EE7E0DAEAABB708C6C9DA34 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.echocool.TessalyticsUITests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Tessalytics;
+			};
+			name = Debug;
+		};
+		25344E24274E9035D7817BA4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 4;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = P8FYZDZ6AA;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MARKETING_VERSION = 1.1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		497F2AF4EB57F1F1E98C77C4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 4;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = P8FYZDZ6AA;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MARKETING_VERSION = 1.1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		54DB05699DADE7985058683E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Tessalytics/Tessalytics.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Tessalytics;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsArbitraryLoads = NO;
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "Confirm vehicle commands before Tessalytics sends them.";
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.echocool.Tessalytics;
+				PRODUCT_NAME = Tessalytics;
+				SDKROOT = iphoneos;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		D5913E929029177A4DD33321 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.echocool.TessalyticsTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Tessalytics.app/Tessalytics";
+			};
+			name = Debug;
+		};
+		E65D397CD458C758C604104B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Tessalytics/Tessalytics.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Tessalytics;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsArbitraryLoads = NO;
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "Confirm vehicle commands before Tessalytics sends them.";
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.echocool.Tessalytics;
+				PRODUCT_NAME = Tessalytics;
+				SDKROOT = iphoneos;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		FCFB7F7E3B350072E1599368 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.echocool.TessalyticsTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Tessalytics.app/Tessalytics";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		3295531996AF6458626CF5A5 /* Build configuration list for PBXNativeTarget "TessalyticsUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0EE7E0DAEAABB708C6C9DA34 /* Debug */,
+				073564073209356E81A31802 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		68F22DC29DDCAD62057A66AB /* Build configuration list for PBXNativeTarget "TessalyticsTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D5913E929029177A4DD33321 /* Debug */,
+				FCFB7F7E3B350072E1599368 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		B50AD36F44DCB0D1EF28898B /* Build configuration list for PBXProject "Tessalytics" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				25344E24274E9035D7817BA4 /* Debug */,
+				497F2AF4EB57F1F1E98C77C4 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		CC6FAB5D9C387818F954261B /* Build configuration list for PBXNativeTarget "Tessalytics" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				54DB05699DADE7985058683E /* Debug */,
+				E65D397CD458C758C604104B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 884FC6C02694C95E2440E509 /* Project object */;
+}

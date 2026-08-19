@@ -1,0 +1,1 @@
+{"data":{"cars":[{"car_id":1,"name":"Bluebird","car_details":{"model":"3","trim_badging":null,"efficiency":null},"teslamate_stats":{"total_charges":8,"total_drives":42,"total_updates":3},"unknown_future_field":true},{"car_id":7,"name":null,"car_details":{},"teslamate_stats":{}}]}}

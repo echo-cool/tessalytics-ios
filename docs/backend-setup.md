@@ -1,0 +1,53 @@
+# Backend setup
+
+Tessalytics requires [TeslaMate](https://github.com/teslamate-org/teslamate), [TeslaMateApi](https://github.com/tobiasehlert/teslamateapi), and secure iPhone-to-API connectivity.
+
+> **Important:** TeslaMateApi’s built-in `API_TOKEN` does not protect all read-only endpoints. It primarily protects command and logging operations. If TeslaMateApi is exposed outside a trusted private network, place authentication in front of every API route using a reverse proxy or VPN.
+
+Do not expose PostgreSQL, Mosquitto/MQTT, Tesla account tokens, or TeslaMateApi directly without access control.
+
+## Generic Docker Compose example
+
+Merge a service like this into your existing TeslaMate Compose project and replace every placeholder. Consult upstream documentation for current variables.
+
+```yaml
+services:
+  teslamateapi:
+    image: tobiasehlert/teslamateapi:latest
+    restart: unless-stopped
+    depends_on:
+      - database
+      - mosquitto
+    environment:
+      DATABASE_USER: "${DATABASE_USER}"
+      DATABASE_PASS: "${DATABASE_PASSWORD}"
+      DATABASE_NAME: "${DATABASE_NAME}"
+      DATABASE_HOST: database
+      MQTT_HOST: mosquitto
+      ENCRYPTION_KEY: "${TESLAMATEAPI_ENCRYPTION_KEY}"
+      TZ: "${TIME_ZONE}"
+    expose:
+      - "8080"
+```
+
+`expose` makes the port available to other Compose services without publishing it on every network interface. Put a protected proxy on the same Docker network or connect through a private overlay network.
+
+## Secure access choices
+
+- Tailscale or another authenticated VPN, with no public API listener
+- Caddy, nginx, or Traefik terminating HTTPS and enforcing authentication on every route
+- HTTP Basic Authentication at the reverse proxy
+- Bearer authentication at the reverse proxy, including all read routes
+
+Use a publicly trusted certificate for public hostnames. Tessalytics does not disable TLS verification. Do not put secrets in URL query parameters; URLs can be recorded by proxies and logs.
+
+## Verification
+
+From a device on the intended network:
+
+1. `/api/ping` should return success without application authentication when configured that way.
+2. `/api/v1/cars` should reject missing or wrong proxy credentials.
+3. `/api/v1/cars` should succeed with the intended credentials.
+4. TeslaMateApi command and wake-up routes should remain disabled; Tessalytics never calls them. Optional direct controls use a separate Owner API connection.
+
+Enter only the protected base URL in Tessalytics onboarding. Do not place deployment-specific values in this repository.

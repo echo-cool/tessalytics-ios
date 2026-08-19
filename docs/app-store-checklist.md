@@ -1,0 +1,21 @@
+# App Store checklist
+
+- [x] Confirm bundle identifier `com.echocool.Tessalytics` and automatic signing for team `P8FYZDZ6AA`
+- [x] Confirm iOS 18 minimum deployment target and iPhone-only device family
+- [ ] Capture current screenshots in light/dark mode and multiple Dynamic Type sizes
+- [ ] Complete VoiceOver walkthrough of onboarding, status, lists, maps, and charts
+- [x] Add an app privacy manifest declaring no tracking or data collection and the app-only UserDefaults reason
+- [ ] Publish a privacy-policy URL based on `PRIVACY.md`
+- [ ] Verify Keychain item accessibility and local data protection on physical hardware
+- [ ] Test Bearer, Basic, VPN-only, offline, stale, asleep, and multi-vehicle cases
+- [ ] Test against the minimum and current supported TeslaMateApi versions
+- [x] Run unit and UI suites on the release Xcode version
+- [ ] Review exported diagnostics for secrets and precise location
+- [x] Verify every Owner API command has confirmation plus device-owner authentication and no automatic wake path exists
+- [x] Verify Owner API tokens use When Unlocked, This Device Only Keychain protection and are absent from logs/preferences/cache
+- [ ] Exercise Owner API refresh rotation and each supported command against a non-production vehicle token
+- [ ] Review TeslaMate trademark policy and all screenshots/metadata for unofficial positioning
+- [ ] Include the unofficial-project disclaimer in store description/support material
+- [x] Declare exempt encryption in the generated Info.plist
+- [x] Archive, validate, upload, and confirm TestFlight processing for `1.0.1 (3)`
+- [x] Archive, validate, upload, and confirm TestFlight processing for `1.1.0 (4)`
