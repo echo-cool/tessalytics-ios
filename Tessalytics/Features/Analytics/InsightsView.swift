@@ -24,7 +24,7 @@ private enum AnalysisSection: String, CaseIterable, Identifiable {
         case .forecast:
             "Forecasts use recent synchronized history. The shaded range shows expected variation; predictions are estimates, not vehicle commands."
         case .battery:
-            "Battery values are TeslaMateApi estimates derived from charging and range data. Temperature, calibration, and data coverage can affect them."
+            "Battery values are estimates from charging and range data. Temperature and calibration affect them."
         }
     }
 }
@@ -75,17 +75,25 @@ private struct AnalysisModeBar: View {
         ScrollView(.horizontal) {
             HStack(spacing: 6) {
                 ForEach(AnalysisSection.allCases) { section in
-                    Button(section.rawValue) { selection = section }
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(selection == section ? Color.white : Color.primary)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 8)
-                        .background(
-                            selection == section ? TessalyticsTheme.accent : Color.secondary.opacity(0.10),
-                            in: .capsule
-                        )
-                        .buttonStyle(.plain)
-                        .accessibilityAddTraits(selection == section ? .isSelected : [])
+                    // Padding and background belong inside the label: applied to
+                    // the Button they sit outside its hit region, leaving only
+                    // the text itself tappable.
+                    Button {
+                        selection = section
+                    } label: {
+                        Text(section.rawValue)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(selection == section ? Color.white : Color.primary)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 9)
+                            .background(
+                                selection == section ? TessalyticsTheme.accent : Color.secondary.opacity(0.12),
+                                in: .capsule
+                            )
+                            .contentShape(.capsule)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(selection == section ? .isSelected : [])
                 }
             }
             .padding(.horizontal, 16)
@@ -119,9 +127,7 @@ private struct AnalysisHelpSheet: View {
             .navigationTitle(section.helpTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
-                }
+                ToolbarItem(placement: .topBarLeading) { TessalyticsDismissButton() }
             }
         }
     }

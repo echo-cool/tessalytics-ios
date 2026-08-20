@@ -11,6 +11,16 @@ struct BatteryHealthView: View {
     @State private var observations: [BatteryHealthRecord] = []
     @State private var loading = true
     @State private var message: String?
+    @State private var capacityObservations: [CapacityObservation] = []
+    @State private var capacityMedians: [CapacityObservation] = []
+    @State private var projectedRange: [ProjectedRangePoint] = []
+
+    /// The effective figures: the owner's rating when they supplied one, and the
+    /// derived estimate otherwise.
+    private var effective: FleetStatistics.BatteryHealth? { environment.fleet.battery }
+    private var capacityNew: Double? { effective?.capacityNew ?? observation?.maxCapacity }
+    private var maxRangeNew: Double? { effective?.maxRangeNew ?? observation?.maxRange }
+    private var healthPercent: Double? { effective?.healthPercent ?? observation?.healthPercent }
 
     var body: some View {
         TessalyticsScreen(showsTopAccent: !embedded) {
@@ -20,10 +30,27 @@ struct BatteryHealthView: View {
                         .padding()
                 } else if let observation {
                     LazyVStack(spacing: 12) {
-                        BatteryHealthHero(observation: observation)
-                        BatteryMetricGrid(observation: observation)
-                        BatteryCapacityChart(observation: observation)
-                        BatteryRangeChart(observation: observation)
+                        BatteryHealthHero(health: healthPercent)
+                        BatteryMetricGrid(
+                            observation: observation,
+                            units: environment.statusUnits,
+                            capacityNew: capacityNew,
+                            maxRangeNew: maxRangeNew,
+                            isOwnerRated: effective?.isSpecificationOverridden == true
+                        )
+                        CapacityByMileageChart(
+                            observations: capacityObservations,
+                            medians: capacityMedians,
+                            capacityNew: capacityNew,
+                            units: environment.statusUnits
+                        )
+                        ProjectedRangeChart(
+                            points: projectedRange,
+                            units: environment.statusUnits,
+                            maxRangeNew: maxRangeNew
+                        )
+                        BatteryCapacityChart(observation: observation, capacityNew: capacityNew)
+                        BatteryRangeChart(observation: observation, units: environment.statusUnits, maxRangeNew: maxRangeNew)
                         if observations.count > 1 {
                             BatteryHealthTrendChart(observations: observations)
                         }
@@ -31,12 +58,12 @@ struct BatteryHealthView: View {
                             BatteryEstimateNote(observedAt: observation.observedAt)
                         }
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
+                    .tessalyticsScreenPadding()
+                    .tessalyticsReadableWidth()
                 } else {
                     EmptyState(
                         title: "Battery health unavailable",
-                        message: message ?? "TeslaMateApi has not reported enough data for an estimate.",
+                        message: message ?? "Not enough charging history yet for an estimate.",
                         symbol: "battery.0percent"
                     )
                 }
@@ -44,31 +71,31 @@ struct BatteryHealthView: View {
         }
         .navigationTitle(embedded ? "Analysis" : "Battery health")
         .task { await load() }
-        .refreshable { await fetch() }
+        // Recompute whenever a history sync lands new charges.
+        .task(id: environment.historyRevision) { rebuildSeries() }
+        .refreshable {
+            await fetch()
+            await environment.refreshHistory()
+            rebuildSeries()
+        }
         .accessibilityIdentifier("battery-health-screen")
     }
 
     private func load() async {
         if environment.isDemoMode {
-            let calendar = Calendar.current
-            observations = (0..<9).compactMap { index in
-                guard let date = calendar.date(byAdding: .month, value: index - 8, to: .now) else { return nil }
-                let health = 96.8 - Double(index) * 0.22
-                return BatteryHealthRecord(
-                    serverID: environment.selectedProfile?.id ?? UUID(),
-                    carID: environment.selectedVehicle?.id ?? 1,
-                    dto: BatteryHealthDTO(
-                        maxRange: 310,
-                        currentRange: 310 * health / 100,
-                        maxCapacity: 78.4,
-                        currentCapacity: 78.4 * health / 100,
-                        ratedEfficiency: 0.158,
-                        batteryHealthPercentage: health
-                    ),
-                    date: date
-                )
-            }
+            // Read the observations DemoExperience seeded rather than inventing a
+            // second fixture. The previous inline copy carried a rated efficiency
+            // of 0.158, off by a factor of 100 — it is kWh per 100 km, not per
+            // mile — which made every modelled capacity implausible and left the
+            // capacity-by-mileage chart empty.
+            let server = (environment.selectedProfile?.id ?? DemoExperience.profileID).uuidString
+            let car = environment.selectedVehicle?.id ?? DemoExperience.carID
+            observations = (try? context.fetch(FetchDescriptor<BatteryHealthRecord>(
+                predicate: #Predicate { $0.serverID == server && $0.carID == car },
+                sortBy: [SortDescriptor(\.observedAt)]
+            ))) ?? []
             observation = observations.last
+            rebuildSeries()
             loading = false
             return
         }
@@ -89,11 +116,34 @@ struct BatteryHealthView: View {
             sortBy: [SortDescriptor(\.observedAt)]
         ))) ?? []
         observation = try? context.fetch(latestDescriptor).first
+        rebuildSeries()
         if let observation, Date().timeIntervalSince(observation.observedAt) < 86_400 {
             loading = false
         } else {
             await fetch()
         }
+    }
+
+    /// Builds the capacity and projected-range series from cached history.
+    private func rebuildSeries() {
+        guard let profile = environment.selectedProfile, let vehicle = environment.selectedVehicle else {
+            capacityObservations = []
+            capacityMedians = []
+            projectedRange = []
+            return
+        }
+        let charges = ChargeRepository(context: context).cached(serverID: profile.id, carID: vehicle.id)
+        let drives = DriveRepository(context: context).cached(serverID: profile.id, carID: vehicle.id)
+        // The rated efficiency comes from the battery-health endpoint and is what
+        // turns a range reading back into kilowatt-hours.
+        let efficiency = observation?.ratedEfficiency ?? environment.fleet.battery?.ratedEfficiency
+        capacityObservations = CapacityModel.observations(
+            charges: charges,
+            ratedEfficiency: efficiency,
+            units: environment.statusUnits
+        )
+        capacityMedians = CapacityModel.semiMonthlyMedians(capacityObservations)
+        projectedRange = ProjectedRangeModel.points(drives: drives, charges: charges)
     }
 
     private func fetch() async {
@@ -121,12 +171,12 @@ struct BatteryHealthView: View {
 }
 
 private struct BatteryHealthHero: View {
-    let observation: BatteryHealthRecord
+    let health: Double?
 
-    private var health: Double { observation.healthPercent ?? 0 }
+    private var value: Double { health ?? 0 }
     private var tint: Color {
-        if health >= 90 { return TessalyticsTheme.positive }
-        if health >= 80 { return TessalyticsTheme.warning }
+        if value >= 90 { return TessalyticsTheme.positive }
+        if value >= 80 { return TessalyticsTheme.warning }
         return TessalyticsTheme.critical
     }
 
@@ -140,10 +190,10 @@ private struct BatteryHealthHero: View {
     }
 
     @ViewBuilder private var content: some View {
-        Gauge(value: health, in: 0...100) {
+        Gauge(value: value, in: 0...100) {
             Text("Estimated health")
         } currentValueLabel: {
-            Text(observation.healthPercent.map { "\($0.formatted(.number.precision(.fractionLength(1))))%" } ?? "—")
+            Text(health.map { "\($0.formatted(.number.precision(.fractionLength(1))))%" } ?? "—")
                 .font(.title3.bold())
                 .monospacedDigit()
         }
@@ -164,15 +214,64 @@ private struct BatteryHealthHero: View {
 
 private struct BatteryMetricGrid: View {
     let observation: BatteryHealthRecord
-    private let columns = [GridItem(.adaptive(minimum: 140), spacing: 8)]
+    let units: UnitsDTO?
+    let capacityNew: Double?
+    let maxRangeNew: Double?
+    let isOwnerRated: Bool
 
     var body: some View {
-        LazyVGrid(columns: columns, spacing: 8) {
-            MetricCard(title: "Maximum estimate", value: ValueFormatting.number(observation.maxCapacity, unit: "kWh"), symbol: "battery.100percent", tint: TessalyticsTheme.positive)
-            MetricCard(title: "Current estimate", value: ValueFormatting.number(observation.currentCapacity, unit: "kWh"), symbol: "battery.75percent", tint: TessalyticsTheme.positive)
-            MetricCard(title: "Maximum range", value: ValueFormatting.number(observation.maxRange, unit: ""), symbol: "arrow.up.right", tint: TessalyticsTheme.neutral)
-            MetricCard(title: "Current range", value: ValueFormatting.number(observation.currentRange, unit: ""), symbol: "car.side.fill", tint: TessalyticsTheme.neutral)
+        MetricGrid {
+            MetricCard(
+                title: isOwnerRated ? "Rated capacity" : "Modeled capacity",
+                value: ValueFormatting.number(capacityNew, unit: "kWh"),
+                symbol: "battery.100percent",
+                detail: "When new",
+                tint: TessalyticsTheme.positive
+            )
+            MetricCard(
+                title: "Current capacity",
+                value: ValueFormatting.number(observation.currentCapacity, unit: "kWh"),
+                symbol: "battery.75percent",
+                detail: capacityDetail,
+                tint: TessalyticsTheme.positive
+            )
+            MetricCard(
+                title: isOwnerRated ? "Rated range" : "Modeled range",
+                value: ValueFormatting.distance(maxRangeNew, units: units, digits: 0),
+                symbol: "arrow.up.right",
+                detail: "At 100% when new",
+                tint: TessalyticsTheme.neutral
+            )
+            MetricCard(
+                title: "Current range",
+                value: ValueFormatting.distance(observation.currentRange, units: units, digits: 0),
+                symbol: "car.side.fill",
+                detail: rangeDetail,
+                tint: TessalyticsTheme.neutral
+            )
         }
+    }
+
+    /// How much of the modelled-new figure remains, and the absolute shortfall —
+    /// far more useful than repeating the raw kWh with no reference point.
+    private var capacityDetail: String {
+        guard let maximum = capacityNew, maximum > 0,
+              let current = observation.currentCapacity else { return "Estimated" }
+        let lost = maximum - current
+        guard lost > 0.05 else { return "No measurable loss" }
+        return "\(percent(current / maximum)) · -\(ValueFormatting.number(lost, unit: "kWh"))"
+    }
+
+    private var rangeDetail: String {
+        guard let maximum = maxRangeNew, maximum > 0,
+              let current = observation.currentRange else { return "Estimated" }
+        let lost = maximum - current
+        guard lost > 0.5 else { return "No measurable loss" }
+        return "\(percent(current / maximum)) · -\(ValueFormatting.distance(lost, units: units, digits: 0))"
+    }
+
+    private func percent(_ ratio: Double) -> String {
+        (ratio * 100).formatted(.number.precision(.fractionLength(0))) + "% of new"
     }
 }
 
@@ -184,16 +283,17 @@ private struct BatteryComparisonPoint: Identifiable {
 
 private struct BatteryCapacityChart: View {
     let observation: BatteryHealthRecord
+    let capacityNew: Double?
 
     private var points: [BatteryComparisonPoint] {
         [
-            observation.maxCapacity.map { BatteryComparisonPoint(label: "Modeled max", value: $0) },
+            capacityNew.map { BatteryComparisonPoint(label: "When new", value: $0) },
             observation.currentCapacity.map { BatteryComparisonPoint(label: "Current", value: $0) }
         ].compactMap { $0 }
     }
 
     var body: some View {
-        SectionCard("Capacity comparison", subtitle: "TeslaMate estimate · kilowatt-hours", symbol: "battery.100percent", tint: TessalyticsTheme.positive) {
+        SectionCard("Capacity comparison", subtitle: "Estimated, kWh", symbol: "battery.100percent", tint: TessalyticsTheme.positive) {
             if points.count < 2 {
                 Text("Both maximum and current estimates are needed for comparison.")
                     .font(.subheadline)
@@ -202,7 +302,7 @@ private struct BatteryCapacityChart: View {
             } else {
                 Chart(points) { point in
                     BarMark(x: .value("Capacity", point.value), y: .value("Estimate", point.label))
-                        .foregroundStyle(point.label == "Current" ? TessalyticsTheme.positive : Color.secondary.opacity(0.35))
+                        .foregroundStyle(point.label == "Current" ? TessalyticsTheme.positive : TessalyticsTheme.steel.opacity(0.45))
                         .clipShape(.rect(cornerRadius: 5))
                         .annotation(position: .trailing) {
                             Text("\(point.value.formatted(.number.precision(.fractionLength(1)))) kWh")
@@ -210,10 +310,27 @@ private struct BatteryCapacityChart: View {
                         }
                 }
                 .chartXScale(domain: 0...max(1, (points.map(\.value).max() ?? 1) * 1.2))
-                .chartXAxis { AxisMarks(position: .bottom, values: .automatic(desiredCount: 4)) }
+                .chartXAxis {
+                    AxisMarks(position: .bottom, values: .automatic(desiredCount: 4)) { value in
+                        AxisGridLine().foregroundStyle(.secondary.opacity(0.12))
+                        AxisValueLabel {
+                            if let number = value.as(Double.self) {
+                                Text(number.formatted(.number.precision(.fractionLength(0))))
+                                    .font(.caption2.monospacedDigit())
+                            }
+                        }
+                    }
+                }
+                .chartYAxis { AxisMarks(position: .leading) { AxisValueLabel().font(.caption2) } }
+                .tessalyticsChartAxes(x: "Usable capacity (kWh)", y: "")
                 .tessalyticsChartStyle()
                 .frame(height: 150)
                 .accessibilityLabel("Estimated maximum and current battery capacity")
+
+                ChartLegend([
+                    .init("Current estimate", color: TessalyticsTheme.positive),
+                    .init("Modeled when new", color: TessalyticsTheme.steel.opacity(0.45))
+                ])
             }
         }
     }
@@ -221,36 +338,57 @@ private struct BatteryCapacityChart: View {
 
 private struct BatteryRangeChart: View {
     let observation: BatteryHealthRecord
+    let units: UnitsDTO?
+    let maxRangeNew: Double?
+
+    private var distanceUnit: String { (units ?? .metricDefaults).lengthSymbol }
 
     private var points: [BatteryComparisonPoint] {
         [
-            observation.maxRange.map { BatteryComparisonPoint(label: "Modeled max", value: $0) },
+            maxRangeNew.map { BatteryComparisonPoint(label: "When new", value: $0) },
             observation.currentRange.map { BatteryComparisonPoint(label: "Current", value: $0) }
         ].compactMap { $0 }
     }
 
     var body: some View {
-        SectionCard("Range comparison", subtitle: "Reported range estimate in TeslaMate distance units", symbol: "point.bottomleft.forward.to.point.topright.scurvepath", tint: TessalyticsTheme.neutral) {
+        SectionCard("Range comparison", subtitle: "Estimated, \(distanceUnit)", symbol: "point.bottomleft.forward.to.point.topright.scurvepath", tint: TessalyticsTheme.neutral) {
             if points.count < 2 {
-                Text("Both maximum and current range estimates are needed for comparison.")
+                Text("Needs both a maximum and a current estimate.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, minHeight: 100)
             } else {
                 Chart(points) { point in
                     BarMark(x: .value("Range", point.value), y: .value("Estimate", point.label))
-                        .foregroundStyle(point.label == "Current" ? TessalyticsTheme.accent : Color.secondary.opacity(0.35))
+                        .foregroundStyle(point.label == "Current" ? TessalyticsTheme.accent : TessalyticsTheme.steel.opacity(0.45))
                         .clipShape(.rect(cornerRadius: 5))
                         .annotation(position: .trailing) {
-                            Text(point.value.formatted(.number.precision(.fractionLength(0...1))))
+                            Text("\(point.value.formatted(.number.precision(.fractionLength(0...1)))) \(distanceUnit)")
                                 .font(.caption2.monospacedDigit())
                         }
                 }
                 .chartXScale(domain: 0...max(1, (points.map(\.value).max() ?? 1) * 1.2))
-                .chartXAxis { AxisMarks(position: .bottom, values: .automatic(desiredCount: 4)) }
+                .chartXAxis {
+                    AxisMarks(position: .bottom, values: .automatic(desiredCount: 4)) { value in
+                        AxisGridLine().foregroundStyle(.secondary.opacity(0.12))
+                        AxisValueLabel {
+                            if let number = value.as(Double.self) {
+                                Text(number.formatted(.number.precision(.fractionLength(0))))
+                                    .font(.caption2.monospacedDigit())
+                            }
+                        }
+                    }
+                }
+                .chartYAxis { AxisMarks(position: .leading) { AxisValueLabel().font(.caption2) } }
+                .tessalyticsChartAxes(x: "Range (\(distanceUnit))", y: "")
                 .tessalyticsChartStyle()
                 .frame(height: 150)
-                .accessibilityLabel("Estimated maximum and current battery range")
+                .accessibilityLabel("Estimated maximum and current battery range in \(distanceUnit)")
+
+                ChartLegend([
+                    .init("Current estimate", color: TessalyticsTheme.accent),
+                    .init("Modeled when new", color: TessalyticsTheme.steel.opacity(0.45))
+                ])
             }
         }
     }
@@ -260,7 +398,7 @@ private struct BatteryHealthTrendChart: View {
     let observations: [BatteryHealthRecord]
 
     var body: some View {
-        SectionCard("Estimated health trend", subtitle: "Daily observations · focused scale", symbol: "chart.xyaxis.line", tint: TessalyticsTheme.positive) {
+        SectionCard("Estimated health trend", subtitle: "Daily", symbol: "chart.xyaxis.line", tint: TessalyticsTheme.positive) {
             Chart(observations, id: \.cacheKey) { value in
                 if let health = value.healthPercent {
                     LineMark(x: .value("Date", value.observedAt), y: .value("Estimated health", health))
@@ -270,11 +408,31 @@ private struct BatteryHealthTrendChart: View {
                         .foregroundStyle(TessalyticsTheme.positive)
                 }
             }
-            .chartXAxis { AxisMarks(values: .automatic(desiredCount: 5)) { AxisValueLabel(format: .dateTime.month(.abbreviated)) } }
-            .chartYAxis { AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) }
+            .chartXAxis {
+                AxisMarks(values: .automatic(desiredCount: 5)) {
+                    AxisGridLine().foregroundStyle(.secondary.opacity(0.12))
+                    AxisTick()
+                    AxisValueLabel(format: .dateTime.month(.abbreviated).day())
+                        .font(.caption2)
+                }
+            }
+            .chartYAxis {
+                AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { value in
+                    AxisGridLine().foregroundStyle(.secondary.opacity(0.16))
+                    AxisValueLabel {
+                        if let number = value.as(Double.self) {
+                            Text(number.formatted(.number.precision(.fractionLength(0...1))))
+                                .font(.caption2.monospacedDigit())
+                        }
+                    }
+                }
+            }
+            .tessalyticsChartAxes(x: "Observation date", y: "Estimated health (%)")
             .tessalyticsChartStyle()
             .frame(height: 220)
             .accessibilityLabel("Estimated battery health trend over \(observations.count) observations")
+
+            ChartLegend("Estimated health", color: TessalyticsTheme.positive)
         }
     }
 }
@@ -283,8 +441,8 @@ private struct BatteryEstimateNote: View {
     let observedAt: Date
 
     var body: some View {
-        SectionCard("How to read this", subtitle: "Updated \(ValueFormatting.date(observedAt))", symbol: "info.circle.fill", tint: TessalyticsTheme.warning) {
-            Text("These are TeslaMateApi estimates derived from recent charging and range data—not physical battery-capacity measurements. Temperature, calibration, driving history, and data completeness can affect them.")
+        SectionCard("Estimated, not measured", subtitle: "Updated \(ValueFormatting.date(observedAt))", symbol: "info.circle.fill", tint: TessalyticsTheme.warning) {
+            Text("Derived from charging and range data. Temperature and calibration shift the numbers.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }

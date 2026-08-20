@@ -1,0 +1,16 @@
+// Tessalytics marketing/policy site — static assets served by a Cloudflare
+// Worker on tessalytics.echo.cool. Deploy from this directory with:
+//   npx wrangler deploy
+{
+  "name": "tessalytics-site",
+  "compatibility_date": "2026-08-01",
+  "assets": {
+    "directory": "./public"
+  },
+  "routes": [
+    {
+      "pattern": "tessalytics.echo.cool",
+      "custom_domain": true
+    }
+  ]
+}

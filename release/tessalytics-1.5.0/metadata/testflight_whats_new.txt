@@ -1,0 +1,47 @@
+Tessalytics 1.5.0 — the app now talks to Tessalytics Backend.
+
+WHAT TO TEST FIRST
+
+1. Add your backend as a server: https://tessalytics-api.echo.cool with your
+   bearer token. The app detects which API a server speaks — it tries Tessalytics
+   Backend first and falls back to TeslaMateApi — so there is nothing to choose.
+   The verification screen now names what it found: "Tessalytics Backend
+   detected". Your existing TeslaMateApi server keeps working untouched.
+
+2. Compare the two. Add both, then switch between them in Settings > Vehicle.
+   Every screen should look the same, because the same models sit behind both.
+
+3. Lock state on a sleeping car. This is the point of the exercise. TeslaMateApi
+   emits Go's zero value for any reading it has not received, so a cold cache is
+   indistinguishable from a genuinely unlocked car. The backend reports an unseen
+   reading as null, and the app shows "Unknown". If you ever see the app claim
+   your locked car is unlocked while on the backend, that is a bug worth telling
+   me about.
+
+4. Lifetime totals on the home screen. On the backend these come from one server
+   query instead of the app paging your whole history — 800 drives used to take
+   eight requests on first run. Check the figures still match Grafana.
+
+5. Remove a server, and start over. Settings > Manage data now has three things
+   that were missing: re-sync history for the current server, remove one server,
+   and erase everything. Removing deletes that server's synchronized drives,
+   charges and battery history from this iPhone and its credentials from
+   Keychain; your TeslaMate server keeps all of it. Erase returns the app to
+   setup, including any Direct Tesla tokens.
+
+ALSO CHANGED
+
+- Error messages from the backend are its own: it answers failures as RFC 9457
+  problem documents whose text is written for a person, and the app shows that
+  instead of a generic "unexpected response".
+- The backend serves units in whatever your TeslaMate install is configured for,
+  so nothing is converted twice.
+
+KNOWN GAPS
+
+Vehicle commands still go through TeslaMateApi. The Tesla token is not in the
+TeslaMate database, and the backend deliberately holds no vehicle credentials —
+it forwards those actions instead. Direct Tesla in Settings is unchanged.
+
+App Store screenshots have not been re-shot and there is still no iPad set. Both
+are needed before a store submission; neither blocks TestFlight.

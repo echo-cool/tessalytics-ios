@@ -10,7 +10,8 @@ struct TessalyticsApp: App {
         let schema = Schema([
             ServerProfileRecord.self, VehicleRecord.self, DriveRecord.self,
             ChargeRecord.self, DetailCacheRecord.self, BatteryHealthRecord.self,
-            FirmwareUpdateRecord.self, GlobalSettingsRecord.self, SyncMetadataRecord.self
+            FirmwareUpdateRecord.self, GlobalSettingsRecord.self, SyncMetadataRecord.self,
+            TrackRecord.self
         ])
         let configuration = ModelConfiguration(
             "Tessalytics",

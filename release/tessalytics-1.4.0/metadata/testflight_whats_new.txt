@@ -1,0 +1,50 @@
+Tessalytics 1.4.0 — the app now asks the server, and the numbers come from your
+whole history rather than the last page of it.
+
+WHAT TO TEST FIRST
+
+1. Open the app cold. It used to show whatever was cached until you pulled to
+   refresh, which is why "Latest drive" could be days old. It now fetches on
+   every open and on every return from the background. Please confirm the latest
+   drive is genuinely your latest drive.
+
+2. Leave it open. Live status refreshes every 30 seconds while the app is on
+   screen, and history every 5 minutes. Both stop when you background it, so it
+   should not cost battery in your pocket.
+
+3. The top card now carries Battery health: capacity when new, usable now, max
+   range new and now, and range lost. Check those against your Grafana
+   battery-health dashboard — they come from the same /battery-health figures.
+
+4. Drive stats: logged miles, odometer, and data lost. "Data lost" is measured
+   from your first logged drive, not from zero, so mileage from before TeslaMate
+   existed is not counted as a gap. Compare the captured percentage with what you
+   expect from your logger's downtime.
+
+5. Charging totals: charges, charging cycles, energy added, energy used, charging
+   efficiency and total cost — summed over every session, not the newest page.
+   The first run pages your whole history (about eight requests for 800 drives),
+   then only tops up. Totals should match Grafana.
+
+6. Battery > Battery capacity by mileage. Per-charge points with a semi-monthly
+   median through them, modelled from the rated range and charge level at the end
+   of each charge. Also Projected range over time.
+
+7. Analysis > Charge > Charging by location: a map with bubbles sized by the
+   energy delivered at each site, plus a ranked list.
+
+ALSO CHANGED
+
+- Charging history leads with energy added and average power; a price appears
+  only where one is configured.
+- Energy totals switch to MWh once kWh stops being readable.
+- Charging cycles means equivalent full charges, not a count of plug-ins.
+
+KNOWN GAPS
+
+This build does not talk to Tessalytics-API yet — the new backend that serves
+the Grafana panels the TeslaMate REST API cannot reach. Everything above still
+comes from TeslaMateApi. Wiring the app to the new backend is the next step.
+
+App Store screenshots have not been re-shot, and no iPad set exists yet. Both are
+needed before a store submission; neither blocks TestFlight.

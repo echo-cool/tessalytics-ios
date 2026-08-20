@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct MainTabView: View {
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
     var body: some View {
         TabView {
             Tab("Status", systemImage: "gauge.with.dots.needle.67percent") { DashboardView() }
@@ -8,6 +10,9 @@ struct MainTabView: View {
             Tab("Analysis", systemImage: "chart.xyaxis.line") { InsightsView() }
             Tab("Settings", systemImage: "gearshape") { SettingsView() }
         }
+        // Regular width (iPad, and iPhone landscape on the largest devices) gets a
+        // sidebar that can collapse back to a tab bar; compact width stays a tab bar.
+        .tabViewStyle(.sidebarAdaptable)
         .tint(TessalyticsTheme.accent)
     }
 }
@@ -31,6 +36,7 @@ struct ActivityView: View {
                     }
                 }
                 .pickerStyle(.segmented)
+                .tessalyticsReadableWidth(420)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
 

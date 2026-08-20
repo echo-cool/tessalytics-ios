@@ -27,6 +27,7 @@ struct StoredCredentials: Equatable, Codable, Sendable {
     }
 }
 
+
 struct ServerProfile: Identifiable, Hashable, Codable, Sendable {
     let id: UUID
     var name: String

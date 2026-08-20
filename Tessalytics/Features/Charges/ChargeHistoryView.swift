@@ -3,6 +3,7 @@ import SwiftUI
 
 struct ChargeHistoryView: View {
     var embedded = false
+    var title: String?
 
     @Environment(AppEnvironment.self) private var environment
     @Environment(\.modelContext) private var context
@@ -12,6 +13,7 @@ struct ChargeHistoryView: View {
     @State private var hasMore = true
     @State private var message: String?
     @State private var currentCharge: ChargeDetailDTO?
+    @State private var selectedCharge: ChargeSelection?
 
     var body: some View {
         if embedded {
@@ -28,16 +30,24 @@ struct ChargeHistoryView: View {
                     LoadingPanel(title: "Synchronizing charging sessions", symbol: "bolt.car")
                         .padding()
                 } else if records.isEmpty {
-                    EmptyState(title: "No charging sessions", message: message ?? "Completed sessions will appear after TeslaMateApi reports them.", symbol: "bolt.car")
+                    EmptyState(title: "No charging sessions", message: message ?? "Completed sessions appear once your server has recorded them.", symbol: "bolt.car")
                 } else {
                     list
                 }
             }
         }
-        .navigationTitle(embedded ? "Activity" : "Charging")
+        .navigationTitle(title ?? (embedded ? "Activity" : "Charging"))
         .safeAreaInset(edge: .top) { if environment.isOffline { OfflineBanner() } }
-        .task(id: environment.selectedVehicle?.id) { loadCached(); await loadCurrent(); if records.isEmpty { await refresh() } }
-        .refreshable { await refresh() }
+        .navigationDestination(item: $selectedCharge) { selection in
+            ChargeDetailView(chargeID: selection.id)
+        }
+        .task(id: environment.selectedVehicle?.id) {
+            loadCached()
+            if !environment.isDemoMode {
+                await loadCurrent()
+                if records.isEmpty { await refresh() }
+            }
+        }
         .accessibilityIdentifier("charge-history-screen")
     }
 
@@ -45,21 +55,44 @@ struct ChargeHistoryView: View {
         List {
             if let currentCharge {
                 Section {
-                    NavigationLink { ChargeDetailView(chargeID: currentCharge.chargeId) } label: {
+                    Button { selectedCharge = ChargeSelection(id: currentCharge.chargeId) } label: {
                         SurfaceCard(tint: TessalyticsTheme.positive) {
-                            Label("Charging now — \(ValueFormatting.number(currentCharge.chargeEnergyAdded, unit: "kWh")) added", systemImage: "bolt.circle.fill")
-                                .font(.headline)
-                                .foregroundStyle(TessalyticsTheme.positive)
+                            HStack(spacing: 12) {
+                                Image(systemName: "bolt.circle.fill")
+                                    .font(.title2)
+                                    .symbolRenderingMode(.hierarchical)
+                                    .foregroundStyle(TessalyticsTheme.positive)
+                                    .accessibilityHidden(true)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Charging now")
+                                        .font(.subheadline.weight(.semibold))
+                                    Text("\(ValueFormatting.number(currentCharge.chargeEnergyAdded, unit: "kWh")) added")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer(minLength: 8)
+                                Image(systemName: "chevron.right")
+                                    .font(.caption.weight(.bold))
+                                    .foregroundStyle(.tertiary)
+                                    .accessibilityHidden(true)
+                            }
                         }
                     }
+                    .buttonStyle(.plain)
                     .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
                 }
             }
             ForEach(records, id: \.chargeID) { record in
-                NavigationLink { ChargeDetailView(chargeID: record.chargeID) } label: { ChargeRow(record: record) }
-                    .onAppear { if record.chargeID == records.last?.chargeID { Task { await loadMore() } } }
+                Button { selectedCharge = ChargeSelection(id: record.chargeID) } label: { ChargeRow(record: record) }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("charge-card-\(record.chargeID)")
+                    .onAppear {
+                        if !environment.isDemoMode, record.chargeID == records.last?.chargeID {
+                            Task { await loadMore() }
+                        }
+                    }
                     .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
@@ -68,9 +101,18 @@ struct ChargeHistoryView: View {
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
+        // Attached to the List itself, and awaiting the fetch, so the control
+        // finishes exactly when the data does.
+        .refreshable {
+            await refresh()
+            await loadCurrent()
+        }
     }
     private func loadCached() { guard let profile = environment.selectedProfile, let vehicle = environment.selectedVehicle else { return }; records = ChargeRepository(context: context).cached(serverID: profile.id, carID: vehicle.id) }
-    private func refresh() async { page = 1; hasMore = true; await fetch(page: 1) }
+    private func refresh() async {
+        guard !environment.isDemoMode else { return }
+        page = 1; hasMore = true; await fetch(page: 1)
+    }
     private func loadMore() async { guard hasMore, !loading else { return }; page += 1; await fetch(page: page) }
     private func fetch(page: Int) async {
         guard let profile = environment.selectedProfile, let vehicle = environment.selectedVehicle else { return }
@@ -79,32 +121,90 @@ struct ChargeHistoryView: View {
         catch { loadCached(); message = error.localizedDescription }
     }
     private func loadCurrent() async {
-        guard let profile = environment.selectedProfile, let vehicle = environment.selectedVehicle else { return }
+        // Demo mode has no reachable server; skip the pointless request.
+        guard !environment.isDemoMode,
+              let profile = environment.selectedProfile,
+              let vehicle = environment.selectedVehicle else { return }
         currentCharge = try? await environment.client(for: profile).currentCharge(carID: vehicle.id).charge
     }
 }
 
+/// Charging session row.
+///
+/// Energy added is the headline figure because it is the one value TeslaMate
+/// reports for every session. Cost appears only when the server actually has a
+/// price configured — a column of "$0.00" tells the owner nothing.
+private struct ChargeSelection: Identifiable, Hashable {
+    let id: Int
+}
+
 private struct ChargeRow: View {
     let record: ChargeRecord
+
+    /// A cost of zero means "no tariff configured", not "this charge was free".
+    private var reportedCost: Double? { (record.cost ?? 0) > 0 ? record.cost : nil }
+
+    private var averagePower: String? {
+        guard let energy = record.energyAdded, energy > 0,
+              let minutes = record.durationMinutes, minutes > 0 else { return nil }
+        let kilowatts = energy / (Double(minutes) / 60)
+        return ValueFormatting.number(kilowatts, unit: "kW", digits: kilowatts < 10 ? 1 : 0)
+    }
+
+    private var facts: [String] {
+        [
+            averagePower.map { "\($0) avg" },
+            record.durationMinutes.map { _ in ValueFormatting.duration(minutes: record.durationMinutes) },
+            reportedCost.map { ValueFormatting.currency($0) }
+        ].compactMap { $0 }
+    }
+
     var body: some View {
         SurfaceCard(tint: TessalyticsTheme.positive) {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text(ValueFormatting.date(record.startDate)).font(.headline)
-                    Spacer()
-                    if record.endDate == nil { StatusBadge(text: "Charging", color: TessalyticsTheme.positive) }
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 8) {
+                        Text(ValueFormatting.date(record.startDate))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        if record.endDate == nil {
+                            StatusBadge(text: "Charging", color: TessalyticsTheme.positive)
+                        }
+                    }
+
+                    Text(ValueFormatting.number(record.energyAdded, unit: "kWh"))
+                        .font(.title3.weight(.semibold))
+                        .monospacedDigit()
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+
+                    Label(record.address ?? "Location not reported", systemImage: "mappin.and.ellipse")
+                        .font(.subheadline)
+                        .symbolRenderingMode(.hierarchical)
+                        .foregroundStyle(.primary, TessalyticsTheme.positive)
+                        .lineLimit(2)
+
+                    if !facts.isEmpty {
+                        Text(facts.joined(separator: " · "))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                    }
                 }
-                Label(record.address ?? "Location not reported", systemImage: "mappin.and.ellipse")
-                    .lineLimit(1)
-                HStack {
-                    Label(ValueFormatting.number(record.energyAdded, unit: "kWh"), systemImage: "bolt.fill")
-                    Spacer()
-                    Text(ValueFormatting.currency(record.cost))
-                }
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
             }
         }
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(record.address ?? "Charging session")
+        .accessibilityValue(
+            ([ValueFormatting.date(record.startDate), ValueFormatting.number(record.energyAdded, unit: "kWh")] + facts)
+                .joined(separator: ", ")
+        )
     }
 }

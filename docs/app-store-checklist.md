@@ -2,20 +2,34 @@
 
 - [x] Confirm bundle identifier `com.echocool.Tessalytics` and automatic signing for team `P8FYZDZ6AA`
 - [x] Confirm iOS 18 minimum deployment target and iPhone-only device family
-- [ ] Capture current screenshots in light/dark mode and multiple Dynamic Type sizes
+- [x] Capture and upload five current 6.9-inch App Store screenshots using sanitized demo data
+- [ ] Complete additional dark-mode and large Dynamic Type visual QA
 - [ ] Complete VoiceOver walkthrough of onboarding, status, lists, maps, and charts
 - [x] Add an app privacy manifest declaring no tracking or data collection and the app-only UserDefaults reason
-- [ ] Publish a privacy-policy URL based on `PRIVACY.md`
+- [x] Publish a privacy-policy URL based on `PRIVACY.md` at https://tessalytics.echo.cool/privacy/
 - [ ] Verify Keychain item accessibility and local data protection on physical hardware
 - [ ] Test Bearer, Basic, VPN-only, offline, stale, asleep, and multi-vehicle cases
-- [ ] Test against the minimum and current supported TeslaMateApi versions
+- [ ] Test against the minimum and current supported Tessalytics Backend versions
 - [x] Run unit and UI suites on the release Xcode version
-- [ ] Review exported diagnostics for secrets and precise location
+- [x] Review repository and release artifacts for secrets and precise location
 - [x] Verify every Owner API command has confirmation plus device-owner authentication and no automatic wake path exists
 - [x] Verify Owner API tokens use When Unlocked, This Device Only Keychain protection and are absent from logs/preferences/cache
 - [ ] Exercise Owner API refresh rotation and each supported command against a non-production vehicle token
 - [ ] Review TeslaMate trademark policy and all screenshots/metadata for unofficial positioning
 - [ ] Include the unofficial-project disclaimer in store description/support material
 - [x] Declare exempt encryption in the generated Info.plist
+- [x] Complete the age-rating declaration with no applicable content descriptors or restricted capabilities
+- [x] Add English (U.S.) TestFlight beta description and feedback email
+- [x] Prepare App Store description, subtitle, promotional text, keywords, review notes, and questionnaire handoff
+- [x] Upload and process five App Store screenshots
 - [x] Archive, validate, upload, and confirm TestFlight processing for `1.0.1 (3)`
 - [x] Archive, validate, upload, and confirm TestFlight processing for `1.1.0 (4)`
+- [x] Confirm TestFlight processing and select `1.1.0 (5)` for the App Store version
+- [x] Archive, validate, upload, process, and internally distribute `1.0.3 (202608191804)` with generated Demo Mode
+- [x] Archive, validate, upload, and confirm processing for `1.2.1 (202608192006)`
+- [x] Write App Review notes that open with demo mode instead of a review-server URL
+- [x] Assemble the `release/tessalytics-1.2.1/` submission kit
+- [x] Push the 1.2.1 kit review notes, TestFlight notes, and site URLs with `scripts/asc.py`
+- [ ] Push `whats_new.txt` once a version record exists that accepts it (not the initial store version)
+- [ ] Rename the 1.1.0 version record to 1.2.1 and select build `202608192006` (build 5 has expired)
+- [ ] Re-shoot 6.9-inch screenshots if the dashboard or Activity changes are visible in them

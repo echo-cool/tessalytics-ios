@@ -1,0 +1,59 @@
+NO SERVER, TESLA ACCOUNT, OR CREDENTIALS ARE NEEDED TO REVIEW THIS APP.
+PLEASE USE THE BUILT-IN DEMO MODE.
+
+Tessalytics is an unofficial companion app for TeslaMate, an open-source
+vehicle logger that users host themselves. It is not a hosted service and has
+no account system, so there is nothing to sign up for or sign in to. Normally
+the app reads from a server the user already operates — but it ships with a
+complete on-device demo precisely so it can be evaluated without one.
+
+HOW TO OPEN DEMO MODE
+
+On the first onboarding screen, tap "Explore Demo". That is the only step.
+
+Tessalytics then generates about two months of sample vehicle data directly on
+the device: drives with route maps, charging sessions, analytics, battery-health
+trends, software history, and forecasts. Demo mode:
+
+- requires no TeslaMate server, no Tesla account, and no credentials
+- works entirely offline (Airplane Mode is fine)
+- is clearly labeled as demo data in the UI
+- exercises every screen in the app
+- never enables vehicle commands
+- remains available after relaunch
+
+SUGGESTED WALKTHROUGH
+
+1. Status — vehicle dashboard: battery, range, charging, location, climate,
+   security, tire pressure, and honest live/stale/asleep/offline labels.
+2. Activity — drive and charging history. Tap any row for route maps, speed and
+   power charts, charging curves, energy, and cost.
+3. Analysis — distance, energy, cost and efficiency analytics, battery capacity
+   and health estimates, and on-device forecasts.
+4. Settings — privacy details, software history, notification options, the
+   unofficial-project disclaimer, and the optional direct connection.
+
+To exit: Settings > Leave demo, or Settings > Connect a real server.
+
+NOTES ON SCOPE AND PRIVACY
+
+No in-app purchases, subscriptions, account registration, advertising,
+analytics SDK, or tracking. Nothing is collected by the developer; there is no
+developer-operated backend. Cached history stays in the app container and any
+credentials a real user enters go to the Keychain.
+
+The optional Owner API connection is not required for any of the above and is
+not part of demo mode. It accepts an access/refresh-token pair that advanced
+users generate outside Tessalytics; the app never requests a Tesla password.
+Every command it enables requires an in-app confirmation followed by Face ID or
+the device passcode, and the app never wakes a sleeping vehicle automatically.
+
+Battery health and forecasts are presented throughout as estimates, not
+diagnostics, guarantees, or safety guidance.
+
+Tessalytics is an unofficial community tool and is not affiliated with,
+endorsed by, or supported by the official TeslaMate project or Tesla, Inc. No
+Tesla or TeslaMate logo, artwork, or vehicle render is used.
+
+Screenshots use generated demo data. No real vehicle, location, route, server,
+VIN, or credential appears in them.

@@ -23,7 +23,6 @@ struct AboutView: View {
                 Section("Community project") {
                     Text("This project is an unofficial community tool and is not affiliated with, endorsed by, or supported by the official TeslaMate project or Tesla, Inc.")
                     Link("TeslaMate", destination: URL(string: "https://github.com/teslamate-org/teslamate")!)
-                    Link("TeslaMateApi", destination: URL(string: "https://github.com/tobiasehlert/teslamateapi")!)
                     Link("TeslaMate trademark policy", destination: URL(string: "https://github.com/teslamate-org/teslamate/blob/main/TRADEMARK.md")!)
                 }
                 Section("Safety") {

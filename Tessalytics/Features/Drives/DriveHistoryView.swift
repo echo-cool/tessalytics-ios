@@ -1,8 +1,10 @@
+import MapKit
 import SwiftData
 import SwiftUI
 
 struct DriveHistoryView: View {
     var embedded = false
+    var title: String?
 
     @Environment(AppEnvironment.self) private var environment
     @Environment(\.modelContext) private var context
@@ -19,6 +21,7 @@ struct DriveHistoryView: View {
     @State private var minimumDistance = ""
     @State private var maximumDistance = ""
     @State private var message: String?
+    @State private var selectedDrive: DriveSelection?
 
     var body: some View {
         if embedded {
@@ -35,13 +38,13 @@ struct DriveHistoryView: View {
                     LoadingPanel(title: "Synchronizing drives", symbol: "road.lanes")
                         .padding()
                 } else if records.isEmpty {
-                    EmptyState(title: "No drives", message: message ?? "Completed drives will appear after TeslaMateApi reports them.", symbol: "road.lanes")
+                    EmptyState(title: "No drives", message: message ?? "Completed drives appear once your server has recorded them.", symbol: "road.lanes")
                 } else {
                     list
                 }
             }
         }
-        .navigationTitle(embedded ? "Activity" : "Drives")
+        .navigationTitle(title ?? (embedded ? "Activity" : "Drives"))
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button("Filter drives", systemImage: "line.3.horizontal.decrease.circle") { showFilters.toggle() }
@@ -50,16 +53,24 @@ struct DriveHistoryView: View {
         }
         .safeAreaInset(edge: .top) { if environment.isOffline { OfflineBanner() } }
         .sheet(isPresented: $showFilters) { filterSheet }
+        .navigationDestination(item: $selectedDrive) { selection in
+            DriveDetailView(driveID: selection.id)
+        }
         .task(id: environment.selectedVehicle?.id) { loadCached(); if records.isEmpty { await refresh() } }
-        .refreshable { await refresh() }
         .accessibilityIdentifier("drive-history-screen")
     }
 
     private var list: some View {
         List {
             ForEach(records, id: \.driveID) { record in
-                NavigationLink { DriveDetailView(driveID: record.driveID) } label: { DriveRow(record: record) }
-                    .onAppear { if record.driveID == records.last?.driveID { Task { await loadMore() } } }
+                Button { selectedDrive = DriveSelection(id: record.driveID) } label: { DriveRow(record: record) }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("drive-card-\(record.driveID)")
+                    .onAppear {
+                        if !environment.isDemoMode, record.driveID == records.last?.driveID {
+                            Task { await loadMore() }
+                        }
+                    }
                     .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
@@ -69,6 +80,9 @@ struct DriveHistoryView: View {
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
+        // Attached to the List itself, and awaiting the fetch, so the control
+        // finishes exactly when the data does.
+        .refreshable { await refresh() }
     }
 
     private var filterSheet: some View {
@@ -99,6 +113,7 @@ struct DriveHistoryView: View {
         records = DriveRepository(context: context).cached(serverID: profile.id, carID: vehicle.id)
     }
     private func refresh() async {
+        guard !environment.isDemoMode else { return }
         page = 1; hasMore = true
         await fetch(page: page, replace: true)
     }
@@ -122,27 +137,31 @@ struct DriveHistoryView: View {
 }
 
 private struct DriveRow: View {
+    @Environment(AppEnvironment.self) private var environment
+    @Environment(\.modelContext) private var context
     let record: DriveRecord
+    @State private var route: [CoordinateDTO] = []
+
     var body: some View {
         SurfaceCard {
             VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text(ValueFormatting.date(record.startDate)).font(.headline)
-                    Spacer()
+                HStack(spacing: 8) {
+                    Text(ValueFormatting.date(record.startDate))
+                        .font(.subheadline.weight(.semibold))
+                    Spacer(minLength: 4)
                     if record.endDate == nil { StatusBadge(text: "In progress", color: TessalyticsTheme.accent) }
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.tertiary)
+                        .accessibilityHidden(true)
                 }
-                VStack(alignment: .leading, spacing: 5) {
-                    Label(record.startAddress ?? "Start not reported", systemImage: "circle.fill")
-                        .symbolRenderingMode(.hierarchical)
-                        .foregroundStyle(.primary, TessalyticsTheme.positive)
-                        .lineLimit(1)
-                    Label(record.endAddress ?? "End not reported", systemImage: "mappin.circle.fill")
-                        .symbolRenderingMode(.hierarchical)
-                        .foregroundStyle(.primary, TessalyticsTheme.critical)
-                        .lineLimit(1)
-                }
+                RouteSnapshotView(route: route, driveID: record.driveID, height: 160)
+                DriveEndpointRow(
+                    start: record.startAddress ?? "Start not reported",
+                    end: record.endAddress ?? "End not reported"
+                )
                 HStack {
-                    Label(ValueFormatting.number(record.distance, unit: ""), systemImage: "arrow.left.and.right")
+                    Label(ValueFormatting.distance(record.distance, units: environment.statusUnits), systemImage: "arrow.left.and.right")
                     Spacer()
                     Label(ValueFormatting.duration(minutes: record.durationMinutes), systemImage: "clock")
                 }
@@ -150,6 +169,59 @@ private struct DriveRow: View {
                 .foregroundStyle(.secondary)
             }
         }
-        .accessibilityElement(children: .combine)
+        .contentShape(.rect)
+        .task(id: record.driveID) { await loadRoute() }
+        .accessibilityElement(children: .contain)
+    }
+
+    private func loadRoute() async {
+        guard let profile = environment.selectedProfile, let vehicle = environment.selectedVehicle else { return }
+        do {
+            let detail = try await DriveRepository(context: context).detail(
+                client: environment.client(for: profile),
+                serverID: profile.id,
+                carID: vehicle.id,
+                driveID: record.driveID
+            )
+            route = RouteSimplifier.simplify(detail.driveDetails.map(\.coordinate), tolerance: 0.00025)
+        } catch {
+            route = []
+        }
+    }
+}
+
+private struct DriveSelection: Identifiable, Hashable {
+    let id: Int
+}
+
+/// Start and end addresses with correctly tinted markers.
+///
+/// `Label` with a palette style silently falls back to the primary colour for
+/// single-layer symbols like `circle.fill`, which rendered the start pin white.
+struct DriveEndpointRow: View {
+    let start: String
+    let end: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            endpoint(symbol: "circle.fill", tint: TessalyticsTheme.positive, text: start, label: "From")
+            endpoint(symbol: "mappin.circle.fill", tint: TessalyticsTheme.critical, text: end, label: "To")
+        }
+    }
+
+    private func endpoint(symbol: String, tint: Color, text: String, label: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: symbol)
+                .font(.caption)
+                .foregroundStyle(tint)
+                .frame(width: 16)
+                .accessibilityHidden(true)
+            Text(text)
+                .font(.subheadline)
+                .lineLimit(1)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(label)
+        .accessibilityValue(text)
     }
 }

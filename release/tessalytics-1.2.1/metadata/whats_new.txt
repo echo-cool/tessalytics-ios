@@ -1,0 +1,8 @@
+Try Tessalytics without a Tesla or a server.
+
+• EXPLORE DEMO — tap it on first launch to open the complete app with about two months of generated drives, charging sessions, routes, analytics, battery trends, and forecasts, entirely on device and fully offline. Clearly labeled, and never able to send vehicle commands.
+• FASTER STATUS — cached values appear immediately while a deduplicated refresh continues in the background, so a slow server no longer blocks the dashboard or pull-to-refresh.
+• HONEST FRESHNESS — clearer live, direct live, stale, asleep, offline, and unavailable labels.
+• ACTIVITY POLISH — compact route-map previews on drive cards and incremental list loading.
+• BROADER COMPATIBILITY — improved handling across TeslaMateApi versions, plus clearer metric-unit formatting.
+• Visual and navigation refinements throughout, and a published privacy policy at tessalytics.echo.cool.

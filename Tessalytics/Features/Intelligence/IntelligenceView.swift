@@ -9,7 +9,7 @@ struct IntelligenceView: View {
     @Environment(\.modelContext) private var context
     @State private var snapshot: VehicleIntelligenceSnapshot?
     @State private var isLoading = true
-    @State private var distanceUnit = ""
+    @State private var distanceUnit = UnitsDTO.metricDefaults.lengthSymbol
 
     var body: some View {
         TessalyticsScreen(showsTopAccent: !embedded) {
@@ -37,8 +37,8 @@ struct IntelligenceView: View {
                         )
                     }
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
+                .tessalyticsScreenPadding()
+                .tessalyticsReadableWidth()
             }
         }
         .navigationTitle(embedded ? "Analysis" : "Intelligence")
@@ -52,7 +52,7 @@ struct IntelligenceView: View {
         let samples: (drives: [AnalyticsDriveSample], charges: [AnalyticsChargeSample])
         if environment.isDemoMode {
             samples = DemoAnalyticsFactory.samples()
-            distanceUnit = "km"
+            distanceUnit = DemoExperience.units.lengthSymbol
         } else if let profile = environment.selectedProfile, let vehicle = environment.selectedVehicle {
             let driveRecords = DriveRepository(context: context).cached(serverID: profile.id, carID: vehicle.id)
             let chargeRecords = ChargeRepository(context: context).cached(serverID: profile.id, carID: vehicle.id)
@@ -83,7 +83,9 @@ struct IntelligenceView: View {
             )
             let serverID = profile.id.uuidString
             let descriptor = FetchDescriptor<GlobalSettingsRecord>(predicate: #Predicate { $0.serverID == serverID })
-            distanceUnit = (try? context.fetch(descriptor).first?.lengthUnit) ?? ""
+            distanceUnit = (try? context.fetch(descriptor).first?.lengthUnit)
+                ?? environment.statusUnits?.lengthSymbol
+                ?? UnitsDTO.metricDefaults.lengthSymbol
         } else {
             samples = ([], [])
         }
@@ -122,7 +124,7 @@ private struct IntelligenceHero: View {
         DashboardHeroCard(
             eyebrow: "Tessalytics Intelligence",
             title: snapshot == nil ? "Know what is likely next" : "Forecasts with evidence, not guesswork",
-            subtitle: "Predict travel, charging timing, cost, and efficiency while surfacing changes that deserve attention.",
+            subtitle: "Travel, charging, cost and efficiency forecasts.",
             symbol: "sparkles.rectangle.stack.fill",
             badge: snapshot?.confidence.rawValue ?? "Preparing"
         )
@@ -132,10 +134,12 @@ private struct IntelligenceHero: View {
 private struct ForecastGrid: View {
     let forecasts: [IntelligenceForecast]
     let distanceUnit: String
-    private let columns = [GridItem(.adaptive(minimum: 140), spacing: 8)]
 
     var body: some View {
-        LazyVGrid(columns: columns, spacing: 8) {
+        LazyVGrid(
+            columns: TessalyticsLayout.metricColumns(minimum: 150),
+            spacing: TessalyticsLayout.gridSpacing
+        ) {
             ForEach(forecasts) { forecast in
                 ForecastCard(forecast: forecast, distanceUnit: distanceUnit)
             }
@@ -206,8 +210,9 @@ private struct ForecastCard: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
             }
-            .frame(maxWidth: .infinity, minHeight: 104, alignment: .topLeading)
+            .frame(maxWidth: .infinity, minHeight: 96, maxHeight: .infinity, alignment: .topLeading)
         }
+        .frame(maxHeight: .infinity)
         .accessibilityElement(children: .combine)
     }
 }
@@ -247,10 +252,14 @@ private struct DistancePredictionChart: View {
         max(1, points.map { $0.upperBound ?? $0.value }.max() ?? 1)
     }
 
+    private var resolvedDistanceUnit: String {
+        distanceUnit.isEmpty ? UnitsDTO.metricDefaults.lengthSymbol : distanceUnit
+    }
+
     var body: some View {
         SectionCard(
             "Travel forecast",
-            subtitle: "Recent daily distance and the expected seven-day pattern",
+            subtitle: "Daily distance vs. seven-day pattern",
             symbol: "chart.line.uptrend.xyaxis",
             tint: TessalyticsTheme.accent
         ) {
@@ -294,26 +303,45 @@ private struct DistancePredictionChart: View {
                 }
             }
             .chartForegroundStyleScale([
-                IntelligenceDistancePoint.Series.observed.rawValue: TessalyticsTheme.neutral,
+                IntelligenceDistancePoint.Series.observed.rawValue: TessalyticsTheme.chartNeutral,
                 IntelligenceDistancePoint.Series.forecast.rawValue: TessalyticsTheme.accent
             ])
             .chartXSelection(value: $selectedDate)
             .chartXAxis {
                 AxisMarks(values: .automatic(desiredCount: 6)) {
-                    AxisGridLine()
+                    AxisGridLine().foregroundStyle(.secondary.opacity(0.12))
+                    AxisTick()
                     AxisValueLabel(format: .dateTime.month(.abbreviated).day())
+                        .font(.caption2)
                 }
             }
-            .chartYAxis { AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) }
+            .chartYAxis {
+                AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { value in
+                    AxisGridLine().foregroundStyle(.secondary.opacity(0.16))
+                    AxisValueLabel {
+                        if let number = value.as(Double.self) {
+                            Text(number.formatted(.number.precision(.fractionLength(0))))
+                                .font(.caption2.monospacedDigit())
+                        }
+                    }
+                }
+            }
             .chartYScale(domain: 0...(maximum * 1.1))
-            .chartLegend(position: .bottom, alignment: .leading)
+            .chartLegend(position: .bottom, alignment: .leading, spacing: 8)
+            .tessalyticsChartAxes(x: "Date", y: "Daily distance (\(resolvedDistanceUnit))")
             .tessalyticsChartStyle()
             .frame(height: 280)
             .accessibilityLabel("Observed and forecast daily driving distance")
             .accessibilityIdentifier("distance-forecast-chart")
             .sensoryFeedback(.selection, trigger: selectedDate)
 
-            Label("Shaded values show the historical variability for matching weekdays.", systemImage: "info.circle")
+            ChartLegend([
+                .init("Observed", color: TessalyticsTheme.chartNeutral),
+                .init("Forecast", color: TessalyticsTheme.accent),
+                .init("Likely range", color: TessalyticsTheme.accent.opacity(0.25))
+            ])
+
+            Label("Shaded band shows the historical variability for matching weekdays.", systemImage: "info.circle")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -326,7 +354,7 @@ private struct IntelligenceSignals: View {
     var body: some View {
         SectionCard(
             "Signals and opportunities",
-            subtitle: "Changes detected across recent driving, charging, and synchronization data",
+            subtitle: "Detected in recent data",
             symbol: "waveform.path.ecg.rectangle.fill",
             tint: TessalyticsTheme.warning
         ) {
@@ -439,12 +467,11 @@ private struct IntelligenceMethodology: View {
         SectionCard("How predictions work", symbol: "function", tint: TessalyticsTheme.neutral) {
             VStack(alignment: .leading, spacing: 12) {
                 Label("\(snapshot.driveObservations) drive and \(snapshot.chargeObservations) charge observations analyzed", systemImage: "externaldrive.fill.badge.checkmark")
-                Label("Weekday patterns, medians, variability, and rolling comparisons", systemImage: "sum")
-                Label("Confidence falls when history is sparse or inconsistent", systemImage: "checkmark.shield.fill")
+                Label("Confidence falls when history is sparse", systemImage: "checkmark.shield.fill")
                 if let latest = snapshot.latestActivity {
                     Label("Latest activity \(latest.formatted(.relative(presentation: .named)))", systemImage: "clock.fill")
                 }
-                Text("Forecasts are estimates derived locally from synchronized TeslaMate history. They are not guarantees and should not replace vehicle safety information.")
+                Text("Estimates from local history — not guarantees.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

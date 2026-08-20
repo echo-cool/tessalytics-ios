@@ -98,14 +98,6 @@ Important behavior:
 * Historical data can be cached aggressively.
 * Drive and charge detail records can be cached permanently by ID once complete.
 
-The user’s current backend is reachable at:
-
-```text
-https://tesla-api.echo.cool
-```
-
-However:
-
 * Do not hardcode this URL in the source.
 * Do not commit it to public fixtures or configuration.
 * Do not include this private deployment URL in the public README.

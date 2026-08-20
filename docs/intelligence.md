@@ -1,6 +1,6 @@
 # Intelligence methodology
 
-Tessalytics Intelligence turns synchronized TeslaMateApi history into transparent, on-device estimates. It does not upload history to an analytics service and does not claim to provide machine-learning or safety-critical predictions.
+Tessalytics Intelligence turns synchronized TeslaMate history into transparent, on-device estimates. It does not upload history to an analytics service and does not claim to provide machine-learning or safety-critical predictions.
 
 ## Forecasts
 

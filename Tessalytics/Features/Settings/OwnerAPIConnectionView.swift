@@ -25,9 +25,7 @@ struct OwnerAPIConnectionView: View {
             .navigationTitle("Direct Tesla")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
-                }
+                ToolbarItem(placement: .topBarLeading) { TessalyticsDismissButton() }
             }
             .confirmationDialog("Disconnect Direct Tesla?", isPresented: $showDisconnectConfirmation) {
                 Button("Disconnect", role: .destructive) {

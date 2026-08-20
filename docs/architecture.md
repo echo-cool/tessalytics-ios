@@ -5,7 +5,7 @@ Tessalytics is a Swift 6, SwiftUI, iOS 18 application organized around user-faci
 ## Layers
 
 - `App`: composition, app lifecycle, selected server and vehicle, foreground status polling
-- `Core/API`: typed TeslaMateApi protocol/client, authentication injection, validation, retry, cancellation
+- `Core/API`: the `VehicleDataAPI` protocol and its Tessalytics Backend client, authentication injection, validation, retry, cancellation
 - `Core/Authentication`: Keychain protocol and Security-framework implementation
 - `Core/Models`: defensive transport and domain models
 - `Core/Persistence`: SwiftData records keyed by server, car, record kind, and backend ID

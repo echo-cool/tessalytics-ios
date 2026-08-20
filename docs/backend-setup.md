@@ -1,10 +1,10 @@
 # Backend setup
 
-Tessalytics requires [TeslaMate](https://github.com/teslamate-org/teslamate), [TeslaMateApi](https://github.com/tobiasehlert/teslamateapi), and secure iPhone-to-API connectivity.
+Tessalytics requires [TeslaMate](https://github.com/teslamate-org/teslamate), [Tessalytics Backend](https://github.com/echo-cool/tessalytics-backend), and secure iPhone-to-API connectivity.
 
-> **Important:** TeslaMateApi’s built-in `API_TOKEN` does not protect all read-only endpoints. It primarily protects command and logging operations. If TeslaMateApi is exposed outside a trusted private network, place authentication in front of every API route using a reverse proxy or VPN.
+> **Important:** Tessalytics Backend requires a bearer token on every route, but a token alone is not a security boundary. If the service is exposed outside a trusted private network, place a VPN or an authenticating reverse proxy in front of it as well.
 
-Do not expose PostgreSQL, Mosquitto/MQTT, Tesla account tokens, or TeslaMateApi directly without access control.
+Do not expose PostgreSQL, Mosquitto/MQTT, Tesla account tokens, or the API directly without access control.
 
 ## Generic Docker Compose example
 
@@ -48,6 +48,6 @@ From a device on the intended network:
 1. `/api/ping` should return success without application authentication when configured that way.
 2. `/api/v1/cars` should reject missing or wrong proxy credentials.
 3. `/api/v1/cars` should succeed with the intended credentials.
-4. TeslaMateApi command and wake-up routes should remain disabled; Tessalytics never calls them. Optional direct controls use a separate Owner API connection.
+4. The backend's forwarded command and wake-up routes should remain disabled; Tessalytics never calls them. Optional direct controls use a separate Owner API connection.
 
 Enter only the protected base URL in Tessalytics onboarding. Do not place deployment-specific values in this repository.

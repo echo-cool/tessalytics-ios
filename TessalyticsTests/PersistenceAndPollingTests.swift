@@ -40,6 +40,72 @@ final class PersistenceAndPollingTests: XCTestCase {
         environment.stopStatusPolling(); XCTAssertFalse(environment.isStatusPolling)
     }
 
+    func testVehicleStatusCacheReturnsLastKnownStatusAndUnits() throws {
+        let container = try makeContainer()
+        let cache = VehicleStatusCache(context: container.mainContext)
+        let serverID = UUID()
+        let fixture = try statusFixture()
+        let fetchedAt = Date(timeIntervalSince1970: 1_700_000_000)
+
+        cache.save(
+            status: fixture.status,
+            units: fixture.units,
+            serverID: serverID,
+            carID: 1,
+            fetchedAt: fetchedAt
+        )
+
+        let restored = try XCTUnwrap(cache.load(serverID: serverID, carID: 1))
+        XCTAssertEqual(restored.status.batteryDetails?.batteryLevel, fixture.status.batteryDetails?.batteryLevel)
+        XCTAssertEqual(restored.status.odometer, fixture.status.odometer)
+        XCTAssertEqual(restored.units?.unitOfLength, fixture.units?.unitOfLength)
+        XCTAssertEqual(restored.fetchedAt, fetchedAt)
+        XCTAssertNil(cache.load(serverID: serverID, carID: 2))
+    }
+
+    func testDemoModeSeedsShowcaseDataAndRestoresOnNextLaunch() async throws {
+        let container = try makeContainer()
+        let suiteName = "TessalyticsTests.Demo.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let environment = AppEnvironment(
+            container: container,
+            keychain: TestCredentialStore(),
+            userDefaults: defaults
+        )
+        environment.enterDemoMode()
+
+        XCTAssertEqual(environment.phase, .ready)
+        XCTAssertTrue(environment.isDemoMode)
+        XCTAssertEqual(environment.selectedProfile?.id, DemoExperience.profileID)
+        XCTAssertEqual(environment.status?.batteryDetails?.batteryLevel, 78)
+        XCTAssertGreaterThan(
+            DriveRepository(context: container.mainContext)
+                .cached(serverID: DemoExperience.profileID, carID: DemoExperience.carID).count,
+            40
+        )
+        XCTAssertGreaterThan(
+            ChargeRepository(context: container.mainContext)
+                .cached(serverID: DemoExperience.profileID, carID: DemoExperience.carID).count,
+            20
+        )
+
+        let restored = AppEnvironment(
+            container: container,
+            keychain: TestCredentialStore(),
+            userDefaults: defaults
+        )
+        await restored.start()
+        XCTAssertTrue(restored.isDemoMode)
+        XCTAssertEqual(restored.phase, .ready)
+        XCTAssertFalse(restored.hasOwnerCredentials)
+
+        await restored.leaveDemoMode()
+        XCTAssertFalse(restored.isDemoMode)
+        XCTAssertEqual(restored.phase, .onboarding)
+    }
+
     private func makeContainer() throws -> ModelContainer {
         let schema = Schema([ServerProfileRecord.self, VehicleRecord.self, DriveRecord.self, ChargeRecord.self,
                              DetailCacheRecord.self, BatteryHealthRecord.self, FirmwareUpdateRecord.self,
@@ -51,9 +117,15 @@ final class PersistenceAndPollingTests: XCTestCase {
         let url = (bundle.url(forResource: "drives", withExtension: "json", subdirectory: "Fixtures") ?? bundle.url(forResource: "drives", withExtension: "json"))!
         return try JSONDecoder.tessalytics.decode(Envelope<DrivesDataDTO>.self, from: Data(contentsOf: url)).data
     }
+
+    private func statusFixture() throws -> StatusDataDTO {
+        let bundle = Bundle(for: Self.self)
+        let url = (bundle.url(forResource: "status", withExtension: "json", subdirectory: "Fixtures") ?? bundle.url(forResource: "status", withExtension: "json"))!
+        return try JSONDecoder.tessalytics.decode(Envelope<StatusDataDTO>.self, from: Data(contentsOf: url)).data
+    }
 }
 
-private struct RepositoryAPI: TeslaMateAPI {
+private struct RepositoryAPI: VehicleDataAPI {
     var drivesValue: DrivesDataDTO?
     var error: ClientError?
     init(drivesValue: DrivesDataDTO? = nil, error: ClientError? = nil) { self.drivesValue = drivesValue; self.error = error }

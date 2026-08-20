@@ -22,23 +22,70 @@ struct ChargeDetailView: View {
                     LoadingPanel(title: "Loading charging session", symbol: "bolt.car.fill")
                         .padding()
                 } else if let detail {
-                    VStack(spacing: 18) {
-                    HStack { Label(detail.address ?? "Location not reported", systemImage: "mappin.and.ellipse"); Spacer(); if detail.endDate == nil { StatusBadge(text: "In progress", color: TessalyticsTheme.positive) } }.padding().background(.thinMaterial, in: RoundedRectangle(cornerRadius: 18))
-                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                        MetricCard(title: "Energy added", value: ValueFormatting.number(detail.chargeEnergyAdded, unit: "kWh"), symbol: "bolt.fill")
-                        MetricCard(title: "Energy drawn", value: ValueFormatting.number(detail.chargeEnergyUsed, unit: "kWh"), symbol: "powerplug.fill")
-                        MetricCard(title: "Duration", value: ValueFormatting.duration(minutes: detail.durationMin), symbol: "clock")
-                        MetricCard(title: "Cost", value: ValueFormatting.currency(detail.cost), symbol: "creditcard")
-                        MetricCard(title: "Efficiency", value: efficiency(detail), symbol: "gauge.with.dots.needle.67percent")
-                        MetricCard(title: "Price / kWh", value: price(detail), symbol: "dollarsign.arrow.circlepath")
+                    VStack(spacing: TessalyticsLayout.stackSpacing) {
+                    SurfaceCard(tint: TessalyticsTheme.positive) {
+                        HStack(spacing: 10) {
+                            Label(detail.address ?? "Location not reported", systemImage: "mappin.and.ellipse")
+                                .font(.subheadline.weight(.medium))
+                                .lineLimit(2)
+                            Spacer(minLength: 8)
+                            if detail.endDate == nil {
+                                StatusBadge(text: "In progress", color: TessalyticsTheme.positive)
+                            }
+                        }
                     }
-                    sampleChart("Battery level", unit: "%", values: detail.chargeDetails.compactMap { point in point.batteryLevel.map { (point.detailId, Double($0)) } })
-                    sampleChart("Charging power", unit: "kW", values: detail.chargeDetails.compactMap { point in point.chargerDetails?.chargerPower.map { (point.detailId, $0) } })
-                    sampleChart("Voltage", unit: "V", values: detail.chargeDetails.compactMap { point in point.chargerDetails?.chargerVoltage.map { (point.detailId, $0) } })
-                    sampleChart("Current", unit: "A", values: detail.chargeDetails.compactMap { point in point.chargerDetails?.chargerActualCurrent.map { (point.detailId, $0) } })
+                    MetricGrid {
+                        MetricCard(
+                            title: "Energy added",
+                            value: ValueFormatting.number(detail.chargeEnergyAdded, unit: "kWh"),
+                            symbol: "bolt.fill",
+                            detail: batteryGainDetail(detail),
+                            tint: TessalyticsTheme.positive
+                        )
+                        MetricCard(
+                            title: "Energy drawn",
+                            value: ValueFormatting.number(detail.chargeEnergyUsed, unit: "kWh"),
+                            symbol: "powerplug.fill",
+                            detail: efficiency(detail),
+                            tint: TessalyticsTheme.positive
+                        )
+                        MetricCard(
+                            title: "Duration",
+                            value: ValueFormatting.duration(minutes: detail.durationMin),
+                            symbol: "clock",
+                            detail: averagePowerDetail(detail),
+                            tint: TessalyticsTheme.neutral
+                        )
+                        MetricCard(
+                            title: "Peak power",
+                            value: peakPower(detail),
+                            symbol: "gauge.with.dots.needle.67percent",
+                            detail: chargerKindDetail(detail),
+                            tint: TessalyticsTheme.warning
+                        )
+                        MetricCard(
+                            title: "Cost",
+                            value: ValueFormatting.chargeCost(detail.cost),
+                            symbol: "creditcard",
+                            detail: price(detail),
+                            tint: TessalyticsTheme.steel
+                        )
+                        MetricCard(
+                            title: "Started",
+                            value: startTime(detail),
+                            symbol: "calendar",
+                            detail: ValueFormatting.date(detail.startDate?.value),
+                            tint: TessalyticsTheme.neutral
+                        )
+                    }
+                    sampleChart("Battery level", unit: "%", values: series(detail) { $0.batteryLevel.map(Double.init) })
+                    sampleChart("Charging power", unit: "kW", tint: TessalyticsTheme.warning, values: series(detail) { $0.chargerDetails?.chargerPower })
+                    sampleChart("Voltage", unit: "V", tint: TessalyticsTheme.chartNeutral, baseline: .focused, values: series(detail) { $0.chargerDetails?.chargerVoltage })
+                    sampleChart("Current", unit: "A", tint: TessalyticsTheme.steel, values: series(detail) { $0.chargerDetails?.chargerActualCurrent })
                     chargerDetails(detail)
                     }
-                    .padding()
+                    .tessalyticsScreenPadding()
+                    .tessalyticsReadableWidth(TessalyticsLayout.wideReadableWidth)
                 } else {
                     EmptyState(title: "Session unavailable", message: errorMessage ?? "This charging session could not be loaded.", symbol: "bolt.slash")
                 }
@@ -46,34 +93,67 @@ struct ChargeDetailView: View {
         }
         .navigationTitle("Charge")
         .navigationBarTitleDisplayMode(.inline)
-        .navigationBarBackButtonHidden(true)
-        .toolbar {
-            if #available(iOS 26, *) {
-                ToolbarItem(placement: .topBarLeading) { TessalyticsBackButton() }
-                    .sharedBackgroundVisibility(.hidden)
-            } else {
-                ToolbarItem(placement: .topBarLeading) { TessalyticsBackButton() }
-            }
-        }
             .task { await load() }
             .task(id: pollingKey) { await pollWhileVisible() }
     }
-    private func sampleChart(_ title: String, unit: String, values: [(Int, Double)]) -> some View {
-        SectionCard(title, symbol: "chart.xyaxis.line", tint: TessalyticsTheme.positive) {
+    /// Samples paired with their recording time, so the x-axis means something.
+    private func series(_ detail: ChargeDetailDTO, _ value: (ChargePointDTO) -> Double?) -> [ChartSample] {
+        detail.chargeDetails.enumerated().compactMap { index, point in
+            guard let date = point.date?.value, let measurement = value(point) else { return nil }
+            return ChartSample(id: index, date: date, value: measurement)
+        }
+    }
+
+    private func sampleChart(
+        _ title: String,
+        unit: String,
+        tint: Color = TessalyticsTheme.positive,
+        baseline: ChartBaseline = .zero,
+        values: [ChartSample]
+    ) -> some View {
+        SectionCard(title, symbol: "chart.xyaxis.line", tint: tint) {
             if values.isEmpty {
-                Text("No samples reported").foregroundStyle(.secondary).frame(maxWidth: .infinity, minHeight: 100)
+                Text("No samples reported")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, minHeight: 100)
             } else {
-                Chart(values, id: \.0) { item in
-                    AreaMark(x: .value("Sample", item.0), y: .value(title, item.1))
-                        .foregroundStyle(.linearGradient(colors: [TessalyticsTheme.positive.opacity(0.20), .clear], startPoint: .top, endPoint: .bottom))
-                    LineMark(x: .value("Sample", item.0), y: .value(title, item.1))
+                Chart(downsampled(values)) { sample in
+                    if baseline == .zero {
+                        AreaMark(x: .value("Time", sample.date), y: .value(title, sample.value), stacking: .unstacked)
+                            .interpolationMethod(.monotone)
+                            .foregroundStyle(.linearGradient(colors: [tint.opacity(0.20), .clear], startPoint: .top, endPoint: .bottom))
+                    }
+                    LineMark(x: .value("Time", sample.date), y: .value(title, sample.value))
                         .interpolationMethod(.monotone)
-                        .foregroundStyle(TessalyticsTheme.positive)
+                        .foregroundStyle(tint)
                 }
-                .chartXAxis(.hidden)
+                .chartValueDomain(baseline == .focused ? focusedChartDomain(for: values.map(\.value)) : nil)
+                .chartXAxis {
+                    AxisMarks(values: .automatic(desiredCount: 4)) {
+                        AxisGridLine().foregroundStyle(.secondary.opacity(0.12))
+                        AxisTick()
+                        AxisValueLabel(format: .dateTime.hour().minute())
+                            .font(.caption2)
+                    }
+                }
+                .chartYAxis {
+                    AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { value in
+                        AxisGridLine().foregroundStyle(.secondary.opacity(0.16))
+                        AxisValueLabel {
+                            if let number = value.as(Double.self) {
+                                Text(number.formatted(.number.precision(.fractionLength(0))))
+                                    .font(.caption2.monospacedDigit())
+                            }
+                        }
+                    }
+                }
+                .tessalyticsChartAxes(x: "Time of day", y: "\(title) (\(unit))")
                 .tessalyticsChartStyle()
-                .frame(height: 180)
+                .frame(height: 170)
                 .accessibilityLabel("\(title) chart with \(values.count) samples in \(unit)")
+
+                ChartLegend("\(title) (\(unit))", color: tint)
             }
         }
     }
@@ -103,15 +183,58 @@ struct ChargeDetailView: View {
             if detail?.endDate?.value != nil { return }
         }
     }
-    private func efficiency(_ detail: ChargeDetailDTO) -> String { guard let added = detail.chargeEnergyAdded, let used = detail.chargeEnergyUsed, used > 0 else { return "Unavailable" }; return (added / used).formatted(.percent.precision(.fractionLength(1))) }
-    private func price(_ detail: ChargeDetailDTO) -> String { guard let cost = detail.cost, let used = detail.chargeEnergyUsed, used > 0 else { return "Unavailable" }; return ValueFormatting.currency(cost / used) }
+    /// Share of drawn energy that reached the pack.
+    private func efficiency(_ detail: ChargeDetailDTO) -> String {
+        guard let added = detail.chargeEnergyAdded, let used = detail.chargeEnergyUsed, used > 0 else {
+            return "Draw not reported"
+        }
+        return "\((added / used).formatted(.percent.precision(.fractionLength(0)))) reached pack"
+    }
+
+    private func price(_ detail: ChargeDetailDTO) -> String {
+        guard let cost = detail.cost, let used = detail.chargeEnergyUsed, used > 0 else {
+            return "No cost configured"
+        }
+        return "\(ValueFormatting.currency(cost / used)) per kWh"
+    }
+
+    private func batteryGainDetail(_ detail: ChargeDetailDTO) -> String {
+        let levels = detail.chargeDetails.compactMap(\.batteryLevel)
+        guard let first = levels.first, let last = levels.last else { return "Charge added" }
+        return "\(first)% → \(last)%"
+    }
+
+    private func peakPower(_ detail: ChargeDetailDTO) -> String {
+        let powers = detail.chargeDetails.compactMap { $0.chargerDetails?.chargerPower }
+        guard let peak = powers.max() else { return "Unavailable" }
+        return ValueFormatting.number(peak, unit: "kW", digits: 0)
+    }
+
+    private func averagePowerDetail(_ detail: ChargeDetailDTO) -> String {
+        guard let added = detail.chargeEnergyAdded,
+              let minutes = detail.durationMin, minutes > 0 else { return "Session length" }
+        let average = added / (Double(minutes) / 60)
+        return "Avg \(ValueFormatting.number(average, unit: "kW", digits: 1))"
+    }
+
+    private func chargerKindDetail(_ detail: ChargeDetailDTO) -> String {
+        let sample = detail.chargeDetails.last
+        if let type = sample?.fastChargerInfo?.fastChargerType?.nilIfEmpty { return type }
+        if let cable = sample?.connChargeCable?.nilIfEmpty { return cable }
+        return sample?.fastChargerInfo?.fastChargerPresent == true ? "Fast charger" : "Charger not reported"
+    }
+
+    private func startTime(_ detail: ChargeDetailDTO) -> String {
+        guard let date = detail.startDate?.value else { return "Not reported" }
+        return date.formatted(date: .omitted, time: .shortened)
+    }
     private func chargerDetails(_ detail: ChargeDetailDTO) -> some View {
         let sample = detail.chargeDetails.last
         return GroupBox("Charger") {
             VStack(spacing: 10) {
                 HStack { Text("Type").foregroundStyle(.secondary); Spacer(); Text(sample?.fastChargerInfo?.fastChargerType ?? sample?.connChargeCable ?? "Not reported") }
                 HStack { Text("Brand").foregroundStyle(.secondary); Spacer(); Text(sample?.fastChargerInfo?.fastChargerBrand ?? "Not reported") }
-                HStack { Text("Outside temperature").foregroundStyle(.secondary); Spacer(); Text(ValueFormatting.number(sample?.outsideTemp, unit: "°")) }
+                HStack { Text("Outside temperature").foregroundStyle(.secondary); Spacer(); Text(ValueFormatting.temperature(sample?.outsideTemp, units: environment.statusUnits)) }
             }
         }
     }

@@ -22,12 +22,25 @@ struct OnboardingView: View {
                         verification.tag(2)
                     }
                     .tabViewStyle(.page(indexDisplayMode: .never))
+                    .tessalyticsReadableWidth(TessalyticsLayout.readableWidth)
 
                     navigationControls
                 }
             }
             .navigationTitle("Tessalytics")
             .navigationBarTitleDisplayMode(.inline)
+            // Back belongs in the leading toolbar slot, the same corner every
+            // other screen in the app puts it in.
+            .toolbar {
+                if step > 0 {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button(action: goBack) {
+                            Label("Back", systemImage: "chevron.left")
+                        }
+                        .accessibilityIdentifier("onboarding-back")
+                    }
+                }
+            }
         }
         .accessibilityIdentifier("onboarding-screen")
     }
@@ -49,7 +62,7 @@ struct OnboardingView: View {
                         Text("Understand every drive.")
                             .font(.largeTitle.bold())
                             .multilineTextAlignment(.center)
-                        Text("A private companion for TeslaMate history, live vehicle state, and optional controls.")
+                        Text("Connect TeslaMate, or explore instantly with generated sample data.")
                             .font(.title3)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
@@ -60,7 +73,7 @@ struct OnboardingView: View {
                     VStack(spacing: 18) {
                         OnboardingFeatureRow(
                             title: "Your server",
-                            detail: "TeslaMate and TeslaMateApi stay under your control.",
+                            detail: "Your TeslaMate server stays under your control.",
                             symbol: "server.rack",
                             tint: TessalyticsTheme.neutral
                         )
@@ -82,7 +95,7 @@ struct OnboardingView: View {
                 }
 
                 Link(destination: URL(string: "https://github.com/tobiasehlert/teslamateapi")!) {
-                    Label("TeslaMateApi deployment guide", systemImage: "arrow.up.right.square")
+                    Label("Tessalytics Backend setup guide", systemImage: "arrow.up.right.square")
                         .font(.subheadline.weight(.medium))
                 }
             }
@@ -189,7 +202,7 @@ struct OnboardingView: View {
                         VStack(spacing: 14) {
                             VerificationCheck(label: "Server reachable", success: result.reachable)
                             VerificationCheck(label: "Authentication accepted", success: result.authenticated)
-                            VerificationCheck(label: "TeslaMateApi compatible", success: result.compatible)
+                            VerificationCheck(label: "Tessalytics Backend detected", success: result.compatible)
                             Divider()
                             Label("\(result.vehicleCount) vehicle\(result.vehicleCount == 1 ? "" : "s") found", systemImage: "car.2.fill")
                                 .font(.headline)
@@ -213,7 +226,7 @@ struct OnboardingView: View {
                         .buttonStyle(.bordered)
                 }
 
-                Text("If this fails, verify TeslaMateApi is running, the iPhone can reach the server, every route is protected by your reverse proxy or VPN, and the credentials are correct.")
+                Text("If this fails, check that Tessalytics Backend is running and reachable from this iPhone, and that the token is correct.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -223,27 +236,28 @@ struct OnboardingView: View {
     }
 
     private var navigationControls: some View {
-        HStack(spacing: 12) {
-            if step > 0 {
-                Button(action: goBack) {
-                    Label("Back", systemImage: "chevron.left")
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.large)
-            }
-
+        VStack(spacing: 10) {
             if step == 0 {
-                Button(action: showConfiguration) {
-                    Label("Configure server", systemImage: "arrow.right")
+                Button(action: environment.enterDemoMode) {
+                    Label("Explore Demo", systemImage: "play.circle.fill")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
+                .accessibilityHint("Opens Tessalytics with generated sample vehicle data")
+                .accessibilityIdentifier("explore-demo")
+
+                Button(action: showConfiguration) {
+                    Label("Configure server", systemImage: "server.rack")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.large)
             }
         }
         .padding(.horizontal, 20)
-        .padding(.vertical, 14)
-        .background(.bar)
+        .padding(.vertical, step == 0 ? 14 : 0)
+        .background(step == 0 ? AnyShapeStyle(.bar) : AnyShapeStyle(.clear))
     }
 
     private func showConfiguration() {
@@ -273,10 +287,11 @@ struct OnboardingView: View {
 
         do {
             let profile = try draft.profile()
-            result = try await TeslaMateAPIClient(
+            let outcome = try await ServerProbe.test(
                 baseURL: profile.baseURL,
                 authentication: draft.credentials?.authentication ?? .none
-            ).testConnection()
+            )
+            result = outcome
         } catch {
             errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }

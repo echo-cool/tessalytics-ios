@@ -1,0 +1,13 @@
+No TeslaMate server needed to test this build.
+
+Tap "Explore Demo" on the first onboarding screen. Tessalytics generates about two months of sample drives, charging sessions, routes, analytics, battery trends, and forecasts on the device — no Tesla, no account, no network. Demo mode is labeled throughout and never enables vehicle commands. Leave it from Settings > Leave demo, or Settings > Connect a real server; saved server profiles are preserved.
+
+Please check:
+• Status — cached values should appear immediately, with the refresh continuing behind them. Pull-to-refresh should never hang on a slow or unreachable server.
+• Freshness labels — live, direct live, stale, asleep, offline, unavailable.
+• Activity — route-map previews on drive cards, incremental loading, and offline browsing with the network off.
+• Analysis — analytics, battery-health estimates, and forecasts.
+• Real servers — Bearer, Basic, and VPN-only connections, plus multi-server and multi-vehicle switching.
+• Dark mode and large Dynamic Type.
+
+Battery health and forecasts are estimates, not diagnostics.

@@ -1,10 +1,17 @@
+import Charts
+import SwiftData
 import SwiftUI
 
 struct DashboardView: View {
     @Environment(AppEnvironment.self) private var environment
+    @Environment(\.modelContext) private var context
     @Environment(\.scenePhase) private var scenePhase
-
-    private let metricColumns = [GridItem(.adaptive(minimum: 140), spacing: 8)]
+    @State private var recentDrives: [DriveRecord] = []
+    @State private var recentCharges: [ChargeRecord] = []
+    @State private var capacityObservations: [CapacityObservation] = []
+    @State private var capacityMedians: [CapacityObservation] = []
+    @State private var visitedPlaces: [VisitedPlace] = []
+    @State private var visitedSegments: [[CoordinateDTO]] = []
 
     var body: some View {
         NavigationStack {
@@ -20,88 +27,354 @@ struct DashboardView: View {
                 }
             }
             .navigationTitle(environment.selectedVehicle?.name ?? "Status")
+            // A long vehicle name truncates to nothing useful as a large title,
+            // and the hero card already names the car.
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) { vehicleMenu }
             }
-            .safeAreaInset(edge: .top) {
-                if environment.isOffline { OfflineBanner() }
+            .safeAreaInset(edge: .top) { statusBanner }
+            // Keyed on the vehicle so this also fires the first time a vehicle
+            // becomes known — right after a server is configured, for instance.
+            .task(id: environment.selectedVehicle?.id) {
+                loadCachedHistory()
+                if scenePhase == .active { environment.handleForegroundEntry() }
+                // Always ask the server on open. Relying on the poll timer meant
+                // the screen could open showing a stale "latest drive".
+                await refreshRecentDrives()
             }
-            .task {
-                if scenePhase == .active { environment.startStatusPolling() }
-            }
-            .onDisappear { environment.stopStatusPolling() }
+            // History syncs replace the cached rows underneath this screen.
+            .task(id: environment.historyRevision) { loadCachedHistory() }
             .onChange(of: scenePhase) { _, phase in
-                phase == .active ? environment.startStatusPolling() : environment.stopStatusPolling()
+                phase == .active ? environment.handleForegroundEntry() : environment.handleBackgroundEntry()
             }
-            .refreshable { await environment.refreshStatus() }
         }
         .accessibilityIdentifier("dashboard-screen")
     }
 
-    private var dashboardContent: some View {
-        ScrollView {
-            LazyVStack(spacing: 12) {
-                VehicleHeroCard(
-                    vehicle: environment.selectedVehicle,
-                    status: environment.status,
-                    units: environment.statusUnits,
-                    freshnessLabel: freshnessLabel,
-                    freshnessColor: freshnessColor,
-                    updatedAt: environment.statusFetchedAt
-                )
-
-                if environment.isOwnerConnected {
-                    DirectTeslaControlsCard()
-                }
-
-                if let status = environment.status {
-                    LazyVGrid(columns: metricColumns, spacing: 8) {
-                        MetricCard(
-                            title: "Odometer",
-                            value: ValueFormatting.number(status.odometer, unit: ""),
-                            symbol: "gauge.open.with.lines.needle.33percent",
-                            tint: TessalyticsTheme.neutral
-                        )
-                        MetricCard(
-                            title: "Inside temperature",
-                            value: ValueFormatting.number(status.climateDetails?.insideTemp, unit: "°"),
-                            symbol: "thermometer.medium",
-                            tint: TessalyticsTheme.warning
-                        )
-                        MetricCard(
-                            title: "Outside temperature",
-                            value: ValueFormatting.number(status.climateDetails?.outsideTemp, unit: "°"),
-                            symbol: "thermometer.sun",
-                            tint: TessalyticsTheme.warning
-                        )
-                    }
-
-                    VehicleActivityCard(vehicle: environment.selectedVehicle)
-                    ChargingStatusCard(status: status)
-                    VehicleSecurityCard(status: status)
-                    TirePressureCard(status: status)
-                    VehicleDetailsCard(status: status)
-                } else {
-                    LoadingPanel(title: "Loading last reported status", symbol: "car.side")
-                }
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+    @ViewBuilder private var statusBanner: some View {
+        if environment.isDemoMode {
+            DemoModeBanner()
+        } else if environment.isOffline {
+            OfflineBanner()
         }
     }
 
-    private var freshnessLabel: String {
+    /// Pull to refresh must await the work it started.
+    ///
+    /// The previous version fired two detached tasks and then slept 350 ms, so the
+    /// control reported completion before any data had arrived. It also attached
+    /// `.refreshable` to this screen's outermost content rather than to the scroll
+    /// view itself, leaving SwiftUI to locate the scroll view through a `ZStack`
+    /// and a conditional branch; the control is now attached directly to the
+    /// `ScrollView` that owns it.
+    private func refreshAll() async {
+        await environment.refreshStatus()
+        await environment.refreshHistory()
+        await refreshRecentDrives()
+        loadCachedHistory()
+    }
+
+    private func loadCachedCharges() -> [ChargeRecord] {
+        guard let profile = environment.selectedProfile, let vehicle = environment.selectedVehicle else { return [] }
+        return ChargeRepository(context: context).cached(serverID: profile.id, carID: vehicle.id)
+    }
+
+    private var dashboardContent: some View {
+        ScrollView {
+            LazyVStack(spacing: TessalyticsLayout.stackSpacing) {
+                NavigationLink {
+                    BatteryHealthView()
+                } label: {
+                    VehicleHeroCard(
+                        vehicle: environment.selectedVehicle,
+                        status: environment.status,
+                        units: environment.statusUnits,
+                        freshnessLabel: freshnessLabel,
+                        freshnessColor: freshnessColor,
+                        updatedAt: environment.statusFetchedAt,
+                        history: history,
+                        battery: environment.fleet.battery,
+                        activity: recentDrivePoints,
+                        efficiency: recentEfficiency
+                    )
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Opens battery health")
+
+                DashboardQuickLinks()
+
+                if environment.hasOwnerCredentials && environment.isOwnerConnected {
+                    DirectTeslaControlsCard()
+                }
+
+                // Capacity against mileage, in place of the five-figure strip
+                // that used to sit in the hero card.
+                NavigationSectionCard(
+                    "Battery capacity",
+                    subtitle: capacitySubtitle,
+                    symbol: "battery.100percent",
+                    tint: TessalyticsTheme.positive
+                ) {
+                    ChartExplorerView(chart: capacityExplorable)
+                } content: {
+                    CapacityByMileageChart(
+                        observations: capacityObservations,
+                        medians: capacityMedians,
+                        capacityNew: environment.fleet.battery?.capacityNew,
+                        units: environment.statusUnits,
+                        showsHeader: false
+                    )
+                }
+
+                NavigationSectionCard(
+                    "Places",
+                    subtitle: placesSubtitle,
+                    symbol: "map.fill",
+                    tint: TessalyticsTheme.neutral
+                ) {
+                    VisitedPlacesScreen()
+                } content: {
+                    if visitedPlaces.isEmpty {
+                        ChartUnavailable(message: "No drive coordinates synchronized yet.")
+                    } else {
+                        VisitedPlacesMap(places: visitedPlaces, segments: visitedSegments)
+                            .frame(height: 190)
+                            .clipShape(.rect(cornerRadius: TessalyticsTheme.compactRadius, style: .continuous))
+                            .allowsHitTesting(false)
+                    }
+                }
+
+                if let status = environment.status {
+                    NavigationSectionCard(
+                        "Recent driving",
+                        subtitle: "7 days · \(ValueFormatting.distance(weeklyDistance, units: environment.statusUnits, digits: 0))",
+                        symbol: "chart.bar.fill",
+                        tint: TessalyticsTheme.accent
+                    ) {
+                        ChartExplorerView(chart: recentDrivingExplorable)
+                    } content: {
+                        RecentDrivingChart(points: recentDrivePoints, units: environment.statusUnits)
+                    }
+
+                    VehicleTelemetryGrid(
+                        status: status,
+                        units: environment.statusUnits,
+                        history: history
+                    )
+
+                    if let latest = recentDrives.first {
+                        LatestDriveCard(record: latest)
+                    }
+
+                    DriveStatsCard(stats: environment.fleet.drives, units: environment.statusUnits, isComplete: environment.fleet.isComplete)
+                    ChargingSummaryCard(
+                        stats: environment.fleet.charging,
+                        capacityNew: environment.fleet.battery?.capacityNew,
+                        isComplete: environment.fleet.isComplete
+                    )
+                    ChargingStatusCard(status: status)
+                    VehicleSecurityCard(status: status)
+                    TirePressureCard(status: status, units: environment.statusUnits)
+                    VehicleActivityCard(vehicle: environment.selectedVehicle, weeklyDrives: history.weeklyDrives)
+                    VehicleDetailsCard(status: status)
+                } else {
+                    StatusRefreshCard(
+                        isRefreshing: environment.isStatusRefreshing,
+                        message: environment.lastError
+                    ) {
+                        environment.requestStatusRefresh()
+                    }
+                }
+            }
+            .tessalyticsScreenPadding()
+            .tessalyticsReadableWidth()
+        }
+        .refreshable { await refreshAll() }
+    }
+
+    /// Distance covered over the seven days the chart above shows, so the
+    /// odometer tile can say how much of it is recent.
+    private var weeklyDistance: Double { recentDrivePoints.map(\.distance).reduce(0, +) }
+
+    private var recentDrivePoints: [RecentDrivePoint] {
+        if environment.isDemoMode {
+            let calendar = Calendar.current
+            let values = [12.4, 0, 28.7, 8.2, 41.5, 16.8, 23.1]
+            return values.enumerated().map { index, value in
+                RecentDrivePoint(
+                    date: calendar.date(byAdding: .day, value: index - 6, to: calendar.startOfDay(for: .now)) ?? .now,
+                    distance: value
+                )
+            }
+        }
+
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: .now)
+        let grouped = Dictionary(grouping: recentDrives) { record in
+            calendar.startOfDay(for: record.startDate ?? .distantPast)
+        }
+        return (-6...0).map { offset in
+            let date = calendar.date(byAdding: .day, value: offset, to: today) ?? today
+            return RecentDrivePoint(
+                date: date,
+                distance: grouped[date, default: []].compactMap(\.distance).reduce(0, +)
+            )
+        }
+    }
+
+    private func loadCachedHistory() {
+        guard let profile = environment.selectedProfile, let vehicle = environment.selectedVehicle else {
+            recentDrives = []
+            recentCharges = []
+            capacityObservations = []
+            capacityMedians = []
+            visitedPlaces = []
+            visitedSegments = []
+            return
+        }
+        recentDrives = DriveRepository(context: context).cached(serverID: profile.id, carID: vehicle.id)
+        recentCharges = loadCachedCharges()
+
+        capacityObservations = CapacityModel.observations(
+            charges: recentCharges,
+            ratedEfficiency: environment.fleet.battery?.ratedEfficiency,
+            units: environment.statusUnits
+        )
+        capacityMedians = CapacityModel.semiMonthlyMedians(capacityObservations)
+
+        visitedPlaces = VisitedPlacesModel.places(from: recentDrives.flatMap(\.visitedEndpoints))
+        visitedSegments = cachedTrackSegments(serverID: profile.id, carID: vehicle.id, context: context)
+    }
+
+    private var capacitySubtitle: String {
+        guard let battery = environment.fleet.battery, let health = battery.healthPercent else {
+            return "Modeled per charge"
+        }
+        return "\(ValueFormatting.percentage(health / 100, digits: 1)) of as-new"
+    }
+
+    /// Median consumption over the last thirty days of drives.
+    ///
+    /// A median rather than a mean: one short cold-start trip can carry a
+    /// consumption several times the normal figure and would drag an average with
+    /// it, which is exactly the number an owner would then distrust.
+    private var recentEfficiency: Double? {
+        let cutoff = Calendar.current.date(byAdding: .day, value: -30, to: .now) ?? .distantPast
+        let values = recentDrives
+            .filter { ($0.startDate ?? .distantPast) >= cutoff }
+            .compactMap(\.efficiency)
+            .filter { $0 > 0 }
+            .sorted()
+        guard !values.isEmpty else { return nil }
+        return values[values.count / 2]
+    }
+
+    private var placesSubtitle: String {
+        visitedPlaces.isEmpty ? "No coordinates yet" : "\(visitedPlaces.count) visited"
+    }
+
+    private var recentDrivingExplorable: ExplorableChart {
+        let unit = (environment.statusUnits ?? .metricDefaults).lengthSymbol
+        return ExplorableChart(
+            title: "Recent driving",
+            subtitle: "Distance per day, last 7 days",
+            xLabel: "Day",
+            yLabel: "Distance (\(unit))",
+            unit: unit,
+            fractionDigits: 1,
+            points: recentDrivePoints.enumerated().map { index, point in
+                ExplorableChartPoint(
+                    id: index,
+                    label: point.date.formatted(.dateTime.weekday(.abbreviated)),
+                    detail: point.date.formatted(date: .abbreviated, time: .omitted),
+                    value: point.distance
+                )
+            },
+            styles: [.bar, .line, .area, .pie],
+            tint: TessalyticsTheme.accent
+        )
+    }
+
+    /// Capacity against mileage, so a scrub reads out the odometer it belongs to.
+    private var capacityExplorable: ExplorableChart {
+        let unit = (environment.statusUnits ?? .metricDefaults).lengthSymbol
+        return ExplorableChart(
+            title: "Battery capacity",
+            subtitle: "Modeled per charge, by odometer",
+            xLabel: "Odometer (\(unit))",
+            yLabel: "Usable capacity (kWh)",
+            unit: "kWh",
+            fractionDigits: 2,
+            points: capacityObservations.enumerated().map { index, observation in
+                ExplorableChartPoint(
+                    id: index,
+                    // Tenths of a thousand: plain compact notation rounds 15,800
+                    // and 16,400 both to "16K" and the axis repeats itself.
+                    label: "\((observation.odometer / 1_000).formatted(.number.precision(.fractionLength(1))))K",
+                    detail: "\(observation.odometer.formatted(.number.precision(.fractionLength(0)))) \(unit)",
+                    value: observation.capacity
+                )
+            },
+            // A pack size is not a share of anything, so no pie here.
+            styles: [.line, .area, .bar],
+            tint: TessalyticsTheme.positive,
+            baseline: .focused,
+            isCumulative: false
+        )
+    }
+
+    /// Synchronized history is the one thing that stays true when the car is
+    /// asleep, so the dashboard leans on it whenever live telemetry is stale.
+    private var history: DashboardHistorySummary {
+        let cutoff = Calendar.current.date(byAdding: .day, value: -7, to: .now) ?? .distantPast
+        let lastDrive = recentDrives.first
+        let lastCharge = recentCharges.first
+        return DashboardHistorySummary(
+            lastDriveDistance: lastDrive?.distance,
+            lastDriveDate: lastDrive?.startDate,
+            lastDriveDurationMinutes: lastDrive?.durationMinutes,
+            weeklyDistance: weeklyDistance,
+            weeklyDrives: environment.isDemoMode
+                ? 6
+                : recentDrives.filter { ($0.startDate ?? .distantPast) >= cutoff }.count,
+            lastChargeEnergy: lastCharge?.energyAdded,
+            lastChargeDate: lastCharge?.startDate
+        )
+    }
+
+    private func refreshRecentDrives() async {
+        guard !environment.isDemoMode,
+              let profile = environment.selectedProfile,
+              let vehicle = environment.selectedVehicle else { return }
+        do {
+            recentDrives = try await DriveRepository(context: context).refresh(
+                client: environment.client(for: profile),
+                serverID: profile.id,
+                carID: vehicle.id,
+                page: 1,
+                filter: .init()
+            )
+        } catch {
+            recentDrives = DriveRepository(context: context).cached(serverID: profile.id, carID: vehicle.id)
+        }
+        recentCharges = loadCachedCharges()
+    }
+
+    private var freshnessLabel: String? {
+        if environment.isDemoMode && !environment.statusUsesOwnerAPI { return "Demo" }
         if environment.isOffline { return "Stale" }
         if environment.statusUsesOwnerAPI { return "Direct live" }
         guard let fetched = environment.statusFetchedAt else { return "Connecting" }
         if Date().timeIntervalSince(fetched) > 120 { return "Stale" }
-        return environment.status?.state == "online"
-            ? "Live"
-            : (environment.status?.state?.capitalized ?? "Live")
+        // Nothing to say: the data is current, and whether the car happens to be
+        // awake is the card's job to show, not a chip's.
+        return environment.status?.state == "online" ? "Live" : nil
     }
 
     private var freshnessColor: Color {
-        environment.isOffline ? TessalyticsTheme.warning : environment.status?.state == "online" ? TessalyticsTheme.positive : TessalyticsTheme.steel
+        if environment.isDemoMode && !environment.statusUsesOwnerAPI { return TessalyticsTheme.accent }
+        return environment.isOffline ? TessalyticsTheme.warning : environment.status?.state == "online" ? TessalyticsTheme.positive : TessalyticsTheme.steel
     }
 
     private var vehicleMenu: some View {
@@ -125,19 +398,546 @@ struct DashboardView: View {
     }
 }
 
+/// Vehicle metric tiles.
+///
+/// Every tile carries a detail line so row heights and value baselines stay
+/// identical across the grid. The second half of the grid swaps between live
+/// telemetry and synchronized history depending on whether the car was awake at
+/// the last poll — a sleeping car reports no cabin temperature or charge limit,
+/// so those tiles would be pure noise.
+private struct VehicleTelemetryGrid: View {
+    let status: VehicleStatus
+    let units: UnitsDTO?
+    let history: DashboardHistorySummary
+
+    private var resolvedUnits: UnitsDTO { units ?? .metricDefaults }
+    private var isLive: Bool { status.reportsLiveTelemetry }
+
+    var body: some View {
+        MetricGrid {
+            MetricCard(
+                title: "Odometer",
+                value: ValueFormatting.distance(status.odometer, units: units, digits: 0),
+                symbol: "gauge.open.with.lines.needle.33percent",
+                detail: history.weeklyDistance > 0
+                    ? "+\(ValueFormatting.distance(history.weeklyDistance, units: units, digits: 0)) / 7 days"
+                    : "No drives in 7 days",
+                tint: TessalyticsTheme.neutral
+            )
+            MetricCard(
+                title: "Range",
+                value: status.batteryDetails?.displayRange.map {
+                    ValueFormatting.distance($0.value, units: units, digits: 0)
+                } ?? "Unavailable",
+                symbol: "road.lanes",
+                detail: rangeKindDetail,
+                tint: TessalyticsTheme.accent
+            )
+            MetricCard(
+                title: "Usable charge",
+                value: percentage(status.batteryDetails?.usableBatteryLevel),
+                symbol: "battery.75percent",
+                detail: usableChargeDetail,
+                tint: TessalyticsTheme.positive
+            )
+
+            if isLive {
+                MetricCard(
+                    title: "Charge limit",
+                    value: percentage(status.chargingDetails?.reportedChargeLimit),
+                    symbol: "bolt.badge.checkmark",
+                    detail: chargeLimitDetail,
+                    tint: TessalyticsTheme.positive
+                )
+                MetricCard(
+                    title: "Cabin",
+                    value: ValueFormatting.temperature(status.climateDetails?.insideTemp, units: units, digits: 1),
+                    symbol: "thermometer.medium",
+                    detail: status.climateDetails?.isPreconditioning == true
+                        ? "Preconditioning"
+                        : (status.climateDetails?.isClimateOn == true ? "Climate on" : "Climate off"),
+                    tint: TessalyticsTheme.warning
+                )
+                MetricCard(
+                    title: "Outside",
+                    value: ValueFormatting.temperature(status.climateDetails?.outsideTemp, units: units, digits: 1),
+                    symbol: "thermometer.sun",
+                    detail: cabinDeltaDetail,
+                    tint: TessalyticsTheme.warning
+                )
+            } else {
+                MetricCard(
+                    title: "Last drive",
+                    value: history.lastDriveDistance.map {
+                        ValueFormatting.distance($0, units: units, digits: 1)
+                    } ?? "No drives",
+                    symbol: "car.side.fill",
+                    detail: lastDriveDetail,
+                    tint: TessalyticsTheme.accent
+                )
+                MetricCard(
+                    title: "Drives this week",
+                    value: history.weeklyDrives.formatted(),
+                    symbol: "calendar",
+                    detail: weeklyAverageDetail,
+                    tint: TessalyticsTheme.neutral
+                )
+                MetricCard(
+                    title: "Last charge",
+                    value: history.lastChargeEnergy.map {
+                        ValueFormatting.number($0, unit: "kWh")
+                    } ?? "No charges",
+                    symbol: "bolt.fill",
+                    detail: lastChargeDetail,
+                    tint: TessalyticsTheme.positive
+                )
+            }
+        }
+    }
+
+    private func percentage(_ value: Int?) -> String {
+        value.map { "\($0)%" } ?? "Unavailable"
+    }
+
+    /// Names which of TeslaMate's three range figures is on screen.
+    private var rangeKindDetail: String {
+        guard let range = status.batteryDetails?.displayRange else { return "Not reported" }
+        return range.label.capitalizedFirst
+    }
+
+    private var usableChargeDetail: String {
+        guard let displayed = status.batteryDetails?.batteryLevel else { return "Usable capacity" }
+        guard let usable = status.batteryDetails?.usableBatteryLevel else { return "Displayed \(displayed)%" }
+        let difference = displayed - usable
+        return difference > 0 ? "\(difference) pt cold buffer" : "Displayed \(displayed)%"
+    }
+
+    private var chargeLimitDetail: String {
+        guard let limit = status.chargingDetails?.reportedChargeLimit else { return "Not reported" }
+        guard let level = status.batteryDetails?.batteryLevel else { return "Target charge" }
+        let remaining = limit - level
+        if remaining > 0 { return "\(remaining) pts to target" }
+        return remaining == 0 ? "At target" : "\(-remaining) pts above"
+    }
+
+    private var cabinDeltaDetail: String {
+        guard let inside = status.climateDetails?.insideTemp,
+              let outside = status.climateDetails?.outsideTemp else { return "Ambient" }
+        let delta = inside - outside
+        guard abs(delta) >= 0.5 else { return "Level with cabin" }
+        let magnitude = abs(delta).formatted(.number.precision(.fractionLength(0)))
+        return "Cabin \(delta > 0 ? "+" : "-")\(magnitude)\(resolvedUnits.temperatureSymbol)"
+    }
+
+    private var lastDriveDetail: String {
+        guard let date = history.lastDriveDate else { return "Nothing synced yet" }
+        guard let minutes = history.lastDriveDurationMinutes else {
+            return date.formatted(.relative(presentation: .named))
+        }
+        return "\(ValueFormatting.duration(minutes: minutes)) · \(date.formatted(.relative(presentation: .named)))"
+    }
+
+    private var weeklyAverageDetail: String {
+        guard history.weeklyDrives > 0 else { return "Last 7 days" }
+        let average = history.weeklyDistance / Double(history.weeklyDrives)
+        return "\(ValueFormatting.distance(average, units: units, digits: 1)) average"
+    }
+
+    private var lastChargeDetail: String {
+        guard let date = history.lastChargeDate else { return "Nothing synced yet" }
+        return date.formatted(.relative(presentation: .named))
+    }
+}
+
+/// Battery health inside the hero card.
+///
+/// Five figures, in the order the pack degrades: what it held when new, what it
+/// holds now, the range that implies at each point, and the difference.
+private struct MiniStat: View {
+    let title: String
+    let value: String
+    var tint: Color = .primary
+
+    init(_ title: String, _ value: String, tint: Color = .primary) {
+        self.title = title
+        self.value = value
+        self.tint = tint
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(value)
+                .font(.caption.weight(.semibold))
+                .monospacedDigit()
+                .foregroundStyle(tint)
+                .lineLimit(1)
+                .minimumScaleFactor(0.65)
+            Text(title)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(title)
+        .accessibilityValue(value)
+    }
+}
+
+/// Logged distance against what the odometer actually moved.
+private struct DriveStatsCard: View {
+    let stats: FleetStatistics.DriveStats
+    let units: UnitsDTO?
+    let isComplete: Bool
+
+    var body: some View {
+        NavigationSectionCard(
+            "Drive stats",
+            subtitle: isComplete
+                ? "Every synchronized drive · \(stats.driveCount.formatted()) recorded"
+                : "Syncing history — totals still incomplete",
+            symbol: "road.lanes",
+            tint: TessalyticsTheme.accent
+        ) {
+            DriveHistoryView(embedded: true, title: "Drives")
+        } content: {
+            MetricGrid {
+                MetricCard(
+                    title: "Logged miles",
+                    value: ValueFormatting.distance(stats.loggedDistance, units: units, digits: 0),
+                    symbol: "checkmark.circle.fill",
+                    detail: "\(stats.driveCount.formatted()) drives",
+                    tint: TessalyticsTheme.accent
+                )
+                MetricCard(
+                    title: "Odometer",
+                    value: ValueFormatting.distance(stats.odometer, units: units, digits: 0),
+                    symbol: "gauge.open.with.lines.needle.33percent",
+                    detail: stats.firstLoggedOdometer.map {
+                        "Logging from \(ValueFormatting.distance($0, units: units, digits: 0))"
+                    } ?? "Reported by the vehicle",
+                    tint: TessalyticsTheme.neutral
+                )
+                MetricCard(
+                    title: "Data lost",
+                    value: stats.unloggedDistance.map {
+                        ValueFormatting.distance($0, units: units, digits: 0)
+                    } ?? "Unavailable",
+                    symbol: "exclamationmark.triangle.fill",
+                    // Distance the odometer moved that never reached the database:
+                    // drives during logger downtime, sleep-detection gaps, or a
+                    // paused logger.
+                    detail: stats.coverage.map { "\(ValueFormatting.percentage($0, digits: 1)) captured" }
+                        ?? "Needs an odometer reading",
+                    tint: TessalyticsTheme.warning
+                )
+            }
+        }
+    }
+}
+
+/// Lifetime charging totals.
+private struct ChargingSummaryCard: View {
+    let stats: FleetStatistics.ChargingStats
+    let capacityNew: Double?
+    let isComplete: Bool
+
+    var body: some View {
+        NavigationSectionCard(
+            "Charging totals",
+            subtitle: isComplete
+                ? "Every synchronized session"
+                : "Syncing history — totals still incomplete",
+            symbol: "bolt.batteryblock.fill",
+            tint: TessalyticsTheme.positive
+        ) {
+            ChargeHistoryView(embedded: true, title: "Charging")
+        } content: {
+            MetricGrid {
+                MetricCard(
+                    title: "Charges",
+                    value: stats.chargeCount.formatted(),
+                    symbol: "bolt.car.fill",
+                    detail: cyclesDetail,
+                    tint: TessalyticsTheme.positive
+                )
+                MetricCard(
+                    title: "Charging cycles",
+                    value: stats.cycles(capacityNew: capacityNew).map {
+                        $0.formatted(.number.precision(.fractionLength(1)))
+                    } ?? "Unavailable",
+                    symbol: "arrow.triangle.2.circlepath",
+                    // Equivalent full charges, not a count of plug-ins.
+                    detail: capacityNew.map {
+                        "Per \(ValueFormatting.number($0, unit: "kWh")) pack"
+                    } ?? "Needs pack capacity",
+                    tint: TessalyticsTheme.neutral
+                )
+                MetricCard(
+                    title: "Energy added",
+                    value: ValueFormatting.energy(stats.energyAdded),
+                    symbol: "battery.100percent.bolt",
+                    detail: "Reached the pack",
+                    tint: TessalyticsTheme.positive
+                )
+                MetricCard(
+                    title: "Energy used",
+                    value: ValueFormatting.energy(stats.energyUsed),
+                    symbol: "powerplug.fill",
+                    detail: "Drawn from the outlet",
+                    tint: TessalyticsTheme.steel
+                )
+                MetricCard(
+                    title: "Charging efficiency",
+                    value: ValueFormatting.percentage(stats.efficiency, digits: 1),
+                    symbol: "gauge.with.dots.needle.67percent",
+                    detail: lossDetail,
+                    tint: TessalyticsTheme.warning
+                )
+                MetricCard(
+                    title: "Total cost",
+                    value: ValueFormatting.chargeCost(stats.costTotal),
+                    symbol: "creditcard.fill",
+                    detail: stats.pricedChargeCount > 0
+                        ? "\(stats.pricedChargeCount.formatted()) of \(stats.chargeCount.formatted()) priced"
+                        : "No tariff configured",
+                    tint: TessalyticsTheme.steel
+                )
+            }
+        }
+    }
+
+    private var cyclesDetail: String {
+        guard stats.chargeCount > 0, stats.energyAdded > 0 else { return "Nothing synced yet" }
+        let average = stats.energyAdded / Double(stats.chargeCount)
+        return "\(ValueFormatting.number(average, unit: "kWh")) average"
+    }
+
+    private var lossDetail: String {
+        guard let efficiency = stats.efficiency else { return "Needs drawn energy" }
+        let lost = stats.energyUsed - stats.energyAdded
+        guard lost > 0 else { return "No measurable loss" }
+        _ = efficiency
+        return "\(ValueFormatting.energy(lost)) lost"
+    }
+}
+
+/// Shortcut row to the screens the dashboard summarises.
+private struct DashboardQuickLinks: View {
+    var body: some View {
+        HStack(spacing: TessalyticsLayout.gridSpacing) {
+            QuickLinkTile("Drives", symbol: "road.lanes", tint: TessalyticsTheme.accent) {
+                DriveHistoryView(embedded: true, title: "Drives")
+            }
+            QuickLinkTile("Charging", symbol: "bolt.car.fill", tint: TessalyticsTheme.positive) {
+                ChargeHistoryView(embedded: true, title: "Charging")
+            }
+            QuickLinkTile("Analysis", symbol: "chart.xyaxis.line", tint: TessalyticsTheme.neutral) {
+                AnalyticsDashboardView()
+            }
+            QuickLinkTile("Battery", symbol: "battery.100percent", tint: TessalyticsTheme.positive) {
+                BatteryHealthView()
+            }
+        }
+    }
+}
+
+/// Most recent completed drive, with a static route preview, linking to the
+/// full drive detail screen.
+private struct LatestDriveCard: View {
+    @Environment(AppEnvironment.self) private var environment
+    @Environment(\.modelContext) private var context
+    let record: DriveRecord
+
+    @State private var route: [CoordinateDTO] = []
+
+    var body: some View {
+        NavigationSectionCard(
+            "Latest drive",
+            subtitle: ValueFormatting.date(record.startDate),
+            symbol: "map.fill",
+            tint: TessalyticsTheme.accent
+        ) {
+            DriveDetailView(driveID: record.driveID)
+        } content: {
+            VStack(alignment: .leading, spacing: 8) {
+                RouteSnapshotView(route: route, driveID: record.driveID, height: 168)
+                DriveEndpointRow(
+                    start: record.startAddress ?? "Start not reported",
+                    end: record.endAddress ?? "End not reported"
+                )
+                HStack(spacing: TessalyticsLayout.gridSpacing) {
+                    CompactStat(
+                        title: "Distance",
+                        value: ValueFormatting.distance(record.distance, units: environment.statusUnits),
+                        tint: TessalyticsTheme.accent
+                    )
+                    CompactStat(
+                        title: "Duration",
+                        value: ValueFormatting.duration(minutes: record.durationMinutes),
+                        tint: TessalyticsTheme.neutral
+                    )
+                    CompactStat(
+                        title: "Efficiency",
+                        value: ValueFormatting.efficiency(record.efficiency, units: environment.statusUnits, digits: 0),
+                        tint: TessalyticsTheme.positive
+                    )
+                }
+            }
+        }
+        .task(id: record.driveID) { await loadRoute() }
+    }
+
+    private func loadRoute() async {
+        guard let profile = environment.selectedProfile, let vehicle = environment.selectedVehicle else { return }
+        do {
+            let detail = try await DriveRepository(context: context).detail(
+                client: environment.client(for: profile),
+                serverID: profile.id,
+                carID: vehicle.id,
+                driveID: record.driveID
+            )
+            route = RouteSimplifier.simplify(detail.driveDetails.map(\.coordinate), tolerance: 0.00025)
+        } catch {
+            route = []
+        }
+    }
+}
+
+private struct DemoModeBanner: View {
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "sparkles")
+                .foregroundStyle(TessalyticsTheme.accent)
+                .accessibilityHidden(true)
+            Text("Demo data")
+                .font(.subheadline.weight(.semibold))
+            Spacer()
+            Text("Generated sample")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 7)
+        .background(.bar)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Demo data, generated sample")
+        .accessibilityIdentifier("demo-mode-banner")
+    }
+}
+
+private struct RecentDrivePoint: Identifiable {
+    let date: Date
+    let distance: Double
+    var id: Date { date }
+}
+
+private struct RecentDrivingChart: View {
+    let points: [RecentDrivePoint]
+    let units: UnitsDTO?
+
+    private var resolvedUnits: UnitsDTO { units ?? .metricDefaults }
+    private var total: Double { points.map(\.distance).reduce(0, +) }
+
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Chart(points) { point in
+                BarMark(
+                    x: .value("Day", point.date, unit: .day),
+                    y: .value("Distance (\(resolvedUnits.lengthSymbol))", point.distance)
+                )
+                .foregroundStyle(
+                    .linearGradient(
+                        colors: [TessalyticsTheme.accentBright, TessalyticsTheme.accent],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .cornerRadius(3)
+            }
+            .chartXAxis {
+                AxisMarks(values: .stride(by: .day)) { value in
+                    AxisTick()
+                    AxisValueLabel(format: .dateTime.weekday(.narrow))
+                        .font(.caption2)
+                }
+            }
+            .chartYAxis {
+                AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { value in
+                    AxisGridLine().foregroundStyle(.secondary.opacity(0.16))
+                    AxisValueLabel {
+                        if let distance = value.as(Double.self) {
+                            Text(distance.formatted(.number.precision(.fractionLength(0))))
+                                .font(.caption2.monospacedDigit())
+                        }
+                    }
+                }
+            }
+            .tessalyticsChartAxes(x: "Last 7 days", y: "Distance (\(resolvedUnits.lengthSymbol))")
+            .tessalyticsChartStyle()
+            .frame(height: 128)
+            .accessibilityLabel("Distance driven over the last seven days in \(resolvedUnits.lengthSymbol)")
+            .accessibilityValue("Total \(ValueFormatting.distance(total, units: resolvedUnits))")
+            .accessibilityIdentifier("home-driving-chart")
+
+            ChartLegend("Distance per day", color: TessalyticsTheme.accent)
+        }
+    }
+}
+
+private struct StatusRefreshCard: View {
+    let isRefreshing: Bool
+    let message: String?
+    let retry: () -> Void
+
+    var body: some View {
+        SurfaceCard(tint: TessalyticsTheme.steel) {
+            HStack(spacing: 10) {
+                if isRefreshing {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Image(systemName: "arrow.clockwise")
+                        .foregroundStyle(TessalyticsTheme.steel)
+                        .accessibilityHidden(true)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(isRefreshing ? "Updating status" : "Status not available yet")
+                        .font(.subheadline.weight(.semibold))
+                    if let message, !isRefreshing {
+                        Text(message).font(.caption2).foregroundStyle(.secondary).lineLimit(2)
+                    }
+                }
+                Spacer(minLength: 4)
+                if !isRefreshing {
+                    Button("Retry", action: retry).buttonStyle(.bordered).controlSize(.small)
+                }
+            }
+        }
+    }
+}
+
 private struct VehicleHeroCard: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     let vehicle: Vehicle?
     let status: VehicleStatus?
     let units: UnitsDTO?
-    let freshnessLabel: String
+    let freshnessLabel: String?
     let freshnessColor: Color
     let updatedAt: Date?
+    let history: DashboardHistorySummary
+    let battery: FleetStatistics.BatteryHealth?
+    /// Daily distance for the sparkline, oldest first.
+    let activity: [RecentDrivePoint]
+    /// Recent average consumption, in the server's per-distance unit.
+    let efficiency: Double?
 
     private var summary: VehicleHeroSummary { VehicleHeroSummary(status: status, units: units) }
+    private var isLive: Bool { status?.reportsLiveTelemetry ?? false }
     private var modelText: String {
-        [vehicle?.model, vehicle?.trim]
+        [TeslaModelNaming.displayName(vehicle?.model), vehicle?.trim?.nilIfEmpty]
             .compactMap { $0 }
             .joined(separator: " · ")
             .nilIfEmpty ?? "Vehicle details unavailable"
@@ -151,61 +951,115 @@ private struct VehicleHeroCard: View {
         }
     }
 
+    /// How long the car has been driving or charging is news. How long it has
+    /// been asleep is not, so only a notable state contributes its age.
+    private var footnote: String {
+        let updated = updatedAt.map { "updated \($0.formatted(.relative(presentation: .named)))" }
+        let age = summary.isNotable ? status?.stateDuration.map { duration in
+            "\(summary.stateNoun) for \(duration.elapsedDescription)"
+        } : nil
+        let parts = [age, updated].compactMap { $0 }
+        return parts.isEmpty ? "Waiting for vehicle data" : parts.joined(separator: " · ")
+    }
+
+    private var distanceUnit: String { (units ?? .metricDefaults).lengthSymbol }
+
+    private var odometerValue: String {
+        guard let odometer = status?.odometer else { return "—" }
+        return odometer.formatted(.number.precision(.fractionLength(0)))
+    }
+
+    private var odometerAccessibilityValue: String {
+        guard let odometer = status?.odometer else { return "Unavailable" }
+        return "\(odometer.formatted(.number.precision(.fractionLength(0)))) \(distanceUnit)"
+    }
+
     var body: some View {
         TessalyticsHeroSurface(tint: tint) {
             VStack(alignment: .leading, spacing: 12) {
-                VehicleHeroHeader(model: modelText, freshnessLabel: freshnessLabel, freshnessColor: freshnessColor)
+                VehicleHeroHeader(
+                    name: vehicle?.name?.nilIfEmpty,
+                    model: modelText,
+                    freshnessLabel: freshnessLabel,
+                    freshnessColor: freshnessColor
+                )
 
-                Label(summary.headline, systemImage: summary.activity.symbol)
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(.white)
-                    .symbolRenderingMode(.hierarchical)
-                    .tint(tint)
-                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
-                    .minimumScaleFactor(0.78)
+                // Only motion and charging get the loud line. The rest of the
+                // time the place is the interesting part, not the state word.
+                if summary.isNotable {
+                    Label(summary.headline, systemImage: summary.activity.symbol)
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .symbolRenderingMode(.hierarchical)
+                        .tint(tint)
+                        .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
+                        .minimumScaleFactor(0.78)
+                } else if let place = summary.placeText {
+                    Label(place, systemImage: "mappin.and.ellipse")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                }
 
-                HStack(alignment: .firstTextBaseline, spacing: 18) {
-                    HStack(alignment: .firstTextBaseline, spacing: 2) {
-                        Text(summary.batteryText)
-                            .font(.largeTitle.bold())
-                            .monospacedDigit()
-                        Text("%")
-                            .font(.headline)
-                            .foregroundStyle(.white.opacity(0.62))
-                    }
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel("Battery level")
-                    .accessibilityValue(summary.batteryAccessibilityValue)
+                HStack(alignment: .center, spacing: 18) {
+                    BatteryRingGauge(
+                        level: summary.batteryFraction,
+                        limit: summary.chargeLimitFraction,
+                        isCharging: summary.activity == .charging,
+                        diameter: dynamicTypeSize.isAccessibilitySize ? 116 : 96
+                    )
                     .accessibilityIdentifier("vehicle-snapshot-battery")
 
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(summary.rangeValue)
-                            .font(.title3.weight(.semibold))
-                            .monospacedDigit()
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
-                        Text(summary.rangeLabel)
-                            .font(.caption)
-                            .foregroundStyle(.white.opacity(0.62))
+                    VStack(alignment: .leading, spacing: 10) {
+                        HeroFigure(
+                            value: summary.rangeValue,
+                            label: summary.rangeLabel,
+                            symbol: "gauge.open.with.lines.needle.33percent",
+                            tint: TessalyticsTheme.accent
+                        )
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel("Estimated range")
+                        .accessibilityValue(summary.rangeAccessibilityValue)
+                        .accessibilityIdentifier("vehicle-snapshot-range")
+
+                        HeroFigure(
+                            value: odometerValue,
+                            label: "\(distanceUnit) on the odometer",
+                            symbol: "road.lanes",
+                            tint: TessalyticsTheme.steel
+                        )
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel("Odometer")
+                        .accessibilityValue(odometerAccessibilityValue)
+                        .accessibilityIdentifier("vehicle-snapshot-odometer")
                     }
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel("Estimated range")
-                    .accessibilityValue(summary.rangeAccessibilityValue)
-                    .accessibilityIdentifier("vehicle-snapshot-range")
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .foregroundStyle(.white)
 
                 if let charging = summary.charging {
                     ChargingSnapshotRow(charging: charging, tint: tint)
                 }
 
-                Divider().overlay(.white.opacity(0.14))
+                Divider()
 
-                SnapshotFactsRow(summary: summary)
+                SnapshotFactsRow(summary: summary, history: history, units: units, isLive: isLive)
 
-                Text(updatedAt.map { "Updated \($0.formatted(.relative(presentation: .named)))" } ?? "Waiting for vehicle data")
+                // The two questions a glance at the car is usually asking: how
+                // much has it been driven lately, and how efficiently.
+                if !activity.isEmpty {
+                    Divider()
+                    HeroActivityStrip(
+                        points: activity,
+                        efficiency: efficiency,
+                        units: units,
+                        health: battery?.healthPercent
+                    )
+                }
+
+                Text(footnote)
                     .font(.caption2)
-                    .foregroundStyle(.white.opacity(0.5))
+                    .foregroundStyle(.secondary)
             }
         }
         .accessibilityIdentifier("vehicle-snapshot-card")
@@ -215,31 +1069,48 @@ private struct VehicleHeroCard: View {
 private struct VehicleHeroHeader: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
+    let name: String?
     let model: String
-    let freshnessLabel: String
+    let freshnessLabel: String?
     let freshnessColor: Color
 
     var body: some View {
         if dynamicTypeSize.isAccessibilitySize {
             VStack(alignment: .leading, spacing: 6) {
-                modelLabel
-                StatusBadge(text: freshnessLabel, color: freshnessColor)
+                identity
+                if let freshnessLabel {
+                    StatusBadge(text: freshnessLabel, color: freshnessColor)
+                }
             }
         } else {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                modelLabel
+            HStack(alignment: .top, spacing: 8) {
+                identity
                 Spacer(minLength: 8)
-                StatusBadge(text: freshnessLabel, color: freshnessColor)
+                if let freshnessLabel {
+                    StatusBadge(text: freshnessLabel, color: freshnessColor)
+                }
             }
         }
     }
 
-    private var modelLabel: some View {
-        Text(model.uppercased())
-            .font(.caption2.weight(.bold))
-            .tracking(0.7)
-            .foregroundStyle(.white.opacity(0.62))
-            .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
+    /// The vehicle name lives here as well as in the navigation title: on iPad
+    /// the tab bar occupies the navigation bar and the title is not displayed at
+    /// all, so the card has to say which car it is describing.
+    private var identity: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            if let name {
+                Text(name)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+            }
+            Text(model.uppercased())
+                .font(.caption2.weight(.bold))
+                .tracking(0.7)
+                .foregroundStyle(.secondary)
+                .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -247,6 +1118,9 @@ private struct SnapshotFactsRow: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     let summary: VehicleHeroSummary
+    let history: DashboardHistorySummary
+    let units: UnitsDTO?
+    let isLive: Bool
 
     var body: some View {
         if dynamicTypeSize.isAccessibilitySize {
@@ -256,15 +1130,55 @@ private struct SnapshotFactsRow: View {
         }
     }
 
+    /// When the car is awake these three facts are live readings. When it is
+    /// asleep the backend cannot read cabin temperature or lock state at all, so
+    /// the row switches to synchronized history — which is still true.
     @ViewBuilder private var facts: some View {
-        SnapshotFact(
-            text: summary.security.text,
-            symbol: summary.security.symbol,
-            tint: summary.security.needsAttention ? TessalyticsTheme.warning : .white,
-            accessibilityID: "vehicle-snapshot-security"
-        )
-        SnapshotFact(text: summary.climateText, symbol: "thermometer.medium", tint: .white)
-        SnapshotFact(text: summary.locationText, symbol: "location.fill", tint: .white)
+        if isLive {
+            SnapshotFact(
+                text: summary.security.text,
+                symbol: summary.security.symbol,
+                tint: summary.security.needsAttention ? TessalyticsTheme.warning : TessalyticsTheme.steel,
+                accessibilityID: "vehicle-snapshot-security"
+            )
+            SnapshotFact(text: summary.climateText, symbol: "thermometer.medium", tint: TessalyticsTheme.steel)
+            SnapshotFact(text: summary.locationText, symbol: "location.fill", tint: TessalyticsTheme.steel)
+        } else {
+            SnapshotFact(
+                text: history.lastDriveText(units: units),
+                symbol: "road.lanes",
+                tint: TessalyticsTheme.accent,
+                accessibilityID: "vehicle-snapshot-last-drive"
+            )
+            SnapshotFact(text: history.weeklyText(units: units), symbol: "calendar", tint: TessalyticsTheme.steel)
+            SnapshotFact(text: history.lastChargeText(), symbol: "bolt.fill", tint: TessalyticsTheme.positive)
+        }
+    }
+}
+
+/// Synchronized history the dashboard falls back to when the car is unreachable.
+struct DashboardHistorySummary: Equatable {
+    var lastDriveDistance: Double?
+    var lastDriveDate: Date?
+    var lastDriveDurationMinutes: Int?
+    var weeklyDistance: Double = 0
+    var weeklyDrives: Int = 0
+    var lastChargeEnergy: Double?
+    var lastChargeDate: Date?
+
+    func lastDriveText(units: UnitsDTO?) -> String {
+        guard let distance = lastDriveDistance else { return "No drives synced" }
+        return "Last \(ValueFormatting.distance(distance, units: units, digits: 1))"
+    }
+
+    func weeklyText(units: UnitsDTO?) -> String {
+        guard weeklyDrives > 0 else { return "No drives in 7 days" }
+        return "\(ValueFormatting.distance(weeklyDistance, units: units, digits: 0)) / 7 days"
+    }
+
+    func lastChargeText() -> String {
+        guard let energy = lastChargeEnergy else { return "No charges synced" }
+        return "Charged \(ValueFormatting.number(energy, unit: "kWh"))"
     }
 }
 
@@ -281,13 +1195,13 @@ private struct SnapshotFact: View {
             .font(.caption.weight(.medium))
             .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
             .minimumScaleFactor(0.7)
-            .foregroundStyle(.white.opacity(0.76))
+            .foregroundStyle(.primary)
             .symbolRenderingMode(.hierarchical)
             .tint(tint)
             .padding(.horizontal, 7)
             .padding(.vertical, 6)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.white.opacity(0.08), in: .rect(cornerRadius: 9))
+            .background(tint.opacity(0.09), in: .rect(cornerRadius: 9))
             .accessibilityIdentifier(accessibilityID ?? "")
     }
 }
@@ -301,11 +1215,11 @@ private struct ChargingSnapshotRow: View {
             HStack(spacing: 8) {
                 Text(charging.detail)
                     .font(.caption.weight(.medium))
-                    .foregroundStyle(.white.opacity(0.78))
+                    .foregroundStyle(.secondary)
                 Spacer(minLength: 8)
                 Text(charging.limitText)
                     .font(.caption.monospacedDigit())
-                    .foregroundStyle(.white.opacity(0.62))
+                    .foregroundStyle(.secondary)
             }
             ProgressView(value: charging.progress)
                 .tint(tint)
@@ -346,6 +1260,15 @@ struct VehicleHeroSummary: Equatable {
 
     let activity: Activity
     let headline: String
+    let stateNoun: String
+    /// Whether the state is worth announcing at all.
+    ///
+    /// A car is parked, asleep or offline for the overwhelming majority of its
+    /// life, so leading with "Offline at ..." spends the most prominent line in
+    /// the app on the least surprising fact. Only motion and charging earn it.
+    let isNotable: Bool
+    /// Where the car is, without a state word in front of it.
+    let placeText: String?
     let batteryText: String
     let batteryAccessibilityValue: String
     let rangeValue: String
@@ -355,69 +1278,99 @@ struct VehicleHeroSummary: Equatable {
     let climateText: String
     let locationText: String
     let charging: Charging?
+    /// 0...1 for the ring gauge, nil when the level is unknown.
+    let batteryFraction: Double?
+    /// The configured charge limit as a fraction, for the ring's tick.
+    let chargeLimitFraction: Double?
 
     init(status: VehicleStatus?, units: UnitsDTO?) {
-        let location = status?.carGeodata?.geofence?.nilIfEmpty
-        let locationSuffix = location.map { " at \($0)" } ?? ""
+        let resolvedUnits = units ?? .metricDefaults
+        let location = status?.carGeodata?.reportedGeofence
         let state = status?.state?.lowercased()
         let shift = status?.drivingDetails?.shiftState?.uppercased()
         let chargingState = status?.chargingDetails?.chargingState?.lowercased()
         let isDriving = state == "driving" || (shift.map { ["D", "R", "N"].contains($0) } ?? false)
-        let isCharging = chargingState == "charging" || (status?.chargingDetails?.chargerPower ?? 0) > 0
+        let isCharging = chargingState == "charging" || (status?.chargingDetails?.reportedPower ?? 0) > 0
         let isPluggedIn = status?.chargingDetails?.pluggedIn == true
 
+        placeText = location
         if isDriving {
             activity = .driving
-            let speedUnit = units?.unitOfLength?.lowercased() == "mi" ? "mph" : units?.unitOfLength.map { "\($0)/h" }
-            let speed = Self.value(status?.drivingDetails?.speed, unit: speedUnit)
+            let speed = Self.value(status?.drivingDetails?.speed, unit: resolvedUnits.speedSymbol)
             headline = speed.map { "Driving · \($0)" } ?? "Driving"
+            stateNoun = "Driving"
+            isNotable = true
         } else if isCharging {
             activity = .charging
-            let power = Self.value(status?.chargingDetails?.chargerPower, unit: "kW", maximumFractionDigits: 0)
+            let power = Self.value(status?.chargingDetails?.reportedPower, unit: "kW", maximumFractionDigits: 0)
             headline = power.map { "Charging · \($0)" } ?? "Charging"
+            stateNoun = "Charging"
+            isNotable = true
         } else if isPluggedIn {
             activity = .pluggedIn
             headline = chargingState == "complete" ? "Charge complete" : "Plugged in"
-        } else if state == "asleep" {
+            stateNoun = "Plugged in"
+            isNotable = true
+        } else if state == "asleep" || state == "suspended" {
             activity = .asleep
-            headline = "Asleep\(locationSuffix)"
+            headline = location ?? "Asleep"
+            stateNoun = "Asleep"
+            isNotable = false
         } else if state == "offline" {
             activity = .offline
-            headline = "Offline\(locationSuffix)"
+            headline = location ?? "Last seen"
+            stateNoun = "Offline"
+            isNotable = false
         } else if status != nil {
             activity = .parked
-            headline = "Parked\(locationSuffix)"
+            headline = location ?? "Parked"
+            stateNoun = "Parked"
+            isNotable = false
         } else {
             activity = .unavailable
             headline = "Waiting for vehicle"
+            stateNoun = "Waiting"
+            isNotable = false
         }
 
         if let level = status?.batteryDetails?.batteryLevel {
             batteryText = level.formatted()
             batteryAccessibilityValue = "\(level) percent"
+            batteryFraction = Double(level) / 100
         } else {
             batteryText = "—"
             batteryAccessibilityValue = "Unavailable"
+            batteryFraction = nil
         }
+        chargeLimitFraction = status?.chargingDetails?.reportedChargeLimit.map { Double($0) / 100 }
 
-        if let range = status?.batteryDetails?.estBatteryRange {
-            rangeValue = range.formatted(.number.precision(.fractionLength(0)))
-            rangeLabel = [units?.unitOfLength, "estimated range"].compactMap { $0 }.joined(separator: " ")
-            rangeAccessibilityValue = [rangeValue, units?.unitOfLength].compactMap { $0 }.joined(separator: " ")
+        // `est_battery_range` is reported as 0 while the car sleeps, which showed
+        // "0 mi estimated range" next to a battery at 80%.
+        if let range = status?.batteryDetails?.displayRange {
+            rangeValue = range.value.formatted(.number.precision(.fractionLength(0)))
+            rangeLabel = "\(resolvedUnits.lengthSymbol) \(range.label)"
+            rangeAccessibilityValue = "\(rangeValue) \(resolvedUnits.lengthSymbol), \(range.label)"
         } else {
             rangeValue = "—"
-            rangeLabel = "estimated range"
+            rangeLabel = "range unavailable"
             rangeAccessibilityValue = "Unavailable"
         }
 
-        security = Self.security(status?.carStatus)
-        climateText = Self.climate(status?.climateDetails, temperatureUnit: units?.unitOfTemperature)
+        security = Self.security(status?.carStatus, isLive: status?.reportsLiveTelemetry ?? false)
+        climateText = Self.climate(status?.climateDetails, temperatureUnit: resolvedUnits.temperatureSymbol)
         locationText = location ?? "Location unavailable"
         charging = Self.charging(status: status, isPluggedIn: isPluggedIn)
     }
 
-    private static func security(_ status: CarStatusDTO?) -> Security {
+    /// While the car is asleep or offline TeslaMateApi returns `locked: false`
+    /// because it has no reading, not because the car is unlocked. Claiming
+    /// "Unlocked" there is the single most alarming thing this app could get
+    /// wrong, so an unknown state is reported as unknown.
+    private static func security(_ status: CarStatusDTO?, isLive: Bool) -> Security {
         guard let status else { return Security(text: "Security unavailable", symbol: "lock.slash", needsAttention: false) }
+        guard isLive else {
+            return Security(text: "Lock state unknown", symbol: "lock.trianglebadge.exclamationmark", needsAttention: false)
+        }
         if status.doorsOpen == true || status.windowsOpen == true || status.trunkOpen == true || status.frunkOpen == true {
             return Security(text: "Open access", symbol: "exclamationmark.triangle.fill", needsAttention: true)
         }
@@ -433,23 +1386,22 @@ struct VehicleHeroSummary: Equatable {
         return Security(text: "Lock unavailable", symbol: "lock.slash", needsAttention: false)
     }
 
-    private static func climate(_ climate: ClimateDetailsDTO?, temperatureUnit: String?) -> String {
+    private static func climate(_ climate: ClimateDetailsDTO?, temperatureUnit: String) -> String {
         guard let temperature = climate?.insideTemp else { return climate?.isClimateOn == true ? "Climate on" : "Cabin unavailable" }
         let value = temperature.formatted(.number.precision(.fractionLength(0...1)))
-        let suffix = temperatureUnit.map { "°\($0.uppercased())" } ?? "°"
-        return climate?.isClimateOn == true ? "Climate on · \(value)\(suffix)" : "Cabin \(value)\(suffix)"
+        return climate?.isClimateOn == true ? "Climate on · \(value)\(temperatureUnit)" : "Cabin \(value)\(temperatureUnit)"
     }
 
     private static func charging(status: VehicleStatus?, isPluggedIn: Bool) -> Charging? {
         guard isPluggedIn, let level = status?.batteryDetails?.batteryLevel else { return nil }
-        let limit = max(status?.chargingDetails?.chargeLimitSoc ?? 100, 1)
-        let progress = min(Double(level) / Double(limit), 1)
+        let limit = status?.chargingDetails?.reportedChargeLimit ?? 100
+        let progress = min(Double(level) / Double(max(limit, 1)), 1)
         let detail: String
-        if let hours = status?.chargingDetails?.timeToFullCharge, hours > 0 {
+        if let hours = status?.chargingDetails?.reportedTimeToFull {
             let minutes = Int((hours * 60).rounded())
             detail = "\(ValueFormatting.duration(minutes: minutes)) remaining"
         } else {
-            detail = status?.chargingDetails?.chargingState ?? "Connected"
+            detail = status?.chargingDetails?.reportedState ?? "Connected"
         }
         return Charging(progress: progress, detail: detail, limitText: "\(level)% → \(limit)%")
     }
@@ -464,49 +1416,86 @@ struct VehicleHeroSummary: Equatable {
 private struct ChargingStatusCard: View {
     let status: VehicleStatus
 
-    private var batteryLevel: Double { Double(status.batteryDetails?.batteryLevel ?? 0) }
-    private var chargeLimit: Double { Double(status.chargingDetails?.chargeLimitSoc ?? 100) }
+    private var level: Int? { status.batteryDetails?.batteryLevel }
+    private var limit: Int? { status.chargingDetails?.reportedChargeLimit }
 
     var body: some View {
-        SectionCard("Charging", symbol: "bolt.car.fill", tint: TessalyticsTheme.positive) {
+        NavigationSectionCard(
+            "Charging",
+            subtitle: status.chargingDetails?.pluggedIn == true ? "Connected" : "Not connected",
+            symbol: "bolt.car.fill",
+            tint: TessalyticsTheme.positive
+        ) {
+            ChargeHistoryView(embedded: true, title: "Charging")
+        } content: {
             VStack(spacing: 8) {
-                VStack(alignment: .leading, spacing: 7) {
-                    HStack {
-                        Text("Battery to charge limit")
-                            .font(.subheadline.weight(.medium))
-                        Spacer(minLength: 12)
-                        Text("\(Int(batteryLevel))% / \(Int(chargeLimit))%")
-                            .font(.caption.monospacedDigit())
-                            .foregroundStyle(.secondary)
+                if let level, let limit {
+                    VStack(alignment: .leading, spacing: 7) {
+                        HStack {
+                            Text("Battery to charge limit")
+                                .font(.subheadline.weight(.medium))
+                            Spacer(minLength: 12)
+                            Text("\(level)% / \(limit)%")
+                                .font(.caption.monospacedDigit())
+                                .foregroundStyle(.secondary)
+                        }
+                        ProgressView(value: Double(min(level, limit)), total: Double(max(limit, 1)))
+                            .tint(TessalyticsTheme.positive)
                     }
-                    ProgressView(value: min(batteryLevel, chargeLimit), total: max(chargeLimit, 1))
-                        .tint(TessalyticsTheme.positive)
                 }
-                DetailRow(title: "State", value: status.chargingDetails?.chargingState ?? "Not reported")
-                DetailRow(title: "Power", value: ValueFormatting.number(status.chargingDetails?.chargerPower, unit: "kW"))
-                DetailRow(title: "Energy added", value: ValueFormatting.number(status.chargingDetails?.chargeEnergyAdded, unit: "kWh"))
+                DetailRow(title: "State", value: status.chargingDetails?.reportedState ?? "Not reported")
+                DetailRow(title: "Power", value: value(status.chargingDetails?.reportedPower, unit: "kW"))
+                DetailRow(title: "Energy added", value: value(status.chargingDetails?.reportedEnergyAdded, unit: "kWh"))
                 DetailRow(
                     title: "Time remaining",
-                    value: status.chargingDetails?.timeToFullCharge.map { "\($0.formatted(.number.precision(.fractionLength(1)))) hr" } ?? "Not reported"
+                    value: status.chargingDetails?.reportedTimeToFull.map {
+                        ValueFormatting.duration(minutes: Int(($0 * 60).rounded()))
+                    } ?? "Not reported"
                 )
             }
         }
+    }
+
+    /// Zero-valued charging telemetry means "not reported", not "zero kilowatts".
+    private func value(_ value: Double?, unit: String) -> String {
+        guard let value else { return "Not reported" }
+        return ValueFormatting.number(value, unit: unit)
     }
 }
 
 private struct VehicleActivityCard: View {
     let vehicle: Vehicle?
+    let weeklyDrives: Int
 
     var body: some View {
-        SectionCard(
+        NavigationSectionCard(
             "Synchronized history",
+            subtitle: "Reported by TeslaMate",
             symbol: "clock.arrow.trianglehead.counterclockwise.rotate.90",
             tint: TessalyticsTheme.neutral
         ) {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: 8)], spacing: 8) {
-                CompactStat(title: "Drives", value: vehicle?.totalDrives?.formatted() ?? "—", tint: TessalyticsTheme.accent)
-                CompactStat(title: "Charges", value: vehicle?.totalCharges?.formatted() ?? "—", tint: TessalyticsTheme.positive)
-                CompactStat(title: "Updates", value: vehicle?.totalUpdates?.formatted() ?? "—", tint: TessalyticsTheme.steel)
+            DriveHistoryView(embedded: true, title: "Drives")
+        } content: {
+            LazyVGrid(
+                columns: TessalyticsLayout.metricColumns(minimum: TessalyticsLayout.statMinWidth),
+                spacing: TessalyticsLayout.gridSpacing
+            ) {
+                CompactStat(
+                    title: "Drives",
+                    value: vehicle?.totalDrives?.formatted() ?? "—",
+                    detail: weeklyDrives > 0 ? "\(weeklyDrives) this week" : nil,
+                    tint: TessalyticsTheme.accent
+                )
+                CompactStat(
+                    title: "Charges",
+                    value: vehicle?.totalCharges?.formatted() ?? "—",
+                    tint: TessalyticsTheme.positive
+                )
+                CompactStat(
+                    title: "Updates",
+                    value: vehicle?.totalUpdates?.formatted() ?? "—",
+                    tint: TessalyticsTheme.steel
+                )
             }
         }
     }
@@ -514,17 +1503,26 @@ private struct VehicleActivityCard: View {
 
 private struct VehicleSecurityCard: View {
     let status: VehicleStatus
-    private let columns = [GridItem(.adaptive(minimum: 132), spacing: 10)]
+    private let columns = TessalyticsLayout.metricColumns(minimum: TessalyticsLayout.stateMinWidth)
+
+    private var isLive: Bool { status.reportsLiveTelemetry }
 
     var body: some View {
-        SectionCard("Vehicle state", symbol: "lock.shield.fill", tint: TessalyticsTheme.neutral) {
-            LazyVGrid(columns: columns, spacing: 10) {
-                VehicleStateItem(title: "Locked", value: status.carStatus?.locked, symbol: "lock.fill")
-                VehicleStateItem(title: "Sentry", value: status.carStatus?.sentryMode, symbol: "shield.fill")
-                VehicleStateItem(title: "Doors", value: status.carStatus?.doorsOpen, symbol: "door.left.hand.open", healthyWhenFalse: true)
-                VehicleStateItem(title: "Windows", value: status.carStatus?.windowsOpen, symbol: "rectangle.split.3x1", healthyWhenFalse: true)
-                VehicleStateItem(title: "Trunk", value: status.carStatus?.trunkOpen, symbol: "car.rear", healthyWhenFalse: true)
-                VehicleStateItem(title: "Frunk", value: status.carStatus?.frunkOpen, symbol: "car.front.waves.up", healthyWhenFalse: true)
+        SectionCard(
+            "Vehicle state",
+            // Say plainly that these are not live readings rather than showing
+            // TeslaMateApi's zero-valued booleans as measurements.
+            subtitle: isLive ? nil : "Car is asleep — lock and opening state cannot be read",
+            symbol: "lock.shield.fill",
+            tint: isLive ? TessalyticsTheme.neutral : TessalyticsTheme.steel
+        ) {
+            LazyVGrid(columns: columns, spacing: TessalyticsLayout.gridSpacing) {
+                VehicleStateItem(title: "Locked", value: status.carStatus?.locked, symbol: "lock.fill", isLive: isLive)
+                VehicleStateItem(title: "Sentry", value: status.carStatus?.sentryMode, symbol: "shield.fill", isLive: isLive)
+                VehicleStateItem(title: "Doors", value: status.carStatus?.doorsOpen, symbol: "door.left.hand.open", healthyWhenFalse: true, isLive: isLive)
+                VehicleStateItem(title: "Windows", value: status.carStatus?.windowsOpen, symbol: "rectangle.split.3x1", healthyWhenFalse: true, isLive: isLive)
+                VehicleStateItem(title: "Trunk", value: status.carStatus?.trunkOpen, symbol: "car.rear", healthyWhenFalse: true, isLive: isLive)
+                VehicleStateItem(title: "Frunk", value: status.carStatus?.frunkOpen, symbol: "car.front.waves.up", healthyWhenFalse: true, isLive: isLive)
             }
         }
     }
@@ -535,15 +1533,20 @@ private struct VehicleStateItem: View {
     let value: Bool?
     let symbol: String
     var healthyWhenFalse = false
+    var isLive = true
 
-    private var isHealthy: Bool? { value.map { healthyWhenFalse ? !$0 : $0 } }
+    private var isHealthy: Bool? {
+        guard isLive else { return nil }
+        return value.map { healthyWhenFalse ? !$0 : $0 }
+    }
     private var stateText: String {
+        guard isLive else { return "Unknown" }
         guard let value else { return "Unavailable" }
         if healthyWhenFalse { return value ? "Open" : "Closed" }
         return value ? "On" : "Off"
     }
     private var tint: Color {
-        guard let isHealthy else { return .secondary }
+        guard let isHealthy else { return TessalyticsTheme.steel }
         return isHealthy ? TessalyticsTheme.positive : TessalyticsTheme.warning
     }
 
@@ -562,6 +1565,7 @@ private struct VehicleStateItem: View {
             Spacer(minLength: 0)
         }
         .padding(8)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .background(.quaternary.opacity(0.5), in: .rect(cornerRadius: 10))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(title)
@@ -571,18 +1575,26 @@ private struct VehicleStateItem: View {
 
 private struct TirePressureCard: View {
     let status: VehicleStatus
+    let units: UnitsDTO?
 
     var body: some View {
-        SectionCard("Tire pressures", symbol: "gauge.with.dots.needle.50percent", tint: TessalyticsTheme.neutral) {
+        SectionCard(
+            "Tire pressures",
+            // TeslaMate returns 0 psi for tyres it has no reading for, which used
+            // to render as a set of four "0.0 psi" values.
+            subtitle: status.tpmsDetails?.hasAnyReading == true ? nil : "No sensor readings in the last poll",
+            symbol: "gauge.with.dots.needle.50percent",
+            tint: TessalyticsTheme.neutral
+        ) {
             Grid(horizontalSpacing: 16, verticalSpacing: 12) {
                 GridRow {
-                    TireValue(title: "Front left", value: status.tpmsDetails?.tpmsPressureFl)
-                    TireValue(title: "Front right", value: status.tpmsDetails?.tpmsPressureFr)
+                    TireValue(title: "Front left", value: TPMSDTO.reported(status.tpmsDetails?.tpmsPressureFl), units: units)
+                    TireValue(title: "Front right", value: TPMSDTO.reported(status.tpmsDetails?.tpmsPressureFr), units: units)
                 }
                 Divider().gridCellColumns(2)
                 GridRow {
-                    TireValue(title: "Rear left", value: status.tpmsDetails?.tpmsPressureRl)
-                    TireValue(title: "Rear right", value: status.tpmsDetails?.tpmsPressureRr)
+                    TireValue(title: "Rear left", value: TPMSDTO.reported(status.tpmsDetails?.tpmsPressureRl), units: units)
+                    TireValue(title: "Rear right", value: TPMSDTO.reported(status.tpmsDetails?.tpmsPressureRr), units: units)
                 }
             }
         }
@@ -592,13 +1604,16 @@ private struct TirePressureCard: View {
 private struct TireValue: View {
     let title: String
     let value: Double?
+    let units: UnitsDTO?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title).font(.caption).foregroundStyle(.secondary)
-            Text(ValueFormatting.number(value, unit: ""))
-                .font(.headline)
+            Text(value == nil ? "Not reported" : ValueFormatting.pressure(value, units: units))
+                .font(.subheadline.weight(.semibold))
                 .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
@@ -609,12 +1624,146 @@ private struct VehicleDetailsCard: View {
     let status: VehicleStatus
 
     var body: some View {
-        SectionCard("Details", symbol: "info.circle.fill") {
+        NavigationSectionCard(
+            "Software & details",
+            subtitle: status.carVersions?.reportedUpdateVersion.map { "Update \($0) available" }
+                ?? "Installed firmware and logger health",
+            symbol: "info.circle.fill",
+            tint: TessalyticsTheme.neutral
+        ) {
+            SoftwareUpdatesView()
+        } content: {
             VStack(spacing: 12) {
-                DetailRow(title: "Location", value: status.carGeodata?.geofence ?? "Not reported", symbol: "mappin.and.ellipse")
-                DetailRow(title: "Software", value: status.carVersions?.version ?? "Not reported", symbol: "shippingbox.fill")
-                DetailRow(title: "Logger", value: status.carStatus?.healthy == true ? "Healthy" : "Unavailable", symbol: "waveform.path.ecg")
+                DetailRow(
+                    title: "Location",
+                    value: status.carGeodata?.reportedGeofence ?? "Not reported",
+                    symbol: "mappin.and.ellipse"
+                )
+                DetailRow(
+                    title: "Software",
+                    value: status.carVersions?.reportedVersion ?? "Not reported",
+                    symbol: "shippingbox.fill"
+                )
+                DetailRow(
+                    title: "Logger",
+                    value: status.carStatus?.healthy == true ? "Healthy" : "Unavailable",
+                    symbol: "waveform.path.ecg"
+                )
             }
         }
+    }
+}
+
+/// One headline figure beside the battery ring: a value, its unit, and an icon.
+private struct HeroFigure: View {
+    let value: String
+    let label: String
+    let symbol: String
+    let tint: Color
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: symbol)
+                .font(.footnote)
+                .foregroundStyle(tint)
+                .frame(width: 18)
+            VStack(alignment: .leading, spacing: 0) {
+                Text(value)
+                    .font(.title3.weight(.semibold))
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                Text(label)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+        }
+    }
+}
+
+/// The bottom band of the hero: recent activity as a sparkline, beside the two
+/// figures that say whether the car is being used well.
+private struct HeroActivityStrip: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    let points: [RecentDrivePoint]
+    let efficiency: Double?
+    let units: UnitsDTO?
+    let health: Double?
+
+    private var resolvedUnits: UnitsDTO { units ?? .metricDefaults }
+    private var total: Double { points.map(\.distance).reduce(0, +) }
+    private var sparklinePoints: [ExplorableChartPoint] {
+        points.enumerated().map { index, point in
+            ExplorableChartPoint(id: index, label: "\(index)", value: point.distance)
+        }
+    }
+
+    var body: some View {
+        if dynamicTypeSize.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: 10) {
+                sparkline
+                figures
+            }
+        } else {
+            HStack(alignment: .bottom, spacing: 14) {
+                sparkline
+                figures
+            }
+        }
+    }
+
+    /// No axes and no legend: at this size the shape is the information, and the
+    /// total beside it supplies the scale.
+    private var sparkline: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Chart(sparklinePoints) { point in
+                BarMark(
+                    x: .value("Day", point.label),
+                    y: .value("Distance", point.value)
+                )
+                .foregroundStyle(TessalyticsTheme.accent.opacity(0.85))
+                .clipShape(.rect(cornerRadius: 1.5))
+            }
+            .chartXAxis(.hidden)
+            .chartYAxis(.hidden)
+            .chartLegend(.hidden)
+            .frame(height: 36)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Distance driven each day over the last \(points.count) days")
+            .accessibilityValue(ValueFormatting.distance(total, units: resolvedUnits, digits: 0))
+
+            Text("\(ValueFormatting.distance(total, units: resolvedUnits, digits: 0)) · \(points.count) days")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder private var figures: some View {
+        HStack(spacing: 12) {
+            if let efficiency {
+                HeroFigure(
+                    value: efficiency.formatted(.number.precision(.fractionLength(0))),
+                    label: "Wh/\(resolvedUnits.lengthSymbol)",
+                    symbol: "leaf.fill",
+                    tint: TessalyticsTheme.positive
+                )
+            }
+            if let health {
+                HeroFigure(
+                    value: ValueFormatting.percentage(health / 100, digits: 1),
+                    label: "health",
+                    symbol: "heart.text.square.fill",
+                    tint: health >= 90 ? TessalyticsTheme.positive : TessalyticsTheme.warning
+                )
+            }
+        }
+        .fixedSize(horizontal: true, vertical: false)
     }
 }

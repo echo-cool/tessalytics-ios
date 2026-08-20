@@ -6,16 +6,67 @@ final class TessalyticsUITests: XCTestCase {
         let app = launch("-ui-onboarding")
         XCTAssertTrue(app.otherElements["onboarding-screen"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["Configure server"].exists)
+        XCTAssertTrue(app.buttons["explore-demo"].exists)
+    }
+
+    func testOnboardingCanLaunchGeneratedDemo() {
+        let app = launch("-ui-onboarding")
+        let explore = app.buttons["explore-demo"]
+        XCTAssertTrue(explore.waitForExistence(timeout: 5))
+        explore.tap()
+        XCTAssertTrue(app.otherElements["dashboard-screen"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["demo-mode-banner"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["home-driving-chart"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["direct-tesla-controls"].exists)
     }
 
     func testDashboardSmoke() {
         let app = launch("-ui-demo")
         XCTAssertTrue(app.otherElements["dashboard-screen"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.otherElements["vehicle-snapshot-card"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Parked at Home"].exists)
+        XCTAssertTrue(app.staticTexts["Home"].exists, "A parked car shows its place, not a state word")
+        XCTAssertFalse(app.staticTexts["Parked at Home"].exists, "The state prefix is gone for the common case")
         XCTAssertTrue(app.staticTexts["238"].exists)
         XCTAssertTrue(app.staticTexts["Locked"].exists)
         XCTAssertTrue(app.staticTexts["Cabin 21.5°C"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["home-driving-chart"].exists)
+
+        // Every telemetry tile lives in a lazy grid below the fold, so none of
+        // them is guaranteed to exist until scrolled into range.
+        assertScrollingReveals(app, texts: [
+            "Odometer", "18,642 mi",
+            "Cabin", "21.5 °C",
+            "Outside", "18 °C"
+        ])
+    }
+
+    /// Scrolls the current screen until every expected string has been seen.
+    private func assertScrollingReveals(
+        _ app: XCUIApplication,
+        texts: [String],
+        maximumSwipes: Int = 14,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        var remaining = Set(texts)
+        for _ in 0...maximumSwipes {
+            remaining = remaining.filter { !app.staticTexts[$0].exists }
+            if remaining.isEmpty { return }
+            app.swipeUp()
+        }
+        XCTAssertTrue(
+            remaining.isEmpty,
+            "Never found \(remaining.sorted().joined(separator: ", ")) while scrolling",
+            file: file,
+            line: line
+        )
+    }
+
+    func testDashboardHidesDirectControlsWithoutTokens() {
+        let app = launch("-ui-demo", "-ui-owner-disconnected")
+        XCTAssertTrue(app.otherElements["dashboard-screen"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.descendants(matching: .any)["direct-tesla-controls"].exists)
+        XCTAssertFalse(app.buttons["owner-command-unlock"].exists)
     }
 
     func testDirectTeslaControlsRequireConfirmation() {
@@ -62,11 +113,40 @@ final class TessalyticsUITests: XCTestCase {
     func testDriveHistorySmoke() {
         let app = launch("-ui-demo", "-ui-drives")
         XCTAssertTrue(app.otherElements["drive-history-screen"].waitForExistence(timeout: 5))
+        let generatedDriveCard = app.buttons
+            .matching(NSPredicate(format: "identifier BEGINSWITH 'drive-card-'"))
+            .firstMatch
+        XCTAssertTrue(generatedDriveCard.waitForExistence(timeout: 5))
     }
 
-    func testDriveDetailUsesPlainBackControl() {
-        let app = launch("-ui-demo", "-ui-drive-detail")
-        XCTAssertTrue(app.buttons["Back"].waitForExistence(timeout: 5))
+    /// A pushed detail screen must use the system back button.
+    ///
+    /// The custom control it used to draw required `navigationBarBackButtonHidden`,
+    /// which also disables the interactive edge-swipe gesture — so the swipe back
+    /// is asserted here too.
+    func testDriveDetailPushesBackWithSystemControlAndSwipe() {
+        let app = launch("-ui-demo", "-ui-drives")
+        let driveCard = app.buttons
+            .matching(NSPredicate(format: "identifier BEGINSWITH 'drive-card-'"))
+            .firstMatch
+        XCTAssertTrue(driveCard.waitForExistence(timeout: 5))
+        driveCard.tap()
+
+        let backButton = app.navigationBars.buttons.element(boundBy: 0)
+        XCTAssertTrue(backButton.waitForExistence(timeout: 5), "Pushed drive detail has no leading back control")
+
+        backButton.tap()
+        XCTAssertTrue(app.otherElements["drive-history-screen"].waitForExistence(timeout: 5))
+
+        // Push again and leave via the edge-swipe gesture.
+        XCTAssertTrue(driveCard.waitForExistence(timeout: 5))
+        driveCard.tap()
+        XCTAssertTrue(app.navigationBars.buttons.element(boundBy: 0).waitForExistence(timeout: 5))
+        app.swipeRight()
+        XCTAssertTrue(
+            app.otherElements["drive-history-screen"].waitForExistence(timeout: 5),
+            "Edge-swipe did not dismiss the pushed drive detail"
+        )
     }
 
     func testChargeHistorySmoke() {
@@ -100,7 +180,7 @@ final class TessalyticsUITests: XCTestCase {
     }
 
     private func scrollTo(_ element: XCUIElement, in app: XCUIApplication) {
-        for _ in 0..<6 {
+        for _ in 0..<14 {
             if element.exists { return }
             app.swipeUp()
         }

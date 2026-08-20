@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Privacy Policy — Tessalytics</title>
+  <meta name="description" content="Tessalytics privacy policy: no developer-operated cloud, no analytics, no tracking. Your iPhone connects directly to the server you configure.">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<main>
+  <p class="brand"><a href="/">Tessalytics</a></p>
+  <h1>Privacy Policy</h1>
+  <p class="updated">Effective August 19, 2026</p>
+
+  <div class="summary">
+    <strong>The short version:</strong> Tessalytics collects nothing. There is no
+    Tessalytics account, server, relay, or cloud backend. Your iPhone talks
+    directly to the TeslaMate server you configure — and, only if you choose to
+    enable it, directly to Tesla. No advertising, no analytics SDK, no tracking,
+    no maintainer telemetry.
+  </div>
+
+  <h2>What Tessalytics is</h2>
+  <p>
+    Tessalytics is a native iPhone client for a <em>self-hosted</em>
+    <a href="https://github.com/teslamate-org/teslamate">TeslaMate</a>
+    installation. It reads vehicle status, drive history, and charging history
+    from your own
+    <a href="https://github.com/tobiasehlert/teslamateapi">TeslaMateApi</a>
+    deployment and turns that data into dashboards, charts, analytics, battery
+    estimates, and forecasts computed on your device.
+  </p>
+  <p class="note">
+    Tessalytics is an unofficial community tool and is not affiliated with,
+    endorsed by, or supported by the official TeslaMate project or Tesla, Inc.
+  </p>
+
+  <h2>Data the developer collects</h2>
+  <p>
+    None. Tessalytics has no account system, no backend service, and no
+    developer-operated infrastructure of any kind. The developer never receives
+    your vehicle data, location, routes, VIN, server address, credentials,
+    tokens, crash data, or usage statistics.
+  </p>
+
+  <h2>Where your data goes</h2>
+  <ul>
+    <li><strong>Your TeslaMate server.</strong> The app makes network requests
+        only to the TeslaMateApi address you enter. Where that server runs, who
+        can reach it, and how long it retains data are entirely under your
+        control.</li>
+    <li><strong>Tesla, only if you enable it.</strong> Advanced users may add an
+        Owner API access/refresh-token pair generated outside Tessalytics. When
+        present, the app communicates directly with Tesla for live state and
+        for commands you explicitly confirm. Token refresh also happens directly
+        between your iPhone and Tesla.</li>
+    <li><strong>Apple Maps.</strong> Route and location maps are drawn with
+        Apple's MapKit, which is subject to
+        <a href="https://www.apple.com/legal/privacy/">Apple's privacy policy</a>.</li>
+  </ul>
+  <p>
+    The app never asks for your Tesla account password, and it contains no
+    third-party analytics, advertising, attribution, or tracking code.
+  </p>
+
+  <h2>Credentials</h2>
+  <ul>
+    <li>TeslaMate bearer tokens and HTTP Basic credentials are stored only in the
+        iOS Keychain, protected with <code>kSecAttrAccessibleAfterFirstUnlock</code>.</li>
+    <li>Optional Tesla Owner API access and refresh tokens are stored in a
+        separate Keychain item with
+        <code>kSecAttrAccessibleWhenUnlockedThisDeviceOnly</code>, so they are
+        readable only while the device is unlocked and never migrate to another
+        device or backup.</li>
+    <li>Credentials are never written to the app database, <code>UserDefaults</code>,
+        <code>Info.plist</code>, source code, or diagnostics.</li>
+  </ul>
+
+  <h2>Data stored on your device</h2>
+  <p>
+    For offline browsing and fast startup, Tessalytics caches vehicle metadata,
+    drive and charging history, route samples, battery-health observations,
+    firmware history, and synchronization metadata. Records are partitioned by
+    server profile and vehicle, and are protected by the standard iOS app
+    container and data protection.
+  </p>
+  <p>
+    A cached snapshot is never presented as current after a failed refresh —
+    offline data is labeled stale. Deleting a server profile removes its
+    credentials; deleting the app removes its entire local database.
+  </p>
+
+  <h2>Vehicle commands</h2>
+  <p>
+    With the optional Owner API connection enabled, Tessalytics can send
+    user-initiated lock, climate, charging, and trunk commands directly to
+    Tesla. Every command requires an in-app confirmation plus successful Face ID
+    or device-passcode authentication. Tessalytics never wakes a sleeping
+    vehicle automatically and never sends commands in the background.
+  </p>
+
+  <h2>Notifications</h2>
+  <p>
+    Alerts for low battery, charge completion, software updates, and notable
+    changes are optional local notifications scheduled on your device. There is
+    no push server, and no notification content leaves your iPhone.
+  </p>
+
+  <h2>Demo mode</h2>
+  <p>
+    The built-in demo generates sample drives and charging sessions entirely on
+    your device. It requires no Tesla, no account, no server, and no network
+    connection, and it never enables vehicle commands.
+  </p>
+
+  <h2>Diagnostics</h2>
+  <p>
+    Application logs stay on your device and are redacted: they must not contain
+    authorization headers, passwords, tokens, VINs, coordinates, addresses, or
+    vehicle names. Nothing is transmitted to the developer. If you file a bug
+    report, please review any logs you choose to attach.
+  </p>
+
+  <h2>Children's privacy</h2>
+  <p>
+    Because Tessalytics collects no data from anyone, it collects no data from
+    children.
+  </p>
+
+  <h2>Changes to this policy</h2>
+  <p>
+    If a future version changes any of the above, this page will be updated
+    before that version ships, with a new effective date.
+  </p>
+
+  <h2>Contact</h2>
+  <p>
+    Questions about privacy? Open an issue on
+    <a href="https://github.com/echo-cool/tessalytics/issues">GitHub</a> or see the
+    <a href="/support/">support page</a>.
+  </p>
+
+  <footer>© 2026 Tessalytics · <a href="/">Home</a> · <a href="/support/">Support</a></footer>
+</main>
+</body>
+</html>

@@ -42,13 +42,22 @@ struct SoftwareUpdatesView: View {
             }
         }
         .navigationTitle("Software updates")
+        .tessalyticsReadableWidth()
         .task { await load() }
         .refreshable { await load() }
     }
     private func load() async {
         guard let profile = environment.selectedProfile, let vehicle = environment.selectedVehicle else { loading = false; return }
+        if environment.isDemoMode {
+            loadCached(profile: profile, vehicle: vehicle)
+            loading = false
+            return
+        }
         do {
+            // The API does not guarantee an order; the cached path sorts newest
+            // first, so the live path must match or the list reshuffles.
             updates = try await environment.client(for: profile).updates(carID: vehicle.id).updates
+                .sorted { ($0.endDate?.value ?? $0.startDate?.value ?? .distantPast) > ($1.endDate?.value ?? $1.startDate?.value ?? .distantPast) }
             for dto in updates {
                 let key = "\(profile.id.uuidString):\(vehicle.id):update:\(dto.updateId)"
                 let descriptor = FetchDescriptor<FirmwareUpdateRecord>(predicate: #Predicate { $0.cacheKey == key })
@@ -57,11 +66,27 @@ struct SoftwareUpdatesView: View {
             try context.save(); message = nil
         }
         catch {
-            let server = profile.id.uuidString, car = vehicle.id
-            let cached = (try? context.fetch(FetchDescriptor<FirmwareUpdateRecord>(predicate: #Predicate { $0.serverID == server && $0.carID == car }, sortBy: [SortDescriptor(\.endDate, order: .reverse)]))) ?? []
-            updates = cached.map { FirmwareUpdateDTO(updateId: $0.updateID, startDate: FlexibleDate($0.startDate), endDate: FlexibleDate($0.endDate), version: $0.version) }
+            loadCached(profile: profile, vehicle: vehicle)
             message = error.localizedDescription
         }
         loading = false
+    }
+
+    private func loadCached(profile: ServerProfile, vehicle: Vehicle) {
+        let server = profile.id.uuidString
+        let car = vehicle.id
+        let descriptor = FetchDescriptor<FirmwareUpdateRecord>(
+            predicate: #Predicate { $0.serverID == server && $0.carID == car },
+            sortBy: [SortDescriptor(\.endDate, order: .reverse)]
+        )
+        let cached = (try? context.fetch(descriptor)) ?? []
+        updates = cached.map {
+            FirmwareUpdateDTO(
+                updateId: $0.updateID,
+                startDate: FlexibleDate($0.startDate),
+                endDate: FlexibleDate($0.endDate),
+                version: $0.version
+            )
+        }
     }
 }

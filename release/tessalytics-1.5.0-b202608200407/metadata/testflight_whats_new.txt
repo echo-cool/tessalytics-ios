@@ -1,0 +1,58 @@
+Tessalytics 1.5.0 (202608200407) — chart correctness, and the sync bug behind
+the "Offline" banner.
+
+WHAT TO TEST FIRST
+
+1. Open any drive and look at the Speed chart against the "Maximum speed" card
+   above it. They agree now. They did not before: Swift Charts stacks an area
+   mark by default, which for a dense series sums neighbouring samples — a drive
+   that peaked at 33 mph drew spikes to 155 on an axis running to 200. The same
+   fault hit every charge chart. A Supercharger session should now show one
+   taper from its peak, matching its own "Peak power" figure.
+
+2. Scroll to Elevation and Outside temperature on a drive. These no longer
+   anchor to zero. An elevation of 15-20 m and a temperature that moves half a
+   degree were both flat lines against a zero baseline; they are framed to their
+   own range now, so the variation is visible. Speed, power and energy still keep
+   zero, because zero means something there.
+
+3. Battery > Battery capacity by mileage. The x-axis starts where your data
+   starts. If the car was logged from 15,000 miles, the chart no longer spends
+   the first two thirds of the plot on mileage that has no readings.
+
+4. Charge history addresses. One line each: "Tesla Supercharger, San Jose"
+   rather than the full OpenStreetMap string down to the county and postcode.
+
+5. The home screen after a cold start. Check there is no "Offline — showing
+   synchronized data" banner and no "Stale" badge while the server is reachable.
+   A cursor bug stopped drive paging after the first 100 records, and that
+   failure aborted the run before charges were fetched at all — which is why the
+   card said "No charges synced" and the banner appeared against a healthy
+   server. All 798 drives now page through cleanly.
+
+ALSO FIXED
+
+- Position timestamps kept only whole seconds through the local cache, so a
+  four-minute drive's 747 samples collapsed onto 211 instants. Charts silently
+  dropped marks and drew a self-intersecting fill. Sub-second precision now
+  survives the round trip.
+- Dense sample charts are decimated to a few hundred marks, keeping each
+  bucket's minimum and maximum so peaks are preserved rather than averaged away.
+  Past a few hundred marks Swift Charts was truncating the trace partway across
+  the plot.
+- A failure fetching drives no longer costs the charge history: the two legs of
+  a sync run independently, and a partial pass is not recorded as complete.
+
+TRIMMED
+
+Explanatory paragraphs under the charts are gone, along with the long Settings
+and analytics captions. The axes and legends carry it. Period comparisons read
+"+78% vs prev. 30d" instead of truncating mid-word.
+
+KNOWN GAPS
+
+Vehicle commands still go through TeslaMateApi; the backend holds no vehicle
+credentials and forwards those actions.
+
+App Store screenshots have not been re-shot and there is still no iPad set.
+Both are needed before a store submission; neither blocks TestFlight.

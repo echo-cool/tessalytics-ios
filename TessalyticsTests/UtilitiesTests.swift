@@ -2,6 +2,29 @@ import XCTest
 @testable import Tessalytics
 
 final class UtilitiesTests: XCTestCase {
+    func testMetricFormattingAlwaysIncludesConfiguredUnits() {
+        let imperial = UnitsDTO(unitOfLength: "mi", unitOfPressure: "psi", unitOfTemperature: "F")
+        let metric = UnitsDTO(unitOfLength: "km", unitOfPressure: "bar", unitOfTemperature: "°C")
+
+        XCTAssertEqual(ValueFormatting.distance(12.5, units: imperial), "12.5 mi")
+        XCTAssertEqual(ValueFormatting.speed(42, units: imperial), "42 mph")
+        XCTAssertEqual(ValueFormatting.temperature(68, units: imperial), "68 °F")
+        XCTAssertEqual(ValueFormatting.pressure(42.1, units: imperial), "42.1 psi")
+        XCTAssertEqual(ValueFormatting.efficiency(241, units: imperial), "241 Wh/mi")
+
+        XCTAssertEqual(ValueFormatting.distance(20, units: metric), "20 km")
+        XCTAssertEqual(ValueFormatting.speed(80, units: metric), "80 km/h")
+        XCTAssertEqual(ValueFormatting.temperature(21.5, units: metric), "21.5 °C")
+        XCTAssertEqual(ValueFormatting.pressure(2.9, units: metric), "2.9 bar")
+        XCTAssertEqual(ValueFormatting.efficiency(158, units: metric), "158 Wh/km")
+    }
+
+    func testMetricFormattingUsesExplicitMetricDefaultsWhenServerUnitsAreMissing() {
+        XCTAssertEqual(ValueFormatting.distance(10, units: nil), "10 km")
+        XCTAssertEqual(ValueFormatting.temperature(20, units: nil), "20 °C")
+        XCTAssertEqual(ValueFormatting.pressure(2.8, units: nil), "2.8 bar")
+    }
+
     func testRouteSimplificationPreservesEndpointsAndTurn() {
         let points = [CoordinateDTO(latitude: 0, longitude: 0), CoordinateDTO(latitude: 0, longitude: 0.5), CoordinateDTO(latitude: 0, longitude: 1), CoordinateDTO(latitude: 1, longitude: 1)]
         let simplified = RouteSimplifier.simplify(points, tolerance: 0.01)
@@ -85,13 +108,15 @@ final class UtilitiesTests: XCTestCase {
         )
 
         XCTAssertEqual(summary.activity, .parked)
-        XCTAssertEqual(summary.headline, "Parked at Home")
+        XCTAssertFalse(summary.isNotable, "Parked is the normal case and is not announced")
+        XCTAssertEqual(summary.headline, "Home")
         XCTAssertEqual(summary.batteryText, "78")
         XCTAssertEqual(summary.rangeValue, "238")
         XCTAssertEqual(summary.rangeLabel, "mi estimated range")
         XCTAssertEqual(summary.security.text, "Locked")
         XCTAssertEqual(summary.climateText, "Cabin 21.5°C")
         XCTAssertEqual(summary.locationText, "Home")
+        XCTAssertEqual(summary.batteryFraction, 0.78)
         XCTAssertNil(summary.charging)
     }
 
@@ -268,6 +293,25 @@ final class UtilitiesTests: XCTestCase {
         )
     }
 
+    /// Driving and charging are the states worth announcing, and only those.
+    func testMotionAndChargingAreTheOnlyNotableStates() {
+        let units = UnitsDTO(unitOfLength: "mi", unitOfPressure: "psi", unitOfTemperature: "C")
+
+        let driving = VehicleHeroSummary(
+            status: makeHeroStatus(state: "driving", shiftState: "D", speed: 45),
+            units: units
+        )
+        XCTAssertTrue(driving.isNotable)
+        XCTAssertEqual(driving.headline, "Driving · 45 mph")
+
+        let charging = VehicleHeroSummary(
+            status: makeHeroStatus(state: "online", pluggedIn: true, chargingState: "Charging", chargerPower: 62),
+            units: units
+        )
+        XCTAssertTrue(charging.isNotable)
+        XCTAssertEqual(charging.headline, "Charging · 62 kW")
+    }
+
     private func makeHeroStatus(
         state: String = "online",
         shiftState: String? = nil,
@@ -329,3 +373,4 @@ final class UtilitiesTests: XCTestCase {
         )
     }
 }
+

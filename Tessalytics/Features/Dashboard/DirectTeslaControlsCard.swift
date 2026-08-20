@@ -7,7 +7,9 @@ struct DirectTeslaControlsCard: View {
     @State private var resultMessage: String?
     @State private var errorMessage: String?
 
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 8), count: 4)
+    // Adaptive rather than a fixed four across, so the labels stay readable at
+    // large text sizes and the buttons do not stretch absurdly wide on iPad.
+    private let columns = TessalyticsLayout.metricColumns(minimum: 96)
 
     var body: some View {
         SectionCard(
@@ -16,7 +18,7 @@ struct DirectTeslaControlsCard: View {
             symbol: "bolt.car.fill",
             tint: TessalyticsTheme.accent
         ) {
-            LazyVGrid(columns: columns, spacing: 8) {
+            LazyVGrid(columns: columns, spacing: TessalyticsLayout.gridSpacing) {
                 commandButton(environment.status?.carStatus?.locked == true ? .unlock : .lock)
                 commandButton(environment.status?.climateDetails?.isClimateOn == true ? .climateOff : .climateOn)
                 commandButton(environment.status?.chargingDetails?.chargingState?.lowercased() == "charging" ? .chargeStop : .chargeStart)
@@ -74,7 +76,7 @@ struct DirectTeslaControlsCard: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
             }
-            .frame(maxWidth: .infinity, minHeight: 58)
+            .frame(maxWidth: .infinity, minHeight: 58, maxHeight: .infinity)
             .background(TessalyticsTheme.accent.opacity(0.09), in: .rect(cornerRadius: 11))
         }
         .buttonStyle(.plain)

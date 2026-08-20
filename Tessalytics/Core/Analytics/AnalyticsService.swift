@@ -94,7 +94,7 @@ struct AnalyticsTimeWindow: Sendable {
                 current: start..<end,
                 previous: previousStart..<start,
                 label: "Last \(count) days",
-                comparisonLabel: "previous \(count) days"
+                comparisonLabel: "prev. \(count)d"
             )
         }
 
@@ -112,13 +112,13 @@ struct AnalyticsTimeWindow: Sendable {
                 let equivalentEnd = prior.start.addingTimeInterval(now.timeIntervalSince(start))
                 return prior.start..<min(equivalentEnd, prior.end)
             }
-            return Self(current: start..<currentEnd, previous: previousRange, label: "This month", comparisonLabel: "same period last month")
+            return Self(current: start..<currentEnd, previous: previousRange, label: "This month", comparisonLabel: "last month")
         case .previousMonth:
             let priorDate = calendar.date(byAdding: .month, value: -1, to: now) ?? now
             let interval = calendar.dateInterval(of: .month, for: priorDate)
             let earlierDate = calendar.date(byAdding: .month, value: -2, to: now) ?? now
             let previous = calendar.dateInterval(of: .month, for: earlierDate)
-            return Self(current: interval.map { $0.start..<$0.end }, previous: previous.map { $0.start..<$0.end }, label: "Last month", comparisonLabel: "month before")
+            return Self(current: interval.map { $0.start..<$0.end }, previous: previous.map { $0.start..<$0.end }, label: "Last month", comparisonLabel: "prev. month")
         case .currentYear:
             let interval = calendar.dateInterval(of: .year, for: now)
             let priorDate = calendar.date(byAdding: .year, value: -1, to: now) ?? now
@@ -128,7 +128,7 @@ struct AnalyticsTimeWindow: Sendable {
                 let equivalentEnd = prior.start.addingTimeInterval(now.timeIntervalSince(currentStart))
                 return prior.start..<min(equivalentEnd, prior.end)
             }
-            return Self(current: currentStart..<now.addingTimeInterval(1), previous: previousRange, label: "This year", comparisonLabel: "same period last year")
+            return Self(current: currentStart..<now.addingTimeInterval(1), previous: previousRange, label: "This year", comparisonLabel: "last year")
         case .allTime:
             return Self(current: nil, previous: nil, label: "All synchronized data", comparisonLabel: nil)
         case .custom:
@@ -141,7 +141,7 @@ struct AnalyticsTimeWindow: Sendable {
                 current: first..<end,
                 previous: previousStart..<first,
                 label: "Custom range",
-                comparisonLabel: "preceding range"
+                comparisonLabel: "prev. range"
             )
         }
     }

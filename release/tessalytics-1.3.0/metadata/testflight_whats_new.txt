@@ -1,0 +1,46 @@
+Tessalytics 1.3.0 — iPad support, and a dashboard that stops guessing.
+
+WHAT TO TEST FIRST
+
+1. iPad. The app now runs natively on iPad in every orientation, with a
+   collapsible sidebar in place of the tab bar and cards held to a readable
+   width instead of stretched edge to edge. Try Split View and Stage Manager.
+
+2. A sleeping car. Park the car and let it fall asleep, then open Status.
+   TeslaMateApi cannot read live telemetry while a car is asleep, and it
+   reports missing values as zeros — which the previous build displayed as
+   fact. It said "Unlocked" for a locked car and "0 mi estimated range" for a
+   full battery. Now the range falls back to the rated figure and says so, lock
+   and opening state read "Unknown", and the top card switches to synchronized
+   history: last drive, distance over seven days, last charge. Please confirm
+   nothing on that screen claims something it cannot know.
+
+3. First run after adding a server. Configure a TeslaMate server from scratch.
+   The dashboard used to sit on "Status not available yet" until you changed
+   vehicle or backgrounded the app; it should now populate on its own.
+
+4. Pull to refresh, on Status and on both Activity tabs. The spinner used to be
+   able to stick open. It should now finish exactly when the data lands.
+
+5. The Activity drive list. Each row used to host a live map, which made
+   scrolling stutter. Routes are now cached static snapshots, and larger.
+
+ALSO CHANGED
+
+- Home screen cards are tappable and lead to the matching detail screen; new
+  shortcut row for Drives, Charging, Analysis and Battery; a "Latest drive"
+  card with its route.
+- Charging history leads with energy added and average power, and shows a price
+  only where one is actually configured, instead of a column of $0.00.
+- Every chart names both axes with units, labels its values and carries a
+  legend. Drive and charge charts plot against time rather than a database row
+  id, so the shape of a trip is readable.
+- Metric cards are more compact and every card in a row is the same height.
+- Back is top-left everywhere, and the edge-swipe back gesture works on the
+  detail screens where a custom back button had disabled it.
+
+KNOWN GAPS
+
+App Store screenshots have not been re-shot for this build, and the iPad
+screenshot set does not exist yet. Both are needed before a store submission;
+neither blocks TestFlight.

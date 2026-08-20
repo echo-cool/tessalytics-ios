@@ -2,28 +2,54 @@ import Foundation
 
 struct Envelope<T: Decodable & Sendable>: Decodable, Sendable { let data: T }
 
-struct UnitsDTO: Decodable, Hashable, Sendable {
+struct UnitsDTO: Codable, Hashable, Sendable {
     let unitOfLength: String?
     let unitOfPressure: String?
     let unitOfTemperature: String?
 }
 
 extension UnitsDTO {
+    static let metricDefaults = UnitsDTO(
+        unitOfLength: "km",
+        unitOfPressure: "bar",
+        unitOfTemperature: "C"
+    )
+
+    var lengthSymbol: String {
+        unitOfLength?.lowercased() == "mi" ? "mi" : "km"
+    }
+
+    var speedSymbol: String {
+        lengthSymbol == "mi" ? "mph" : "km/h"
+    }
+
+    var temperatureSymbol: String {
+        unitOfTemperature?
+            .replacingOccurrences(of: "°", with: "")
+            .uppercased() == "F" ? "°F" : "°C"
+    }
+
+    var pressureSymbol: String {
+        unitOfPressure?.lowercased() == "psi" ? "psi" : "bar"
+    }
+
+    var efficiencySymbol: String { "Wh/\(lengthSymbol)" }
+
     func length(_ value: Double?) -> Measurement<UnitLength>? {
         guard let value else { return nil }
-        return Measurement(value: value, unit: unitOfLength?.lowercased() == "mi" ? .miles : .kilometers)
+        return Measurement(value: value, unit: lengthSymbol == "mi" ? .miles : .kilometers)
     }
     func speed(_ value: Double?) -> Measurement<UnitSpeed>? {
         guard let value else { return nil }
-        return Measurement(value: value, unit: unitOfLength?.lowercased() == "mi" ? .milesPerHour : .kilometersPerHour)
+        return Measurement(value: value, unit: speedSymbol == "mph" ? .milesPerHour : .kilometersPerHour)
     }
     func temperature(_ value: Double?) -> Measurement<UnitTemperature>? {
         guard let value else { return nil }
-        return Measurement(value: value, unit: unitOfTemperature?.uppercased() == "F" ? .fahrenheit : .celsius)
+        return Measurement(value: value, unit: temperatureSymbol == "°F" ? .fahrenheit : .celsius)
     }
     func pressure(_ value: Double?) -> Measurement<UnitPressure>? {
         guard let value else { return nil }
-        return Measurement(value: value, unit: unitOfPressure?.lowercased() == "psi" ? .poundsForcePerSquareInch : .bars)
+        return Measurement(value: value, unit: pressureSymbol == "psi" ? .poundsForcePerSquareInch : .bars)
     }
 }
 
@@ -45,11 +71,11 @@ struct CarDTO: Decodable, Identifiable, Sendable {
                 totalCharges: teslamateStats?.totalCharges, totalUpdates: teslamateStats?.totalUpdates)
     }
 }
-struct CarDetailsDTO: Decodable, Sendable { let model: String?; let trimBadging: String?; let efficiency: Double? }
+struct CarDetailsDTO: Codable, Sendable { let model: String?; let trimBadging: String?; let efficiency: Double? }
 struct TeslaMateStatsDTO: Decodable, Sendable { let totalCharges: Int?; let totalDrives: Int?; let totalUpdates: Int? }
 
 struct StatusDataDTO: Decodable, Sendable { let car: CarReferenceDTO; let status: VehicleStatus; let units: UnitsDTO? }
-struct VehicleStatus: Decodable, Sendable {
+struct VehicleStatus: Codable, Sendable {
     let displayName: String?
     let state: String?
     let stateSince: FlexibleDate?
@@ -64,22 +90,22 @@ struct VehicleStatus: Decodable, Sendable {
     let chargingDetails: StatusChargingDTO?
     let tpmsDetails: TPMSDTO?
 }
-struct CarStatusDTO: Decodable, Sendable {
+struct CarStatusDTO: Codable, Sendable {
     let healthy: Bool?; let locked: Bool?; let sentryMode: Bool?; let windowsOpen: Bool?; let doorsOpen: Bool?
     let trunkOpen: Bool?; let frunkOpen: Bool?
 }
-struct CarGeodataDTO: Decodable, Sendable { let geofence: String?; let location: CoordinateDTO? }
+struct CarGeodataDTO: Codable, Sendable { let geofence: String?; let location: CoordinateDTO? }
 struct CoordinateDTO: Codable, Hashable, Sendable { let latitude: Double; let longitude: Double }
-struct CarVersionsDTO: Decodable, Sendable { let version: String?; let updateAvailable: Bool?; let updateVersion: String? }
-struct DrivingDetailsDTO: Decodable, Sendable { let shiftState: String?; let power: Double?; let speed: Double?; let heading: Double?; let elevation: Double? }
-struct ClimateDetailsDTO: Decodable, Sendable { let isClimateOn: Bool?; let insideTemp: Double?; let outsideTemp: Double?; let isPreconditioning: Bool?; let climateKeeperMode: String? }
-struct StatusBatteryDTO: Decodable, Sendable { let estBatteryRange: Double?; let ratedBatteryRange: Double?; let idealBatteryRange: Double?; let batteryLevel: Int?; let usableBatteryLevel: Int? }
-struct StatusChargingDTO: Decodable, Sendable {
+struct CarVersionsDTO: Codable, Sendable { let version: String?; let updateAvailable: Bool?; let updateVersion: String? }
+struct DrivingDetailsDTO: Codable, Sendable { let shiftState: String?; let power: Double?; let speed: Double?; let heading: Double?; let elevation: Double? }
+struct ClimateDetailsDTO: Codable, Sendable { let isClimateOn: Bool?; let insideTemp: Double?; let outsideTemp: Double?; let isPreconditioning: Bool?; let climateKeeperMode: String? }
+struct StatusBatteryDTO: Codable, Sendable { let estBatteryRange: Double?; let ratedBatteryRange: Double?; let idealBatteryRange: Double?; let batteryLevel: Int?; let usableBatteryLevel: Int? }
+struct StatusChargingDTO: Codable, Sendable {
     let pluggedIn: Bool?; let chargingState: String?; let chargeEnergyAdded: Double?; let chargeLimitSoc: Int?
     let chargePortDoorOpen: Bool?; let chargerActualCurrent: Double?; let chargerPhases: Int?; let chargerPower: Double?
     let chargerVoltage: Int?; let scheduledChargingStartTime: FlexibleDate?; let timeToFullCharge: Double?
 }
-struct TPMSDTO: Decodable, Sendable {
+struct TPMSDTO: Codable, Sendable {
     let tpmsPressureFl: Double?; let tpmsPressureFr: Double?; let tpmsPressureRl: Double?; let tpmsPressureRr: Double?
 }
 
@@ -90,6 +116,13 @@ struct DriveSummaryDTO: Codable, Identifiable, Sendable {
     let durationMin: Int?; let durationStr: String?; let speedMax: Double?; let speedAvg: Double?
     let powerMax: Double?; let powerMin: Double?; let outsideTempAvg: Double?; let insideTempAvg: Double?
     let energyConsumedNet: Double?; let consumptionNet: Double?
+    let batteryDetails: LevelWindowDTO?
+    let rangeRated: RangeWindowDTO?
+    let rangeIdeal: RangeWindowDTO?
+    /// Where the drive began and ended. TeslaMateApi omits these, so they stay
+    /// optional and the places map simply has fewer points on that server.
+    var startCoordinate: CoordinateDTO?
+    var endCoordinate: CoordinateDTO?
     var id: Int { driveId }
 }
 struct OdometerDetailsDTO: Codable, Sendable { let odometerStart: Double?; let odometerEnd: Double?; let odometerDistance: Double? }
@@ -111,10 +144,56 @@ struct DrivePointDTO: Codable, Identifiable, Sendable {
 struct DriveClimateDTO: Codable, Sendable { let insideTemp: Double?; let outsideTemp: Double? }
 
 struct ChargesDataDTO: Decodable, Sendable { let car: CarReferenceDTO; let charges: [ChargeSummaryDTO]; let units: UnitsDTO? }
+
+/// Battery level at the two ends of a session.
+struct LevelWindowDTO: Codable, Sendable {
+    let startBatteryLevel: Int?
+    let endBatteryLevel: Int?
+    let startUsableBatteryLevel: Int?
+    let endUsableBatteryLevel: Int?
+    /// The pack was range-limited (cold, or a reduced-power state), so range
+    /// deltas across this session are not comparable with normal ones.
+    var reducedRange: Bool?
+    /// TeslaMateApi's own judgement on whether this session's range figures are
+    /// precise enough to derive consumption from.
+    var isSufficientlyPrecise: Bool?
+
+    init(
+        startBatteryLevel: Int?,
+        endBatteryLevel: Int?,
+        startUsableBatteryLevel: Int?,
+        endUsableBatteryLevel: Int?,
+        reducedRange: Bool? = nil,
+        isSufficientlyPrecise: Bool? = nil
+    ) {
+        self.startBatteryLevel = startBatteryLevel
+        self.endBatteryLevel = endBatteryLevel
+        self.startUsableBatteryLevel = startUsableBatteryLevel
+        self.endUsableBatteryLevel = endUsableBatteryLevel
+        self.reducedRange = reducedRange
+        self.isSufficientlyPrecise = isSufficientlyPrecise
+    }
+
+    /// The usable level is the one worth modelling from — it excludes the cold
+    /// buffer — but TeslaMateApi omits it on charge summaries, so fall back.
+    var resolvedEndLevel: Int? { endUsableBatteryLevel ?? endBatteryLevel }
+    var resolvedStartLevel: Int? { startUsableBatteryLevel ?? startBatteryLevel }
+}
+
+/// Range at the two ends of a session, in the server's configured length unit.
+struct RangeWindowDTO: Codable, Sendable {
+    let startRange: Double?
+    let endRange: Double?
+    let rangeDiff: Double?
+}
+
 struct ChargeSummaryDTO: Codable, Identifiable, Sendable {
     let chargeId: Int; let startDate: FlexibleDate?; let endDate: FlexibleDate?; let address: String?
     let chargeEnergyAdded: Double?; let chargeEnergyUsed: Double?; let cost: Double?; let durationMin: Int?
     let durationStr: String?; let outsideTempAvg: Double?; let odometer: Double?; let latitude: Double?; let longitude: Double?
+    let batteryDetails: LevelWindowDTO?
+    let rangeRated: RangeWindowDTO?
+    let rangeIdeal: RangeWindowDTO?
     var id: Int { chargeId }
 }
 struct ChargeDataDTO: Decodable, Sendable { let car: CarReferenceDTO; let charge: ChargeDetailDTO; let units: UnitsDTO? }
@@ -122,13 +201,26 @@ struct ChargeDetailDTO: Codable, Identifiable, Sendable {
     let chargeId: Int; let startDate: FlexibleDate?; let endDate: FlexibleDate?; let isCharging: Bool?
     let address: String?; let chargeEnergyAdded: Double?; let chargeEnergyUsed: Double?; let cost: Double?
     let durationMin: Int?; let outsideTempAvg: Double?; let chargeDetails: [ChargePointDTO]
+    let odometer: Double?; let latitude: Double?; let longitude: Double?
+    let batteryDetails: LevelWindowDTO?
+    let rangeRated: RangeWindowDTO?
     var id: Int { chargeId }
 }
 struct ChargePointDTO: Codable, Identifiable, Sendable {
     let detailId: Int; let date: FlexibleDate?; let batteryLevel: Int?; let usableBatteryLevel: Int?
     let chargeEnergyAdded: Double?; let chargerDetails: ChargerDetailsDTO?; let outsideTemp: Double?
     let connChargeCable: String?; let fastChargerInfo: FastChargerInfoDTO?
+    let batteryInfo: ChargeBatteryInfoDTO?
     var id: Int { detailId }
+}
+
+/// Range readings attached to a charge sample. `ratedBatteryRange` paired with
+/// `usableBatteryLevel` is what pack capacity is modelled from.
+struct ChargeBatteryInfoDTO: Codable, Sendable {
+    let idealBatteryRange: Double?
+    let ratedBatteryRange: Double?
+    let batteryHeater: Bool?
+    let batteryHeaterOn: Bool?
 }
 struct FastChargerInfoDTO: Codable, Sendable { let fastChargerPresent: Bool?; let fastChargerBrand: String?; let fastChargerType: String? }
 struct ChargerDetailsDTO: Codable, Sendable {
@@ -157,19 +249,82 @@ struct FlexibleDate: Codable, Hashable, Sendable {
         guard let raw = try? container.decode(String.self) else { value = nil; return }
         value = FlexibleDateParser.date(from: raw)
     }
+    /// Encodes with sub-second precision, because details round-trip through the
+    /// local cache.
+    ///
+    /// A default `ISO8601DateFormatter` writes whole seconds. Position samples
+    /// arrive several times a second, so encoding a cached drive and reading it
+    /// back collapsed 747 distinct instants onto 211 — enough to make a chart
+    /// drop marks and draw a self-intersecting fill.
     func encode(to encoder: Encoder) throws {
         var container = encoder.singleValueContainer()
-        if let value { try container.encode(ISO8601DateFormatter().string(from: value)) } else { try container.encodeNil() }
+        if let value {
+            try container.encode(FlexibleDateParser.string(from: value))
+        } else {
+            try container.encodeNil()
+        }
     }
 }
 
 enum FlexibleDateParser {
+    /// Parses the timestamp formats TeslaMate servers actually emit.
+    ///
+    /// `ISO8601DateFormatter` with `.withInternetDateTime` requires a timezone
+    /// offset, and not every server sends one: a Postgres
+    /// `timestamp without time zone` rendered by `isoformat()` comes out as
+    /// `2026-08-20T06:05:16.326000` with no offset at all. Rejecting those made
+    /// every drive parse with a nil end date, which the app reads as "in
+    /// progress" — so an offset-less timestamp is treated as UTC, which is what
+    /// TeslaMate stores.
     static func date(from string: String) -> Date? {
-        guard let year = Int(string.prefix(4)), year >= 1900,
-              !string.contains(":60"), !string.contains("-07:52") else { return nil }
+        let trimmed = string.trimmingCharacters(in: .whitespaces)
+        guard let year = Int(trimmed.prefix(4)), year >= 1900,
+              !trimmed.contains(":60"), !trimmed.contains("-07:52") else { return nil }
+
+        let candidate = millisecondNormalised(trimmed)
         let fractional = ISO8601DateFormatter.configured([.withInternetDateTime, .withFractionalSeconds])
         let standard = ISO8601DateFormatter.configured([.withInternetDateTime])
-        return fractional.date(from: string) ?? standard.date(from: string)
+        if let parsed = fractional.date(from: candidate) ?? standard.date(from: candidate) { return parsed }
+
+        // No offset: assume UTC and retry, rather than discarding the value.
+        guard !hasTimeZone(candidate) else { return nil }
+        let assumedUTC = candidate + "Z"
+        return fractional.date(from: assumedUTC) ?? standard.date(from: assumedUTC)
+    }
+
+    /// Rewrites a sub-second component to the three digits the formatter parses.
+    ///
+    /// Postgres renders microseconds — `06:05:16.326000` — and
+    /// `.withFractionalSeconds` matches exactly three digits, so a six-digit
+    /// fraction fell through to the whole-second parser. That silently collapsed
+    /// every sample inside the same second onto one timestamp: a drive's 747
+    /// position samples became 211 distinct instants.
+    static func millisecondNormalised(_ value: String) -> String {
+        guard let timeStart = value.firstIndex(of: "T"),
+              let dot = value[timeStart...].firstIndex(of: ".") else { return value }
+        let afterDot = value.index(after: dot)
+        var end = afterDot
+        while end < value.endIndex, value[end].isNumber { end = value.index(after: end) }
+        let digits = value[afterDot..<end]
+        guard digits.count != 3, !digits.isEmpty else { return value }
+        let milliseconds = digits.count > 3
+            ? String(digits.prefix(3))
+            : digits + String(repeating: "0", count: 3 - digits.count)
+        return String(value[..<afterDot]) + milliseconds + String(value[end...])
+    }
+
+    /// The round-trip counterpart of `date(from:)`, keeping milliseconds.
+    static func string(from date: Date) -> String {
+        ISO8601DateFormatter.configured([.withInternetDateTime, .withFractionalSeconds]).string(from: date)
+    }
+
+    /// Whether the string already carries a zone, so UTC is not assumed over one.
+    private static func hasTimeZone(_ value: String) -> Bool {
+        if value.hasSuffix("Z") || value.hasSuffix("z") { return true }
+        // An offset is a +/- in the time portion; the date portion's hyphens
+        // must not be mistaken for one.
+        guard let timeStart = value.firstIndex(of: "T") else { return false }
+        return value[timeStart...].contains("+") || value[timeStart...].dropFirst().contains("-")
     }
 }
 

@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Support — Tessalytics</title>
+  <meta name="description" content="Get help with Tessalytics, the private TeslaMate client for iPhone.">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<main>
+  <p class="brand"><a href="/">Tessalytics</a></p>
+  <h1>Support</h1>
+
+  <div class="card">
+    Need help or found a bug? Open an issue on
+    <a href="https://github.com/echo-cool/tessalytics/issues">GitHub</a> —
+    include your iOS version, the Tessalytics version, your TeslaMateApi
+    version, and what you were doing when the problem happened. Please redact
+    server addresses, tokens, VINs, and coordinates before posting logs.
+  </div>
+
+  <h2>Frequently asked questions</h2>
+
+  <details>
+    <summary>Do I need a TeslaMate server?</summary>
+    <p>Yes, for real data. Tessalytics is a client for your own TeslaMate plus
+    TeslaMateApi installation and is not a standalone service. You can explore
+    the entire app without one by tapping <strong>Explore Demo</strong> on first
+    launch.</p>
+  </details>
+
+  <details>
+    <summary>The app can't reach my server.</summary>
+    <p>Confirm your iPhone can reach TeslaMateApi on the same network path the
+    app uses — over VPN if the server is private. Check the scheme and port in
+    the URL, any reverse-proxy authentication, and the TLS certificate. The
+    onboarding screen reports the exact failure it saw.</p>
+  </details>
+
+  <details>
+    <summary>Should I expose TeslaMateApi to the internet?</summary>
+    <p>No. TeslaMateApi's built-in <code>API_TOKEN</code> does not protect all
+    read-only endpoints. If the service is reachable outside a trusted private
+    network, put authentication in front of every route with a VPN or reverse
+    proxy, and never expose PostgreSQL, MQTT, or Tesla tokens.</p>
+  </details>
+
+  <details>
+    <summary>Where are my credentials stored?</summary>
+    <p>In the iOS Keychain only. Optional Tesla Owner API tokens use
+    when-unlocked, this-device-only protection, so they never leave the device
+    or migrate through a backup. Details are in the
+    <a href="/privacy/">privacy policy</a>.</p>
+  </details>
+
+  <details>
+    <summary>Why does my status say stale or asleep?</summary>
+    <p>Tessalytics labels data honestly rather than showing an old snapshot as
+    current. <em>Asleep</em> means the vehicle is sleeping and TeslaMate is not
+    receiving updates; <em>stale</em> means the last refresh failed and you're
+    seeing cached data. Tessalytics never wakes a sleeping vehicle to refresh.</p>
+  </details>
+
+  <details>
+    <summary>Are battery health and forecasts accurate?</summary>
+    <p>They are estimates computed on your device from your own logged history —
+    not diagnostics, guarantees, or safety guidance. Accuracy improves as
+    TeslaMate accumulates more data.</p>
+  </details>
+
+  <details>
+    <summary>How do vehicle commands work?</summary>
+    <p>Commands require the optional Owner API token pair, which you generate
+    outside Tessalytics. Every command needs an in-app confirmation plus Face ID
+    or your device passcode. Nothing runs in the background, and demo mode never
+    enables commands.</p>
+  </details>
+
+  <h2>Privacy</h2>
+  <p>Tessalytics collects no data at all. Details are in the
+  <a href="/privacy/">privacy policy</a>.</p>
+
+  <footer>© 2026 Tessalytics · <a href="/">Home</a> · <a href="/privacy/">Privacy Policy</a></footer>
+</main>
+</body>
+</html>

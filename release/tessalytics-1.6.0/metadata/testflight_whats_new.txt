@@ -1,0 +1,53 @@
+Tessalytics 1.6.0 — a rebuilt home screen, real driven paths, interactive charts,
+and your car's actual rating.
+
+WHAT TO TEST FIRST
+
+1. Settings > Vehicle > Vehicle rating. Enter what your pack was rated at when
+   new. The derived figure is the best your recorded history can support, and that
+   is simply wrong when logging began after the pack had aged: an 84 kWh car reads
+   as 74 if TeslaMate started at 15,000 miles. Health, capacity lost, range lost
+   and equivalent cycles all inherited the error. Health updates live as you type
+   — 84 kWh turns 97.4% into 86.3% — and every screen follows. Leave the fields
+   blank to go back to the derived values.
+
+2. The top card. It no longer announces "Offline at ..." — a car is asleep or
+   offline almost all the time, and that was the loudest line in the app spent on
+   the least surprising fact. Now it shows where the car is, and only motion or
+   charging gets the prominent line. Battery is a ring rather than a number, the
+   odometer sits beside the range, and the bottom band adds a seven-day bar strip,
+   your typical consumption and battery health.
+
+3. Places. The line is the route you actually drove. It used to join drive
+   endpoints, which drew a straight chord through the hills between San Jose and
+   Modesto. The server now aggregates 1.7 million position rows into a simplified
+   path — one polyline per journey, so the gap between two trips is never drawn as
+   travel — and the app caches it and only refetches when there is a new drive.
+
+4. Tap any chart. Battery capacity and Recent driving open an explorer: touch and
+   hold to put a pivot line on a point and read its exact value, switch between
+   line, bar, area and pie, and read the whole series as a table with total,
+   average, highest and lowest. The reading stays after you lift your finger,
+   because a value you cannot look at is no use.
+
+5. Battery capacity on the home screen. The five-figure text strip is gone; the
+   capacity-by-mileage chart is there instead, and its mileage axis starts where
+   your data starts rather than at zero.
+
+ALSO CHANGED
+
+- Only Tessalytics Backend is supported now. The TeslaMateApi client is gone
+  along with the server-kind detection: one code path instead of two, and no more
+  fixing everything twice.
+- Elevation, outside temperature and pack voltage no longer anchor their axis to
+  zero. Zero is not a meaningful floor for any of them, and anchoring flattened
+  the variation into a line. Speed, power and energy still keep zero.
+- Cards in a row line up again. A card with no detail line was letting its value
+  drop lower than its neighbours.
+- Vehicle commands moved above the analysis cards; a command is what you open the
+  app to do.
+
+KNOWN GAPS
+
+App Store screenshots are stale and there is still no iPad set. Both are needed
+before a store submission; neither blocks TestFlight.
