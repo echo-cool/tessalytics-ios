@@ -94,3 +94,21 @@ enum AnalyticsPeriod: String, CaseIterable, Identifiable, Sendable {
     case custom = "Custom"
     var id: Self { self }
 }
+
+extension Authentication {
+    /// Sets the Authorization header this method needs, if any.
+    ///
+    /// Shared by the request client and the event stream: two copies of a header
+    /// rule is one copy too many when a wrong one means a silent 401.
+    func apply(to request: inout URLRequest) {
+        switch self {
+        case .bearer(let token):
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        case .basic(let username, let password):
+            let encoded = Data("\(username):\(password)".utf8).base64EncodedString()
+            request.setValue("Basic \(encoded)", forHTTPHeaderField: "Authorization")
+        case .none:
+            break
+        }
+    }
+}

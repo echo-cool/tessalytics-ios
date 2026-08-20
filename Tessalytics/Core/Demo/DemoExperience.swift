@@ -78,6 +78,76 @@ enum DemoExperience {
         )
     }
 
+    /// A car mid-journey, for exercising and reviewing live mode.
+    ///
+    /// Live mode is the hardest part of the app to see: it needs a car that
+    /// happens to be moving. A generated drive makes it reviewable on demand.
+    static func drivingStatus(now: Date = .now) -> VehicleStatus {
+        VehicleStatus(
+            displayName: "Aurora",
+            state: "driving",
+            stateSince: FlexibleDate(now.addingTimeInterval(-1_020)),
+            odometer: 18_654.2,
+            carStatus: CarStatusDTO(
+                healthy: true,
+                locked: true,
+                sentryMode: false,
+                windowsOpen: false,
+                doorsOpen: false,
+                trunkOpen: false,
+                frunkOpen: false
+            ),
+            carDetails: CarDetailsDTO(model: "Model Y", trimBadging: "Long Range", efficiency: 0.158),
+            carGeodata: CarGeodataDTO(
+                geofence: nil,
+                location: CoordinateDTO(latitude: 37.4062, longitude: -122.0723)
+            ),
+            carVersions: CarVersionsDTO(version: "2026.20.3", updateAvailable: false, updateVersion: nil),
+            drivingDetails: DrivingDetailsDTO(shiftState: "D", power: 34, speed: 63, heading: 118, elevation: 42),
+            climateDetails: ClimateDetailsDTO(
+                isClimateOn: true,
+                insideTemp: 21.5,
+                outsideTemp: 18,
+                isPreconditioning: false,
+                climateKeeperMode: nil
+            ),
+            batteryDetails: StatusBatteryDTO(
+                estBatteryRange: 214,
+                ratedBatteryRange: 214,
+                idealBatteryRange: 214,
+                batteryLevel: 71,
+                usableBatteryLevel: 70
+            ),
+            chargingDetails: nil,
+            tpmsDetails: TPMSDTO(tpmsPressureFl: 42.1, tpmsPressureFr: 42.1, tpmsPressureRl: 42.4, tpmsPressureRr: 41.7)
+        )
+    }
+
+    /// A plausible few minutes of readings, so the live charts have something to
+    /// draw without waiting for a real journey.
+    static func drivingTelemetry(now: Date = .now) -> LiveTelemetryBuffer {
+        var buffer = LiveTelemetryBuffer()
+        let samples = 150
+        for index in 0..<samples {
+            let progress = Double(index) / Double(samples - 1)
+            let seconds = -Double(samples - index) * 4
+            // Two accelerations with a slow section between them, which is what a
+            // suburban run into a dual carriageway looks like.
+            let speed = max(0, 34 + sin(progress * .pi * 2.4) * 28 + progress * 12)
+            let power = speed > 3 ? (14 + sin(progress * .pi * 3.1) * 42) : -18
+            buffer.append(
+                date: now.addingTimeInterval(seconds),
+                speed: speed,
+                power: power,
+                level: 78 - progress * 7,
+                odometer: 18_642 + progress * 12.2,
+                latitude: 37.3861 + progress * 0.020,
+                longitude: -122.0839 + progress * 0.0116
+            )
+        }
+        return buffer
+    }
+
     static func status(now: Date = .now) -> VehicleStatus {
         VehicleStatus(
             displayName: "Aurora",

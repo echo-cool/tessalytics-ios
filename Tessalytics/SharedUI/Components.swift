@@ -117,13 +117,26 @@ struct MetricGrid<Content: View>: View {
 struct TessalyticsBackdrop: View {
     @Environment(\.colorScheme) private var colorScheme
     var showsTopAccent = true
+    /// A stronger wash and a thicker accent, so a glance says the screen is live.
+    ///
+    /// Deliberately a shift in the existing palette rather than a different one:
+    /// the app should look like itself in a different mode, not like a different
+    /// app, and a driver has no attention to spare for relearning a layout.
+    var isLive = false
+
+    private var wash: Color { isLive ? TessalyticsTheme.accentBright : TessalyticsTheme.accent }
+
+    private func liveScaled(dark: Double, light: Double) -> Double {
+        let base = colorScheme == .dark ? dark : light
+        return isLive ? base * 2.4 : base
+    }
 
     var body: some View {
         ZStack {
             TessalyticsTheme.canvas(for: colorScheme)
             LinearGradient(
                 colors: [
-                    TessalyticsTheme.accent.opacity(colorScheme == .dark ? 0.10 : 0.055),
+                    wash.opacity(liveScaled(dark: 0.10, light: 0.055)),
                     TessalyticsTheme.graphite.opacity(colorScheme == .dark ? 0.05 : 0.018),
                     .clear
                 ],
@@ -134,12 +147,13 @@ struct TessalyticsBackdrop: View {
             if showsTopAccent {
                 VStack(spacing: 0) {
                     Rectangle()
-                        .fill(TessalyticsTheme.accent)
-                        .frame(height: 2)
+                        .fill(wash)
+                        .frame(height: isLive ? 4 : 2)
                     Spacer(minLength: 0)
                 }
             }
         }
+        .animation(.easeInOut(duration: 0.5), value: isLive)
         .ignoresSafeArea()
         .accessibilityHidden(true)
     }
@@ -147,16 +161,18 @@ struct TessalyticsBackdrop: View {
 
 struct TessalyticsScreen<Content: View>: View {
     var showsTopAccent = true
+    var isLive = false
     @ViewBuilder let content: Content
 
-    init(showsTopAccent: Bool = true, @ViewBuilder content: () -> Content) {
+    init(showsTopAccent: Bool = true, isLive: Bool = false, @ViewBuilder content: () -> Content) {
         self.showsTopAccent = showsTopAccent
+        self.isLive = isLive
         self.content = content()
     }
 
     var body: some View {
         ZStack {
-            TessalyticsBackdrop(showsTopAccent: showsTopAccent)
+            TessalyticsBackdrop(showsTopAccent: showsTopAccent, isLive: isLive)
             content
         }
     }

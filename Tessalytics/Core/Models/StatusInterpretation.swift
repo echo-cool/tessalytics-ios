@@ -106,3 +106,16 @@ extension String {
         return first.uppercased() + dropFirst()
     }
 }
+
+extension VehicleStatus {
+    /// Whether the car is moving, or in gear ready to.
+    ///
+    /// `state` alone is not enough: TeslaMate reports "online" throughout a drive
+    /// on some installs, and the shift position is what actually distinguishes a
+    /// journey from a car sitting awake on a driveway.
+    var isDriving: Bool {
+        if state?.lowercased() == "driving" { return true }
+        guard let shift = drivingDetails?.shiftState?.uppercased() else { return false }
+        return ["D", "R", "N"].contains(shift)
+    }
+}

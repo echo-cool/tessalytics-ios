@@ -296,13 +296,7 @@ struct TessalyticsBackendClient: VehicleDataAPI, Sendable {
         request.httpMethod = "GET"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue(Self.userAgent, forHTTPHeaderField: "User-Agent")
-        switch authentication {
-        case .bearer(let token): request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        case .basic(let user, let password):
-            let encoded = Data("\(user):\(password)".utf8).base64EncodedString()
-            request.setValue("Basic \(encoded)", forHTTPHeaderField: "Authorization")
-        case .none: break
-        }
+        authentication.apply(to: &request)
 
         var attempt = 0
         while true {

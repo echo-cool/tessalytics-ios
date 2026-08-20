@@ -96,3 +96,14 @@ enum ServerProbe {
         )
     }
 }
+
+extension Error {
+    /// A message worth showing someone, for any error the networking layer throws.
+    ///
+    /// Lives here rather than beside one caller: the event stream needs the same
+    /// wording as the request client, and a second copy is how the two drift.
+    var userFacingMessage: String {
+        if let error = self as? ClientError { return error.localizedDescription }
+        return "The server could not be reached. Cached history remains available."
+    }
+}

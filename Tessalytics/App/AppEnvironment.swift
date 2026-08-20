@@ -24,6 +24,12 @@ final class AppEnvironment {
     /// thing an owner wants precisely when the car cannot be asked.
     var lastLiveStatus: VehicleStatus?
     var lastLiveStatusAt: Date?
+    /// Readings from the event stream, for the charts shown while driving.
+    var liveTelemetry = LiveTelemetryBuffer()
+    /// Whether the event stream is currently connected.
+    var isStreamingLive = false
+    /// Why the stream is not connected, when it isn't.
+    var liveStreamMessage: String?
     var statusUsesOwnerAPI = false
     var isOffline = false
     var lastError: String?
@@ -51,6 +57,8 @@ final class AppEnvironment {
     private let userDefaults: UserDefaults
     private var statusTask: Task<Void, Never>?
     private var pollingTarget: PollingTarget?
+    private var liveStreamTask: Task<Void, Never>?
+    private var liveStreamTarget: PollingTarget?
     private var statusRefreshTask: Task<Void, Never>?
     private var statusRefreshID: UUID?
     private var historyTask: Task<Void, Never>?
@@ -97,7 +105,8 @@ final class AppEnvironment {
         if ProcessInfo.processInfo.arguments.contains("-ui-demo") {
             activateDemo(
                 showDirectControls: !ProcessInfo.processInfo.arguments.contains("-ui-owner-disconnected"),
-                offline: ProcessInfo.processInfo.arguments.contains("-ui-demo-offline")
+                offline: ProcessInfo.processInfo.arguments.contains("-ui-demo-offline"),
+                driving: ProcessInfo.processInfo.arguments.contains("-ui-demo-driving")
             )
             return
         }
@@ -196,7 +205,7 @@ final class AppEnvironment {
         startHistoryPolling()
     }
 
-    private func activateDemo(showDirectControls: Bool, offline: Bool = false) {
+    private func activateDemo(showDirectControls: Bool, offline: Bool = false, driving: Bool = false) {
         stopStatusPolling()
         stopHistoryPolling()
         isDemoMode = true
@@ -209,7 +218,15 @@ final class AppEnvironment {
         selectedProfile = profile
         vehicles = [vehicle]
         selectedVehicle = vehicle
-        status = offline ? DemoExperience.offlineStatus() : DemoExperience.status()
+        if driving {
+            status = DemoExperience.drivingStatus()
+            liveTelemetry = DemoExperience.drivingTelemetry()
+            isStreamingLive = true
+        } else {
+            status = offline ? DemoExperience.offlineStatus() : DemoExperience.status()
+            liveTelemetry.reset()
+            isStreamingLive = false
+        }
         statusUnits = DemoExperience.units
         statusFetchedAt = .now
         ownerVehicles = []
@@ -520,12 +537,97 @@ final class AppEnvironment {
         guard !isDemoMode else { return }
         startStatusPolling()
         startHistoryPolling()
+        startLiveStream()
         requestStatusRefresh()
     }
 
     func handleBackgroundEntry() {
         stopStatusPolling()
         stopHistoryPolling()
+        // The stream is the expensive one: it holds a connection open and wakes on
+        // every published reading. Nothing is on screen to show it.
+        stopLiveStream()
+    }
+
+    /// Opens the event stream for the selected vehicle.
+    ///
+    /// Runs whenever the app is in the foreground rather than only while driving:
+    /// the point of the stream is that the transition into driving arrives without
+    /// waiting for a poll, and a parked car publishes almost nothing, so an idle
+    /// stream costs a held connection and no traffic.
+    func startLiveStream() {
+        guard !isDemoMode, let profile = selectedProfile, let vehicle = selectedVehicle else { return }
+        let target = PollingTarget(profileID: profile.id, carID: vehicle.id)
+        if liveStreamTask != nil, liveStreamTarget == target { return }
+        stopLiveStream()
+        guard let client = try? backendClient(for: profile) else { return }
+
+        liveStreamTarget = target
+        let stream = LiveStateStream(baseURL: profile.baseURL, authentication: client.authentication)
+        liveStreamTask = Task { [weak self] in
+            for await event in stream.events(carID: vehicle.id) {
+                guard let self, !Task.isCancelled else { return }
+                switch event {
+                case .connected:
+                    isStreamingLive = true
+                    liveStreamMessage = nil
+                case .interrupted(let message):
+                    isStreamingLive = false
+                    liveStreamMessage = message
+                case .state(let payload):
+                    apply(streamed: payload, profile: profile, vehicle: vehicle)
+                }
+            }
+            self?.isStreamingLive = false
+        }
+    }
+
+    func stopLiveStream() {
+        liveStreamTask?.cancel()
+        liveStreamTask = nil
+        liveStreamTarget = nil
+        isStreamingLive = false
+    }
+
+    /// Folds a streamed reading into the same state the poller writes.
+    ///
+    /// Kept on one path deliberately: a second way for status to arrive is a
+    /// second set of rules about what counts as fresh.
+    private func apply(streamed payload: StatusDataDTO, profile: ServerProfile, vehicle: Vehicle) {
+        guard selectedProfile?.id == profile.id, selectedVehicle?.id == vehicle.id else { return }
+        status = payload.status
+        statusUnits = payload.units ?? statusUnits
+        statusFetchedAt = .now
+        statusUsesOwnerAPI = false
+        isOffline = false
+
+        if payload.status.reportsLiveTelemetry {
+            lastLiveStatus = payload.status
+            lastLiveStatusAt = statusFetchedAt
+        }
+
+        if payload.status.isDriving {
+            liveTelemetry.append(
+                speed: payload.status.drivingDetails?.speed,
+                power: payload.status.drivingDetails?.power,
+                level: payload.status.batteryDetails?.batteryLevel.map(Double.init),
+                odometer: payload.status.odometer,
+                latitude: payload.status.carGeodata?.location?.latitude,
+                longitude: payload.status.carGeodata?.location?.longitude
+            )
+        } else if !liveTelemetry.samples.isEmpty {
+            // The journey is over; the next one starts from empty rather than
+            // continuing a chart across a stop.
+            liveTelemetry.reset()
+        }
+
+        VehicleStatusCache(context: container.mainContext).save(
+            status: payload.status,
+            units: payload.units,
+            serverID: profile.id,
+            carID: vehicle.id,
+            fetchedAt: statusFetchedAt ?? .now
+        )
     }
 
     func startStatusPolling() {
@@ -984,9 +1086,3 @@ final class AppEnvironment {
     private static let demoModeKey = "tessalytics.demo-mode.enabled"
 }
 
-private extension Error {
-    var userFacingMessage: String {
-        if let error = self as? ClientError { return error.localizedDescription }
-        return "The server could not be reached. Cached history remains available."
-    }
-}

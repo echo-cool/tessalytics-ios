@@ -1,4 +1,5 @@
 import Charts
+import MapKit
 import SwiftData
 import SwiftUI
 
@@ -16,7 +17,7 @@ struct DashboardView: View {
 
     var body: some View {
         NavigationStack {
-            TessalyticsScreen {
+            TessalyticsScreen(isLive: environment.status?.isDriving == true) {
                 if environment.vehicles.isEmpty {
                     EmptyState(
                         title: "No vehicles",
@@ -102,7 +103,9 @@ struct DashboardView: View {
                         // back to the last reading taken while it was awake.
                         tyres: environment.status?.tpmsDetails?.hasAnyReading == true
                             ? environment.status?.tpmsDetails
-                            : environment.lastLiveStatus?.tpmsDetails
+                            : environment.lastLiveStatus?.tpmsDetails,
+                        liveTrail: liveTrail,
+                        isStreaming: environment.isStreamingLive
                     )
                 }
                 .buttonStyle(.plain)
@@ -112,6 +115,10 @@ struct DashboardView: View {
 
                 if environment.hasOwnerCredentials && environment.isOwnerConnected {
                     DirectTeslaControlsCard()
+                }
+
+                if environment.status?.isDriving == true {
+                    LiveDriveSection(buffer: environment.liveTelemetry, units: environment.statusUnits)
                 }
 
                 // Capacity against mileage, in place of the five-figure strip
@@ -285,6 +292,17 @@ struct DashboardView: View {
             .sorted()
         guard !values.isEmpty else { return nil }
         return values[values.count / 2]
+    }
+
+    /// The last few minutes of positions, from the live buffer's odometer trail.
+    ///
+    /// The stream carries a position with every reading, so the trail is free —
+    /// no extra request, and it shows the approach to wherever the car is now.
+    private var liveTrail: [CLLocationCoordinate2D] {
+        guard environment.status?.isDriving == true else { return [] }
+        return environment.liveTelemetry.trail.map {
+            CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude)
+        }
     }
 
     private var placesSubtitle: String {
@@ -952,6 +970,17 @@ private struct VehicleHeroCard: View {
     /// Battery level over the last week, rebuilt from drives and charges.
     let batteryLevels: [BatteryLevelPoint]
     let tyres: TPMSDTO?
+    /// Recent positions, so the live map can draw where the car just came from.
+    let liveTrail: [CLLocationCoordinate2D]
+    let isStreaming: Bool
+
+    private var isDriving: Bool { status?.isDriving == true }
+
+    private var liveCoordinate: CLLocationCoordinate2D? {
+        guard let location = status?.carGeodata?.location,
+              abs(location.latitude) > 0.0001 || abs(location.longitude) > 0.0001 else { return nil }
+        return CLLocationCoordinate2D(latitude: location.latitude, longitude: location.longitude)
+    }
 
     private var summary: VehicleHeroSummary { VehicleHeroSummary(status: status, units: units) }
     private var isLive: Bool { status?.reportsLiveTelemetry ?? false }
@@ -1004,21 +1033,40 @@ private struct VehicleHeroCard: View {
                 )
 
                 // Only motion and charging get the loud line. The rest of the
-                // time the place is the interesting part, not the state word.
-                if summary.isNotable {
-                    Label(summary.headline, systemImage: summary.activity.symbol)
-                        .font(.title3.weight(.semibold))
-                        .foregroundStyle(.primary)
-                        .symbolRenderingMode(.hierarchical)
-                        .tint(tint)
-                        .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
-                        .minimumScaleFactor(0.78)
-                } else if let place = summary.placeText {
-                    Label(place, systemImage: "mappin.and.ellipse")
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
+                // time the place is the interesting part — but the state is still
+                // worth a word, so it rides alongside as a pill.
+                HStack(spacing: 8) {
+                    if summary.isNotable {
+                        Label(summary.headline, systemImage: summary.activity.symbol)
+                            .font(.title3.weight(.semibold))
+                            .foregroundStyle(.primary)
+                            .symbolRenderingMode(.hierarchical)
+                            .tint(tint)
+                            .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
+                            .minimumScaleFactor(0.78)
+                    } else if let place = summary.placeText {
+                        Label(place, systemImage: "mappin.and.ellipse")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                    }
+                    Spacer(minLength: 6)
+                    if isDriving {
+                        LiveIndicator(isStreaming: isStreaming)
+                    } else {
+                        StatusBadge(text: summary.stateNoun, color: tint)
+                            .accessibilityIdentifier("vehicle-state-pill")
+                    }
+                }
+
+                if isDriving, let coordinate = liveCoordinate {
+                    LiveLocationMap(
+                        coordinate: coordinate,
+                        heading: status?.drivingDetails?.heading,
+                        trail: liveTrail,
+                        height: dynamicTypeSize.isAccessibilitySize ? 150 : 128
+                    )
                 }
 
                 HStack(alignment: .center, spacing: 14) {
@@ -1067,7 +1115,10 @@ private struct VehicleHeroCard: View {
                     ChargingSnapshotRow(charging: charging, tint: tint)
                 }
 
-                if !batteryLevels.isEmpty {
+                if isDriving {
+                    Divider()
+                    LiveDrivingFacts(status: status, units: units)
+                } else if !batteryLevels.isEmpty {
                     Divider()
                     HeroBatteryLevelChart(points: batteryLevels)
                 }
@@ -1854,5 +1905,71 @@ private struct HeroBatteryLevelChart: View {
             return "No readings"
         }
         return "now \(Int(latest)) percent, between \(Int(low)) and \(Int(high)) percent"
+    }
+}
+
+/// The figures that matter while the car is moving.
+///
+/// Replaces the week-long battery chart for the duration of a drive: the shape of
+/// the last seven days is not what someone glancing at a mounted phone needs.
+private struct LiveDrivingFacts: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    let status: VehicleStatus?
+    let units: UnitsDTO?
+
+    private var resolvedUnits: UnitsDTO { units ?? .metricDefaults }
+
+    var body: some View {
+        let columns = [GridItem(.adaptive(minimum: dynamicTypeSize.isAccessibilitySize ? 150 : 104), spacing: 8)]
+        LazyVGrid(columns: columns, spacing: 8) {
+            fact(
+                ValueFormatting.speed(status?.drivingDetails?.speed, units: resolvedUnits, digits: 0),
+                "speed",
+                "speedometer",
+                TessalyticsTheme.accentBright
+            )
+            fact(
+                ValueFormatting.number(status?.drivingDetails?.power, unit: "kW", digits: 0),
+                (status?.drivingDetails?.power ?? 0) < 0 ? "regenerating" : "power",
+                "bolt.fill",
+                (status?.drivingDetails?.power ?? 0) < 0 ? TessalyticsTheme.positive : TessalyticsTheme.warning
+            )
+            fact(
+                ValueFormatting.temperature(status?.climateDetails?.outsideTemp, units: resolvedUnits),
+                "outside",
+                "thermometer.medium",
+                TessalyticsTheme.steel
+            )
+            fact(
+                status?.drivingDetails?.elevation.map { "\($0.formatted(.number.precision(.fractionLength(0)))) m" } ?? "—",
+                "elevation",
+                "mountain.2.fill",
+                TessalyticsTheme.steel
+            )
+        }
+    }
+
+    private func fact(_ value: String, _ label: String, _ symbol: String, _ tint: Color) -> some View {
+        HStack(spacing: 7) {
+            Image(systemName: symbol)
+                .font(.caption)
+                .foregroundStyle(tint)
+                .frame(width: 16)
+            VStack(alignment: .leading, spacing: 0) {
+                Text(value)
+                    .font(.subheadline.weight(.semibold))
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                Text(label)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(label)
+        .accessibilityValue(value)
     }
 }
