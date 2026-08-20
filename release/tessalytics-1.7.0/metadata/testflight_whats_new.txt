@@ -1,0 +1,59 @@
+Tessalytics 1.7.0 — live driving mode, over server-sent events.
+
+WHAT TO TEST FIRST
+
+Mount the phone and drive. That is the case this build is for, and the case the
+app was worst at: it used to show "Driving" and a speed that was up to thirty
+seconds stale, and nothing else.
+
+1. Readings now arrive as TeslaMate publishes them. The app opens an event stream
+   to the backend instead of polling, so the speed on screen is the speed the car
+   just reported. A LIVE badge pulses while the stream is connected and says
+   RECONNECTING when it is not — a drive goes through tunnels, and you should
+   never be looking at a stale number that claims to be current.
+
+2. The hero changes while driving. A map follows the car, pointing the way it is
+   facing, with the route just travelled drawn behind it. Speed, power, outside
+   temperature and elevation replace the week-long battery chart, because the
+   shape of the last seven days is not what you need at a glance from a mount.
+
+3. New cards below it: distance, top speed, energy used net of regeneration,
+   consumption, and peak power and regen — plus live speed and power charts over
+   the last fifteen minutes. Power keeps zero on its axis and draws regeneration
+   below it in green, because the sign is the interesting part.
+
+4. The theme shifts. A stronger wash and a thicker accent bar say the screen is
+   live. It is deliberately a shift within the same palette rather than a
+   different look: the app should still look like itself, and a driver has no
+   attention to spare for relearning a layout.
+
+5. Tap Settings, then Explore demo data with the app relaunched — or simply drive.
+   If you want to see live mode without waiting for a journey, there is a
+   generated one behind the demo.
+
+ALSO CHANGED
+
+- The vehicle state is named again — Parked, Asleep, Offline — as a pill beside
+  the place rather than the headline it was two releases ago.
+- Servers can be renamed and removed. Tap one in Settings. Renaming does not
+  re-verify or re-sync, because fixing a typo in a label should not cost 800
+  drives.
+- Charging sessions draw level against power on one chart, with the level climbing
+  and the power tapering on their own axes. Each row in the charging list carries
+  the same curve as a thumbnail.
+- Voltage and current are only plotted while the charger is delivering. Both
+  collapse when it stops, which drew a cliff where the pack voltage actually rises
+  375 to 402 V as it fills. TeslaMate's AC current sensor reads nothing during a
+  DC fast charge, so that chart is now absent rather than a flat zero line.
+- A sleeping car shows its last known state with the time it was taken, instead of
+  six tiles of "Unknown". Remembered readings are muted, because the green of a
+  live "Locked" would claim more than the app knows.
+
+KNOWN GAPS
+
+The stream needs Tessalytics Backend at a version with `/v1/vehicles/{id}/stream`.
+Older deployments fall back to polling with no loss of function.
+
+Battery use is higher in live mode than parked, by design: it holds a connection
+open and redraws on every reading. The stream closes when the app goes to the
+background.
