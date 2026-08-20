@@ -5,6 +5,7 @@ struct SettingsView: View {
     @State private var presentedSheet: SettingsSheet?
     @State private var confirmsDemo = false
     @State private var profilePendingRemoval: ServerProfile?
+    @State private var editingProfile: ServerProfile?
     @State private var confirmsResync = false
     @State private var confirmsErase = false
     @State private var isWorking = false
@@ -53,20 +54,8 @@ struct SettingsView: View {
                             Text("Owner API access is separate from generated demo data.")
                         }
                     } else {
-                        Section {
-                        Picker("Active server", selection: $environment.selectedProfile) {
-                            ForEach(environment.profiles) { profile in Text(profile.name).tag(Optional(profile)) }
-                        }
-                        .onChange(of: environment.selectedProfile) { _, profile in
-                            if let profile { Task { await environment.selectProfile(profile) } }
-                        }
-                        Button { presentedSheet = .addServer } label: {
-                            Label("Add server", systemImage: "plus.circle.fill")
-                        }
-                        } header: {
-                            Label("Server", systemImage: "server.rack")
-                        } footer: {
-                            Text("Server metadata is stored locally. Authentication credentials remain in Keychain.")
+                        ServerListSection(editing: $editingProfile) {
+                            presentedSheet = .addServer
                         }
 
                         Section {
@@ -78,8 +67,14 @@ struct SettingsView: View {
                             .onChange(of: environment.selectedVehicle) { _, vehicle in
                                 if let vehicle { environment.selectVehicle(vehicle) }
                             }
+                            Button { presentedSheet = .specification } label: {
+                                Label("Vehicle rating", systemImage: "gauge.with.dots.needle.67percent")
+                            }
+                            .accessibilityIdentifier("vehicle-specification")
                         } header: {
                             Label("Vehicle", systemImage: "car.side.fill")
+                        } footer: {
+                            Text("Set the capacity and range your car was rated at when new.")
                         }
 
                         Section {
@@ -110,32 +105,12 @@ struct SettingsView: View {
                         }
 
                         Section {
-                            Button { presentedSheet = .specification } label: {
-                                Label("Vehicle rating", systemImage: "gauge.with.dots.needle.67percent")
-                            }
-                            .accessibilityIdentifier("vehicle-specification")
-                        } header: {
-                            Label("Vehicle", systemImage: "car.fill")
-                        } footer: {
-                            Text("Set the capacity and range your car was rated at when new.")
-                        }
-
-                        Section {
                             Button {
                                 confirmsResync = true
                             } label: {
                                 Label("Re-sync history", systemImage: "arrow.clockwise.circle")
                             }
                             .accessibilityIdentifier("resync-history")
-
-                            ForEach(environment.profiles) { profile in
-                                Button(role: .destructive) {
-                                    profilePendingRemoval = profile
-                                } label: {
-                                    Label("Remove \(profile.name)", systemImage: "trash")
-                                }
-                                .accessibilityIdentifier("remove-server-\(profile.id.uuidString)")
-                            }
 
                             Button(role: .destructive) {
                                 confirmsErase = true
@@ -222,6 +197,9 @@ struct SettingsView: View {
                     ProgressView().controlSize(.large).padding(24)
                         .background(.regularMaterial, in: .rect(cornerRadius: 16))
                 }
+            }
+            .sheet(item: $editingProfile) { profile in
+                SettingsSheetContainer { EditServerView(profile: profile) }
             }
             .sheet(item: $presentedSheet) { sheet in
                 switch sheet {

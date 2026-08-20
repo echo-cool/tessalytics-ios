@@ -19,6 +19,7 @@
 		27AEBAB2940A2E7297506211 /* AnalyticsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28F714155C63878469AC8259 /* AnalyticsService.swift */; };
 		2CE4DCA0CE99FCE2DD9650E3 /* OwnerAPIModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44A0AAB02406CBDCC84AD0A9 /* OwnerAPIModels.swift */; };
 		2FD0061B933B4B37A44AD0E0 /* TessalyticsApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41EA5A79668C1BA3EBF6D516 /* TessalyticsApp.swift */; };
+		33A412D089CA000121AE68A3 /* BatteryLevelHistoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F35D5274137AFD824BAA32C /* BatteryLevelHistoryTests.swift */; };
 		33C58313A0294E362C5DB0E3 /* DateParsingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B07D8877CA78A9ABD1445B95 /* DateParsingTests.swift */; };
 		38D85CA9A06FD547525FEB71 /* VisitedPlaces.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5028BB1CBF189AE00FBBCF4 /* VisitedPlaces.swift */; };
 		3A91A61B9AA68CA36351A3FC /* ChargingMapCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5919E2938CD1717E0DEC12BE /* ChargingMapCard.swift */; };
@@ -32,6 +33,7 @@
 		4F70EBE4D78239142119E587 /* VehicleIntelligence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 415B42439C1E98208603B922 /* VehicleIntelligence.swift */; };
 		500A93FD681BB216A203E726 /* KeychainCredentialStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5227425F3855306646A64C42 /* KeychainCredentialStore.swift */; };
 		5393643C00CF9A53248FF4D0 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 199B8523D2A11AB11E7022C1 /* MainTabView.swift */; };
+		5A77E2461C5DD4C42830C412 /* ChargeCurveChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4833841CC488EA7583054978 /* ChargeCurveChart.swift */; };
 		5CB009978514DA946E6E3552 /* HistoryRepositories.swift in Sources */ = {isa = PBXBuildFile; fileRef = 736A99C71F59EF76B9A1A2CA /* HistoryRepositories.swift */; };
 		5D03304900DBC394899F7B67 /* KeychainAbstractionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB43F3834B7C5193D15AFA59 /* KeychainAbstractionTests.swift */; };
 		608EF2948A18F688BEB5C03A /* cars.json in Resources */ = {isa = PBXBuildFile; fileRef = E505EEDA32AFF8AD8938C27A /* cars.json */; };
@@ -42,6 +44,7 @@
 		6F21CDB15689A47553C549AF /* drives.json in Resources */ = {isa = PBXBuildFile; fileRef = 9422653083765E928907924D /* drives.json */; };
 		72E7FB99B89E4B518E416B6D /* BackendModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C1549967BDCC91444D7F264 /* BackendModels.swift */; };
 		74F0E8A7F643957747EBC8EE /* CapacityCharts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31272B66CCCCABDE0DDA8585 /* CapacityCharts.swift */; };
+		774E1D64B46977C9CE56662C /* BatteryLevelHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1571B189CA924F7F1A07461 /* BatteryLevelHistory.swift */; };
 		796F46F01390AAA081E053B1 /* VisitedPlacesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D623744B95E716D3DDD85709 /* VisitedPlacesView.swift */; };
 		7B8F2E9602339BCA4F461991 /* AppEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8799A0636A222A24A9C5375 /* AppEnvironment.swift */; };
 		8053FBFB8319C4B56F1D26D7 /* VehicleStatusCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94CC45DF24EDA0FF2613043C /* VehicleStatusCache.swift */; };
@@ -58,11 +61,13 @@
 		A053217C9B3E28E8B1581C81 /* APIModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70EF7E9E2D84547312F453C6 /* APIModels.swift */; };
 		A2D0741E7C29C94641044C57 /* OwnerAPICredentials.swift in Sources */ = {isa = PBXBuildFile; fileRef = 398D3A521A8AB7475EBE15DA /* OwnerAPICredentials.swift */; };
 		A79B925305CDB8B8455F5FC5 /* PersistenceModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08A89399E7A14E5325B9538A /* PersistenceModels.swift */; };
+		A883B7BCA1ACAFE09B8DC2E2 /* TirePressureDiagram.swift in Sources */ = {isa = PBXBuildFile; fileRef = A38D00AE472958BF14E7F6C5 /* TirePressureDiagram.swift */; };
 		A8FC41B7537647373F03BC1C /* LiveServerCompatibilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 870532526339F91C50861F94 /* LiveServerCompatibilityTests.swift */; };
 		AAA8392CA0F198E98E2083AF /* VehicleSpecificationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C64E8C37EA39F92E3F4382B /* VehicleSpecificationView.swift */; };
 		ACB3DF2E483C87B5A6E577E7 /* VehicleDataAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC6B9FEB599EB4201B5D3E7B /* VehicleDataAPI.swift */; };
 		B700A4372E697A2C4E395D9B /* OwnerCommandAuthorization.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C51341E85FE293B71D96C15 /* OwnerCommandAuthorization.swift */; };
 		C5F45DC6E0947445550E284E /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DD4E74EF9DBC45F5220DCEB /* SettingsView.swift */; };
+		C8F2B8EF685CDEC5BFE4A274 /* ServerListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47FA48AE6F542F32703F5107 /* ServerListView.swift */; };
 		CFB3971DC18EB6F5131FBC5D /* TessalyticsBackendClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C138DFA45C25B71CE3784C5 /* TessalyticsBackendClient.swift */; };
 		D7961131595CD7781ADD839E /* DriveDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CD584522562EB3ABFF0F119 /* DriveDetailView.swift */; };
 		DBF9DB2FCFAA76600E57034B /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 094D6DA296DE1FE4F160411F /* RootView.swift */; };
@@ -126,7 +131,10 @@
 		41EA5A79668C1BA3EBF6D516 /* TessalyticsApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TessalyticsApp.swift; sourceTree = "<group>"; };
 		4225BCAA98813B1DBD1E32A6 /* Tessalytics.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Tessalytics.entitlements; sourceTree = "<group>"; };
 		44A0AAB02406CBDCC84AD0A9 /* OwnerAPIModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OwnerAPIModels.swift; sourceTree = "<group>"; };
+		47FA48AE6F542F32703F5107 /* ServerListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerListView.swift; sourceTree = "<group>"; };
+		4833841CC488EA7583054978 /* ChargeCurveChart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChargeCurveChart.swift; sourceTree = "<group>"; };
 		4E57175F82AA81155CABC906 /* IntelligenceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntelligenceView.swift; sourceTree = "<group>"; };
+		4F35D5274137AFD824BAA32C /* BatteryLevelHistoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatteryLevelHistoryTests.swift; sourceTree = "<group>"; };
 		5227425F3855306646A64C42 /* KeychainCredentialStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainCredentialStore.swift; sourceTree = "<group>"; };
 		567AB74937F928DC869A3C2A /* OwnerAPIClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OwnerAPIClientTests.swift; sourceTree = "<group>"; };
 		5919E2938CD1717E0DEC12BE /* ChargingMapCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChargingMapCard.swift; sourceTree = "<group>"; };
@@ -146,6 +154,7 @@
 		94CC45DF24EDA0FF2613043C /* VehicleStatusCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VehicleStatusCache.swift; sourceTree = "<group>"; };
 		9DD4E74EF9DBC45F5220DCEB /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		9F0EC991E0D93F84AA26F15F /* status.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = status.json; sourceTree = "<group>"; };
+		A38D00AE472958BF14E7F6C5 /* TirePressureDiagram.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TirePressureDiagram.swift; sourceTree = "<group>"; };
 		A53FFB1409818A554B11027F /* TessalyticsUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = TessalyticsUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A7446B53828176F148D1D102 /* DriveHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriveHistoryView.swift; sourceTree = "<group>"; };
 		A7B2B8727A67DEFF32A55699 /* FleetStatistics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FleetStatistics.swift; sourceTree = "<group>"; };
@@ -159,6 +168,7 @@
 		B92F07630474019681927473 /* ModelDecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelDecodingTests.swift; sourceTree = "<group>"; };
 		BB43F3834B7C5193D15AFA59 /* KeychainAbstractionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainAbstractionTests.swift; sourceTree = "<group>"; };
 		BC61115DA5C3905E142D231E /* OwnerAPIConnectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OwnerAPIConnectionView.swift; sourceTree = "<group>"; };
+		C1571B189CA924F7F1A07461 /* BatteryLevelHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatteryLevelHistory.swift; sourceTree = "<group>"; };
 		C5580DB0A8373ACFDFB1FDC7 /* PersistenceAndPollingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceAndPollingTests.swift; sourceTree = "<group>"; };
 		C94E6BD412F4C91F394DE58F /* AnalyticsDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsDashboardView.swift; sourceTree = "<group>"; };
 		CDEEF6BBA94C3B7DAE5FB611 /* BackendClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendClientTests.swift; sourceTree = "<group>"; };
@@ -184,9 +194,11 @@
 			isa = PBXGroup;
 			children = (
 				406424B3135BFEEC4F899D19 /* BatteryRingGauge.swift */,
+				4833841CC488EA7583054978 /* ChargeCurveChart.swift */,
 				0A177C6B532764AAF1FF8DF3 /* ChartExplorer.swift */,
 				89DEB8D112678AA392F7F3FD /* Components.swift */,
 				36F34E3CB5244FC61AE30744 /* RouteSnapshotView.swift */,
+				A38D00AE472958BF14E7F6C5 /* TirePressureDiagram.swift */,
 			);
 			path = SharedUI;
 			sourceTree = "<group>";
@@ -195,6 +207,7 @@
 			isa = PBXGroup;
 			children = (
 				28F714155C63878469AC8259 /* AnalyticsService.swift */,
+				C1571B189CA924F7F1A07461 /* BatteryLevelHistory.swift */,
 				A7B2B8727A67DEFF32A55699 /* FleetStatistics.swift */,
 				F5028BB1CBF189AE00FBBCF4 /* VisitedPlaces.swift */,
 			);
@@ -401,6 +414,7 @@
 			children = (
 				1F03C152D0943CB501CCA498 /* IntelligenceNotificationSettingsView.swift */,
 				BC61115DA5C3905E142D231E /* OwnerAPIConnectionView.swift */,
+				47FA48AE6F542F32703F5107 /* ServerListView.swift */,
 				9DD4E74EF9DBC45F5220DCEB /* SettingsView.swift */,
 				5C64E8C37EA39F92E3F4382B /* VehicleSpecificationView.swift */,
 			);
@@ -510,6 +524,7 @@
 			isa = PBXGroup;
 			children = (
 				CDEEF6BBA94C3B7DAE5FB611 /* BackendClientTests.swift */,
+				4F35D5274137AFD824BAA32C /* BatteryLevelHistoryTests.swift */,
 				CF42BFB43015DC8F460CA7FA /* ChartDomainTests.swift */,
 				B07D8877CA78A9ABD1445B95 /* DateParsingTests.swift */,
 				04248C1E0250E6AD9699E1BC /* FleetHistorySyncTests.swift */,
@@ -659,6 +674,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				10C50C816DEF3DBD4672FF40 /* BackendClientTests.swift in Sources */,
+				33A412D089CA000121AE68A3 /* BatteryLevelHistoryTests.swift in Sources */,
 				94489801B81E24CB6EF790FC /* ChartDomainTests.swift in Sources */,
 				33C58313A0294E362C5DB0E3 /* DateParsingTests.swift in Sources */,
 				6C068B83056E4E62E4CA3CFA /* FleetHistorySyncTests.swift in Sources */,
@@ -685,8 +701,10 @@
 				7B8F2E9602339BCA4F461991 /* AppEnvironment.swift in Sources */,
 				72E7FB99B89E4B518E416B6D /* BackendModels.swift in Sources */,
 				831E2499CE20C203347D593D /* BatteryHealthView.swift in Sources */,
+				774E1D64B46977C9CE56662C /* BatteryLevelHistory.swift in Sources */,
 				1FAE3BCA390539E4ECC61614 /* BatteryRingGauge.swift in Sources */,
 				74F0E8A7F643957747EBC8EE /* CapacityCharts.swift in Sources */,
+				5A77E2461C5DD4C42830C412 /* ChargeCurveChart.swift in Sources */,
 				DC684EF770524BC1181C6A5C /* ChargeDetailView.swift in Sources */,
 				EBAF49258554D280F75F2370 /* ChargeHistoryView.swift in Sources */,
 				3A91A61B9AA68CA36351A3FC /* ChargingMapCard.swift in Sources */,
@@ -718,11 +736,13 @@
 				92A4E2CDDC065BD0EB906145 /* RouteSimplifier.swift in Sources */,
 				EBEF22E127154D99D8AE6981 /* RouteSnapshotView.swift in Sources */,
 				258F2A5E9F6127C845D9904A /* SecretRedactor.swift in Sources */,
+				C8F2B8EF685CDEC5BFE4A274 /* ServerListView.swift in Sources */,
 				C5F45DC6E0947445550E284E /* SettingsView.swift in Sources */,
 				F34ADBCF628380A9EDDBA036 /* SoftwareUpdatesView.swift in Sources */,
 				E766A0FA0414C3AA977217C6 /* StatusInterpretation.swift in Sources */,
 				2FD0061B933B4B37A44AD0E0 /* TessalyticsApp.swift in Sources */,
 				CFB3971DC18EB6F5131FBC5D /* TessalyticsBackendClient.swift in Sources */,
+				A883B7BCA1ACAFE09B8DC2E2 /* TirePressureDiagram.swift in Sources */,
 				44A20F378B3FF54279C0CED2 /* ValueFormatting.swift in Sources */,
 				ACB3DF2E483C87B5A6E577E7 /* VehicleDataAPI.swift in Sources */,
 				4F70EBE4D78239142119E587 /* VehicleIntelligence.swift in Sources */,

@@ -27,16 +27,29 @@ final class TessalyticsUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Home"].exists, "A parked car shows its place, not a state word")
         XCTAssertFalse(app.staticTexts["Parked at Home"].exists, "The state prefix is gone for the common case")
         XCTAssertTrue(app.staticTexts["238"].exists)
-        XCTAssertTrue(app.staticTexts["Locked"].exists)
-        XCTAssertTrue(app.staticTexts["Cabin 21.5°C"].exists)
         XCTAssertTrue(app.descendants(matching: .any)["home-driving-chart"].exists)
+
+        // The hero carries the battery ring, the odometer, the tyres and a week of
+        // battery level. Lock state and cabin temperature moved out of it: the
+        // three chips that held them restated figures already on the card, where
+        // the shape of the week does not.
+        //
+        // Asserted through visible text rather than identifiers: the card is a
+        // NavigationLink label, so it collapses into one accessibility button and
+        // the identifiers of anything inside it are not exposed.
+        XCTAssertTrue(app.staticTexts["78"].exists, "Battery ring shows the level")
+        XCTAssertTrue(app.staticTexts["18,642"].exists, "Odometer sits beside the range")
+        XCTAssertTrue(app.staticTexts["42.1"].exists, "A tyre pressure is shown at its corner")
+        XCTAssertTrue(app.staticTexts["Battery level · 7 days"].exists)
 
         // Every telemetry tile lives in a lazy grid below the fold, so none of
         // them is guaranteed to exist until scrolled into range.
         assertScrollingReveals(app, texts: [
             "Odometer", "18,642 mi",
             "Cabin", "21.5 °C",
-            "Outside", "18 °C"
+            "Outside", "18 °C",
+            // Lock state now lives in the vehicle-state card.
+            "Locked"
         ])
     }
 

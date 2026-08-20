@@ -78,10 +78,34 @@ struct ChargeDetailView: View {
                             tint: TessalyticsTheme.neutral
                         )
                     }
-                    sampleChart("Battery level", unit: "%", values: series(detail) { $0.batteryLevel.map(Double.init) })
-                    sampleChart("Charging power", unit: "kW", tint: TessalyticsTheme.warning, values: series(detail) { $0.chargerDetails?.chargerPower })
-                    sampleChart("Voltage", unit: "V", tint: TessalyticsTheme.chartNeutral, baseline: .focused, values: series(detail) { $0.chargerDetails?.chargerVoltage })
-                    sampleChart("Current", unit: "A", tint: TessalyticsTheme.steel, values: series(detail) { $0.chargerDetails?.chargerActualCurrent })
+                    // Level and power together: the moment the taper starts lines
+                    // up with the level it started at, which is the thing worth
+                    // knowing. They were two charts, read one at a time.
+                    SectionCard(
+                        "Charging curve",
+                        subtitle: "Level against power",
+                        symbol: "chart.xyaxis.line",
+                        tint: TessalyticsTheme.positive
+                    ) {
+                        ChargeCurveChart(
+                            points: detail.curvePoints(),
+                            peakPower: detail.chargeDetails.compactMap { $0.chargerDetails?.chargerPower }.max(),
+                            height: 220
+                        )
+                    }
+                    sampleChart(
+                        "Voltage",
+                        unit: "V",
+                        tint: TessalyticsTheme.chartNeutral,
+                        baseline: .focused,
+                        values: series(detail, whileCharging: true) { $0.chargerDetails?.chargerVoltage }
+                    )
+                    sampleChart(
+                        "Current",
+                        unit: "A",
+                        tint: TessalyticsTheme.steel,
+                        values: series(detail, whileCharging: true) { $0.chargerDetails?.chargerActualCurrent }
+                    )
                     chargerDetails(detail)
                     }
                     .tessalyticsScreenPadding()
@@ -97,13 +121,31 @@ struct ChargeDetailView: View {
             .task(id: pollingKey) { await pollWhileVisible() }
     }
     /// Samples paired with their recording time, so the x-axis means something.
-    private func series(_ detail: ChargeDetailDTO, _ value: (ChargePointDTO) -> Double?) -> [ChartSample] {
+    /// Samples paired with their recording time.
+    ///
+    /// `whileCharging` keeps only the samples taken while the charger was
+    /// delivering.
+    ///
+    /// Voltage and current are charger measurements, and they collapse the moment
+    /// it stops — which is not a reading but the end of the session. Plotting the
+    /// collapse dragged the axis to zero and drew a cliff. TeslaMate's AC current
+    /// sensor also reads nothing throughout a DC fast charge, and with the filter
+    /// that chart correctly has no samples at all rather than a flat zero line.
+    private func series(
+        _ detail: ChargeDetailDTO,
+        whileCharging: Bool = false,
+        _ value: (ChargePointDTO) -> Double?
+    ) -> [ChartSample] {
         detail.chargeDetails.enumerated().compactMap { index, point in
             guard let date = point.date?.value, let measurement = value(point) else { return nil }
+            if whileCharging {
+                guard measurement > 0, (point.chargerDetails?.chargerPower ?? 0) > 0 else { return nil }
+            }
             return ChartSample(id: index, date: date, value: measurement)
         }
     }
 
+    @ViewBuilder
     private func sampleChart(
         _ title: String,
         unit: String,
@@ -111,13 +153,10 @@ struct ChargeDetailView: View {
         baseline: ChartBaseline = .zero,
         values: [ChartSample]
     ) -> some View {
-        SectionCard(title, symbol: "chart.xyaxis.line", tint: tint) {
-            if values.isEmpty {
-                Text("No samples reported")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, minHeight: 100)
-            } else {
+        // A card that could only say "no samples" is worth omitting entirely: an
+        // AC current chart tells a Supercharger session's owner nothing.
+        if !values.isEmpty {
+            SectionCard(title, symbol: "chart.xyaxis.line", tint: tint) {
                 Chart(downsampled(values)) { sample in
                     if baseline == .zero {
                         AreaMark(x: .value("Time", sample.date), y: .value(title, sample.value), stacking: .unstacked)
@@ -157,6 +196,7 @@ struct ChargeDetailView: View {
             }
         }
     }
+
     private func load() async {
         guard let profile = environment.selectedProfile, let vehicle = environment.selectedVehicle else { return }
         do {

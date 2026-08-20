@@ -139,7 +139,12 @@ private struct ChargeSelection: Identifiable, Hashable {
 }
 
 private struct ChargeRow: View {
+    @Environment(AppEnvironment.self) private var environment
+    @Environment(\.modelContext) private var context
+
     let record: ChargeRecord
+
+    @State private var curve: [ChargeCurvePoint] = []
 
     /// A cost of zero means "no tariff configured", not "this charge was free".
     private var reportedCost: Double? { (record.cost ?? 0) > 0 ? record.cost : nil }
@@ -194,17 +199,40 @@ private struct ChargeRow: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
+                // Fetched per row the way a drive row fetches its route, and
+                // cached the same way, so scrolling does not re-request.
+                if curve.count > 2 {
+                    ChargeCurveChart(points: curve, height: 56, isCompact: true)
+                        .frame(width: 104)
+                        .accessibilityHidden(true)
+                }
+
                 Image(systemName: "chevron.right")
                     .font(.caption.weight(.bold))
                     .foregroundStyle(.tertiary)
                     .accessibilityHidden(true)
             }
         }
+        .task(id: record.chargeID) { await loadCurve() }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(record.address ?? "Charging session")
         .accessibilityValue(
             ([ValueFormatting.date(record.startDate), ValueFormatting.number(record.energyAdded, unit: "kWh")] + facts)
                 .joined(separator: ", ")
         )
+    }
+
+    private func loadCurve() async {
+        guard curve.isEmpty,
+              let profile = environment.selectedProfile,
+              let vehicle = environment.selectedVehicle else { return }
+        guard let detail = try? await ChargeRepository(context: context).detail(
+            client: environment.client(for: profile),
+            serverID: profile.id,
+            carID: vehicle.id,
+            chargeID: record.chargeID
+        ) else { return }
+        // Coarse for a thumbnail: the shape survives, the work does not.
+        curve = detail.curvePoints(limit: 40)
     }
 }

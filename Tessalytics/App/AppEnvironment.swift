@@ -17,6 +17,13 @@ final class AppEnvironment {
     var status: VehicleStatus?
     var statusUnits: UnitsDTO?
     var statusFetchedAt: Date?
+    /// The last status seen while the car was awake, and when.
+    ///
+    /// A sleeping car reports nothing about locks, doors or cabin temperature.
+    /// Answering "unknown" was honest but useless: the last known state is the
+    /// thing an owner wants precisely when the car cannot be asked.
+    var lastLiveStatus: VehicleStatus?
+    var lastLiveStatusAt: Date?
     var statusUsesOwnerAPI = false
     var isOffline = false
     var lastError: String?
@@ -432,6 +439,26 @@ final class AppEnvironment {
         Task { [weak self] in await self?.restoreOwnerConnection() }
     }
 
+    /// Renames a server without touching its credentials or synchronized data.
+    ///
+    /// The name is only a label, so this deliberately does not re-verify the
+    /// connection or re-sync: a typo in "Home" should not cost 800 drives.
+    func renameProfile(_ profile: ServerProfile, to name: String) throws {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { throw ClientError.invalidConfiguration }
+        let id = profile.id
+        let context = container.mainContext
+        var descriptor = FetchDescriptor<ServerProfileRecord>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
+        guard let record = try context.fetch(descriptor).first else { return }
+        record.name = trimmed
+        try context.save()
+        profiles = (try context.fetch(FetchDescriptor<ServerProfileRecord>())).compactMap(\.profile)
+        if selectedProfile?.id == id {
+            selectedProfile = profiles.first { $0.id == id }
+        }
+    }
+
     func refreshVehicles(profile: ServerProfile? = nil) async {
         guard let profile = profile ?? selectedProfile else { return }
         let previouslySelectedID = selectedVehicle?.id
@@ -753,6 +780,10 @@ final class AppEnvironment {
                 carID: vehicle.id,
                 fetchedAt: statusFetchedAt ?? .now
             )
+            if response.status.reportsLiveTelemetry {
+                lastLiveStatus = response.status
+                lastLiveStatusAt = statusFetchedAt ?? .now
+            }
         } catch {
             if error is CancellationError { return }
             isOffline = true
@@ -902,17 +933,26 @@ final class AppEnvironment {
         return ((try? container.mainContext.fetch(descriptor)) ?? []).map(\.vehicle)
     }
 
+    private func restoreLastLiveStatus(profile: ServerProfile, vehicle: Vehicle) {
+        let cached = VehicleStatusCache(context: container.mainContext)
+            .loadLastLive(serverID: profile.id, carID: vehicle.id)
+        lastLiveStatus = cached?.status
+        lastLiveStatusAt = cached?.fetchedAt
+    }
+
     private func restoreCachedStatus(profile: ServerProfile, vehicle: Vehicle) {
         guard let cached = VehicleStatusCache(context: container.mainContext).load(serverID: profile.id, carID: vehicle.id) else {
             status = nil
             statusUnits = cachedSettings(serverID: profile.id)
             statusFetchedAt = nil
             statusUsesOwnerAPI = false
+            restoreLastLiveStatus(profile: profile, vehicle: vehicle)
             return
         }
         status = cached.status
         statusUnits = cached.units ?? cachedSettings(serverID: profile.id)
         statusFetchedAt = cached.fetchedAt
+        restoreLastLiveStatus(profile: profile, vehicle: vehicle)
         statusUsesOwnerAPI = false
     }
 
