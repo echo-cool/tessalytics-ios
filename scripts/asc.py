@@ -11,12 +11,13 @@ Usage:
   ./scripts/asc.py builds                  # build processing state
   ./scripts/asc.py get apps/<id>/builds    # any raw GET
   ./scripts/asc.py create-version          # create the version.txt record
+  ./scripts/asc.py prepare-version         # rename the editable record and attach the build
   ./scripts/asc.py push-locale en-US       # name/subtitle/URLs/description/whatsNew
   ./scripts/asc.py push-review-notes       # App Review notes (demo-mode text)
   ./scripts/asc.py push-beta-notes         # TestFlight "What to Test" for the build
 
-Nothing here submits for review. `create-version` makes a version record and
-push-* fills fields in; adding for review stays a manual step in the web UI.
+`submit-for-review` does submit. It refuses while another submission is open, so
+withdraw first — App Store Connect keeps one editable version per app.
 
 Environment:
   ASC_ISSUER_ID   required (Users and Access > Integrations > Issuer ID)
@@ -31,9 +32,11 @@ Environment:
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import os
 import pathlib
+import re
 import sys
 import time
 import urllib.error
@@ -128,7 +131,7 @@ def token() -> str:
     return signing_input.decode() + "." + _b64(raw)
 
 
-def request(method: str, path: str, body: dict | None = None) -> dict:
+def request(method: str, path: str, body: dict | None = None, tolerate: bool = False) -> dict:
     url = path if path.startswith("http") else f"{BASE}/{path.lstrip('/')}"
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(url, data=data, method=method)
@@ -141,7 +144,34 @@ def request(method: str, path: str, body: dict | None = None) -> dict:
             return json.loads(raw) if raw else {}
     except urllib.error.HTTPError as error:
         detail = error.read().decode()
+        if tolerate:
+            raise ASCError(error.code, detail) from error
         sys.exit(f"{method} {url} -> {error.code}\n{detail}")
+
+
+class ASCError(Exception):
+    """An HTTP error the caller has said it can handle."""
+
+    def __init__(self, status: int, detail: str) -> None:
+        super().__init__(detail)
+        self.status = status
+        self.detail = detail
+
+    @property
+    def locked_attributes(self) -> set[str]:
+        """The attribute names the service refused to edit, if that is why."""
+        try:
+            errors = json.loads(self.detail).get("errors", [])
+        except json.JSONDecodeError:
+            return set()
+        names = set()
+        for error in errors:
+            if error.get("code") != "STATE_ERROR":
+                continue
+            match = re.search(r"Attribute '([^']+)' cannot be edited", error.get("detail", ""))
+            if match:
+                names.add(match.group(1))
+        return names
 
 
 def read(locale: str, filename: str) -> str | None:
@@ -270,10 +300,25 @@ def push_locale(locale: str) -> None:
     vid = version_id()
     existing = find_localization("version", vid, locale)
     if existing:
-        request("PATCH", f"appStoreVersionLocalizations/{existing}", {
-            "data": {"type": "appStoreVersionLocalizations", "id": existing,
-                     "attributes": attributes}
-        })
+        # `whatsNew` is locked until an app has a released version, so a first
+        # release cannot set it. Dropping the field it names beats abandoning the
+        # description, keywords and URLs that were about to be written with it.
+        for _ in range(len(attributes)):
+            try:
+                request("PATCH", f"appStoreVersionLocalizations/{existing}", {
+                    "data": {"type": "appStoreVersionLocalizations", "id": existing,
+                             "attributes": attributes}
+                }, tolerate=True)
+                break
+            except ASCError as error:
+                locked = error.locked_attributes & attributes.keys()
+                if not locked:
+                    sys.exit(f"PATCH appStoreVersionLocalizations/{existing} -> {error.status}\n{error.detail}")
+                for field in locked:
+                    del attributes[field]
+                    print(f"     {field}: locked by App Store Connect, skipped")
+                if not attributes:
+                    return
         print(f"   updated appStoreVersionLocalization {existing}")
     else:
         created = request("POST", "appStoreVersionLocalizations", {
@@ -379,6 +424,47 @@ def create_version() -> None:
     print(f"created appStoreVersion {wanted}: {created['data']['id']}")
 
 
+def prepare_version() -> None:
+    """Points the editable version record at version.txt and attaches build.txt.
+
+    App Store Connect keeps one editable version per app, so a new release
+    normally renames the existing record rather than adding one. Attaching the
+    build is a separate relationship write; a version with no build cannot be
+    submitted.
+    """
+    wanted = read("en-US", "version.txt")
+    if not wanted:
+        sys.exit("no version.txt in the metadata directories")
+
+    editable = None
+    for item in request("GET", f"apps/{APP_ID}/appStoreVersions?limit=200")["data"]:
+        state = item["attributes"].get("appStoreState")
+        if item["attributes"]["versionString"] == wanted:
+            editable = item
+            break
+        if state in {"PREPARE_FOR_SUBMISSION", "DEVELOPER_REJECTED", "REJECTED", "METADATA_REJECTED"}:
+            editable = editable or item
+    if not editable:
+        sys.exit("no editable version to reuse; run create-version")
+
+    version = editable["id"]
+    if editable["attributes"]["versionString"] != wanted:
+        request("PATCH", f"appStoreVersions/{version}", {
+            "data": {
+                "type": "appStoreVersions",
+                "id": version,
+                "attributes": {"versionString": wanted, "releaseType": "AFTER_APPROVAL"},
+            }
+        })
+        print(f"renamed {editable['attributes']['versionString']} -> {wanted}")
+
+    build, build_version = build_id()
+    request("PATCH", f"appStoreVersions/{version}/relationships/build", {
+        "data": {"type": "builds", "id": build}
+    })
+    print(f"version {wanted} ({version}) now uses build {build_version}")
+
+
 def builds() -> None:
     data = request(
         "GET", f"builds?filter[app]={APP_ID}&limit=20&sort=-uploadedDate"
@@ -406,6 +492,183 @@ def show() -> None:
     builds()
 
 
+
+# --- Screenshots -----------------------------------------------------------
+#
+# Assets are a three-step dance: reserve a slot and get signed upload
+# operations, PUT the bytes at each of them, then commit with the file's MD5 so
+# the service can verify what landed. There is no single-request form.
+
+SCREENSHOT_DISPLAY_TYPES = {
+    "iphone-6.9": "APP_IPHONE_67",
+    "ipad-12.9": "APP_IPAD_PRO_3GEN_129",
+}
+
+
+def _upload(operations: list[dict], payload: bytes) -> None:
+    for operation in operations:
+        chunk = payload[operation["offset"] : operation["offset"] + operation["length"]]
+        req = urllib.request.Request(operation["url"], data=chunk, method=operation["method"])
+        for header in operation.get("requestHeaders", []):
+            req.add_header(header["name"], header["value"])
+        try:
+            with urllib.request.urlopen(req) as response:
+                response.read()
+        except urllib.error.HTTPError as error:
+            sys.exit(f"upload chunk -> {error.code}\n{error.read().decode()}")
+
+
+def _screenshot_set(localization_id: str, display_type: str) -> str:
+    existing = request("GET", f"appStoreVersionLocalizations/{localization_id}/appScreenshotSets")
+    for item in existing.get("data", []):
+        if item["attributes"].get("screenshotDisplayType") == display_type:
+            return item["id"]
+    created = request(
+        "POST",
+        "appScreenshotSets",
+        {
+            "data": {
+                "type": "appScreenshotSets",
+                "attributes": {"screenshotDisplayType": display_type},
+                "relationships": {
+                    "appStoreVersionLocalization": {
+                        "data": {"type": "appStoreVersionLocalizations", "id": localization_id}
+                    }
+                },
+            }
+        },
+    )
+    return created["data"]["id"]
+
+
+def push_screenshots(kind: str, directory: str, locale: str = "en-US") -> None:
+    """Replaces one display type's screenshots with the files in a directory.
+
+    Replaces rather than appends: a set that accumulates every run ends up
+    showing three generations of the same screen in the wrong order.
+    """
+    display_type = SCREENSHOT_DISPLAY_TYPES.get(kind)
+    if not display_type:
+        sys.exit(f"unknown screenshot kind '{kind}'; expected one of {', '.join(SCREENSHOT_DISPLAY_TYPES)}")
+
+    files = sorted(pathlib.Path(directory).glob("*.png"))
+    if not files:
+        sys.exit(f"no .png files in {directory}")
+
+    localization_id = find_localization("version", version_id(), locale)
+    if not localization_id:
+        sys.exit(f"no {locale} localization on the editable version")
+    set_id = _screenshot_set(localization_id, display_type)
+
+    for existing in request("GET", f"appScreenshotSets/{set_id}/appScreenshots").get("data", []):
+        request("DELETE", f"appScreenshots/{existing['id']}")
+        print(f"  removed {existing['attributes'].get('fileName')}")
+
+    for position, path in enumerate(files):
+        payload = path.read_bytes()
+        reserved = request(
+            "POST",
+            "appScreenshots",
+            {
+                "data": {
+                    "type": "appScreenshots",
+                    "attributes": {"fileSize": len(payload), "fileName": path.name},
+                    "relationships": {
+                        "appScreenshotSet": {"data": {"type": "appScreenshotSets", "id": set_id}}
+                    },
+                }
+            },
+        )
+        screenshot_id = reserved["data"]["id"]
+        _upload(reserved["data"]["attributes"]["uploadOperations"], payload)
+        request(
+            "PATCH",
+            f"appScreenshots/{screenshot_id}",
+            {
+                "data": {
+                    "type": "appScreenshots",
+                    "id": screenshot_id,
+                    "attributes": {
+                        "uploaded": True,
+                        "sourceFileChecksum": hashlib.md5(payload).hexdigest(),
+                    },
+                }
+            },
+        )
+        print(f"  uploaded {path.name} ({len(payload) // 1024} KB) at position {position}")
+
+    print(f"{display_type}: {len(files)} screenshot(s) for {locale}")
+
+
+# --- Review submission -----------------------------------------------------
+
+
+def review_submissions() -> list[dict]:
+    response = request(
+        "GET",
+        f"apps/{APP_ID}/reviewSubmissions?filter[state]=READY_FOR_REVIEW,WAITING_FOR_REVIEW,IN_REVIEW",
+    )
+    return response.get("data", [])
+
+
+def withdraw_review() -> None:
+    """Cancels any open submission so the version becomes editable again.
+
+    App Store Connect keeps one editable version per app, so a submission that is
+    still queued blocks store copy for everything behind it.
+    """
+    open_submissions = review_submissions()
+    if not open_submissions:
+        print("no open review submission")
+        return
+    for submission in open_submissions:
+        state = submission["attributes"].get("state")
+        request(
+            "PATCH",
+            f"reviewSubmissions/{submission['id']}",
+            {"data": {"type": "reviewSubmissions", "id": submission["id"], "attributes": {"canceled": True}}},
+        )
+        print(f"withdrew submission {submission['id']} (was {state})")
+
+
+def submit_for_review() -> None:
+    """Creates a submission for the editable version and submits it."""
+    version = version_id()
+    if review_submissions():
+        sys.exit("an open review submission already exists; run withdraw-review first")
+
+    submission = request(
+        "POST",
+        "reviewSubmissions",
+        {
+            "data": {
+                "type": "reviewSubmissions",
+                "relationships": {"app": {"data": {"type": "apps", "id": APP_ID}}},
+            }
+        },
+    )
+    submission_id = submission["data"]["id"]
+    request(
+        "POST",
+        "reviewSubmissionItems",
+        {
+            "data": {
+                "type": "reviewSubmissionItems",
+                "relationships": {
+                    "reviewSubmission": {"data": {"type": "reviewSubmissions", "id": submission_id}},
+                    "appStoreVersion": {"data": {"type": "appStoreVersions", "id": version}},
+                },
+            }
+        },
+    )
+    request(
+        "PATCH",
+        f"reviewSubmissions/{submission_id}",
+        {"data": {"type": "reviewSubmissions", "id": submission_id, "attributes": {"submitted": True}}},
+    )
+    print(f"submitted {submission_id} for review")
+
+
 def main() -> None:
     if len(sys.argv) < 2:
         sys.exit(__doc__)
@@ -421,10 +684,26 @@ def main() -> None:
         push_beta_notes(*sys.argv[2:3])
     elif command == "create-version":
         create_version()
+    elif command == "prepare-version":
+        prepare_version()
     elif command == "builds":
         builds()
     elif command == "show":
         show()
+    elif command == "push-screenshots":
+        if len(sys.argv) < 4:
+            sys.exit("usage: asc.py push-screenshots <iphone-6.9|ipad-12.9> <directory> [locale]")
+        push_screenshots(sys.argv[2], sys.argv[3], *sys.argv[4:5])
+    elif command == "review-status":
+        open_submissions = review_submissions()
+        for submission in open_submissions:
+            print(submission["id"], submission["attributes"].get("state"))
+        if not open_submissions:
+            print("no open review submission")
+    elif command == "withdraw-review":
+        withdraw_review()
+    elif command == "submit-for-review":
+        submit_for_review()
     else:
         sys.exit(f"unknown command: {command}")
 

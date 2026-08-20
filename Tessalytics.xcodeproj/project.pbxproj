@@ -53,6 +53,7 @@
 		94489801B81E24CB6EF790FC /* ChartDomainTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF42BFB43015DC8F460CA7FA /* ChartDomainTests.swift */; };
 		97E39E72F61662B40B33BA1A /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3C10EA5F7393F88E2105AA5 /* AboutView.swift */; };
 		98B28CBAD6BFB2521DEF7460 /* VisitedPlacesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 305C076A79E216503F26F2BB /* VisitedPlacesTests.swift */; };
+		98D2D6299FAE6932E9D97515 /* ScreenshotCaptureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4EB6E134D4971A688A7AF48 /* ScreenshotCaptureTests.swift */; };
 		9ABF6177BE29205A3F6019FF /* OwnerAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 702DCF1C2DDA8272CF7B1819 /* OwnerAPIClient.swift */; };
 		A053217C9B3E28E8B1581C81 /* APIModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70EF7E9E2D84547312F453C6 /* APIModels.swift */; };
 		A2D0741E7C29C94641044C57 /* OwnerAPICredentials.swift in Sources */ = {isa = PBXBuildFile; fileRef = 398D3A521A8AB7475EBE15DA /* OwnerAPICredentials.swift */; };
@@ -169,6 +170,7 @@
 		E31E504FBBABA689C16A7479 /* UtilitiesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UtilitiesTests.swift; sourceTree = "<group>"; };
 		E3C10EA5F7393F88E2105AA5 /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
 		E3D4DC173E043F24BDD0CDF2 /* SoftwareUpdatesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoftwareUpdatesView.swift; sourceTree = "<group>"; };
+		E4EB6E134D4971A688A7AF48 /* ScreenshotCaptureTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotCaptureTests.swift; sourceTree = "<group>"; };
 		E505EEDA32AFF8AD8938C27A /* cars.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = cars.json; sourceTree = "<group>"; };
 		E7B8D7F048243F298540FDCC /* ChargeDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChargeDetailView.swift; sourceTree = "<group>"; };
 		EA8CC225422B884D999C24A4 /* IntelligenceNotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntelligenceNotificationService.swift; sourceTree = "<group>"; };
@@ -356,6 +358,7 @@
 		ACCB99D5DC4E2E9F384C5D15 /* TessalyticsUITests */ = {
 			isa = PBXGroup;
 			children = (
+				E4EB6E134D4971A688A7AF48 /* ScreenshotCaptureTests.swift */,
 				2FEA925D0919803CE2855ADF /* TessalyticsUITests.swift */,
 			);
 			path = TessalyticsUITests;
@@ -734,6 +737,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				98D2D6299FAE6932E9D97515 /* ScreenshotCaptureTests.swift in Sources */,
 				0B6B85C03D4249E2940DA470 /* TessalyticsUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

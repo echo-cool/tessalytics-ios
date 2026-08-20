@@ -150,6 +150,7 @@ enum DemoExperience {
         seedVehicle(in: context)
         seedSettings(in: context)
         seedDrives(in: context, now: now)
+        seedTrack(in: context, now: now)
         seedCharges(in: context, now: now)
         seedSoftwareUpdates(in: context, now: now)
         seedBatteryHealth(in: context, now: now)
@@ -171,10 +172,12 @@ enum DemoExperience {
         let charges = (try? context.fetch(FetchDescriptor<ChargeRecord>(predicate: #Predicate { $0.serverID == serverID }))) ?? []
         let details = (try? context.fetch(FetchDescriptor<DetailCacheRecord>(predicate: #Predicate { $0.serverID == serverID }))) ?? []
         let updates = (try? context.fetch(FetchDescriptor<FirmwareUpdateRecord>(predicate: #Predicate { $0.serverID == serverID }))) ?? []
+        let tracks = (try? context.fetch(FetchDescriptor<TrackRecord>(predicate: #Predicate { $0.serverID == serverID }))) ?? []
         drives.forEach(context.delete)
         charges.forEach(context.delete)
         details.forEach(context.delete)
         updates.forEach(context.delete)
+        tracks.forEach(context.delete)
     }
 
     @MainActor
@@ -200,7 +203,7 @@ enum DemoExperience {
     private static func seedDrives(in context: ModelContext, now: Date) {
         let samples = DemoAnalyticsFactory.samples(now: now).drives
         for sample in samples {
-            let fixture = driveFixture(sample)
+            let fixture = driveFixture(sample, now: now)
             let key = DriveRecord.key(serverID: profileID, carID: carID, id: sample.id)
             let recordDescriptor = FetchDescriptor<DriveRecord>(predicate: #Predicate { $0.cacheKey == key })
             if (try? context.fetch(recordDescriptor).first) == nil {
@@ -224,11 +227,33 @@ enum DemoExperience {
         }
     }
 
+    /// A driven path for the places map.
+    ///
+    /// The real one is aggregated by the server from a million position rows;
+    /// demo mode has no server, so it is assembled from the same synthetic drive
+    /// routes the detail screens use. One segment per drive, which is what the
+    /// map expects — a single polyline would draw the gaps between trips as
+    /// travel.
+    @MainActor
+    private static func seedTrack(in context: ModelContext, now: Date) {
+        let key = TrackRecord.key(serverID: profileID, carID: carID)
+        let descriptor = FetchDescriptor<TrackRecord>(predicate: #Predicate { $0.cacheKey == key })
+        guard (try? context.fetch(descriptor).first) == nil else { return }
+
+        let segments = DemoAnalyticsFactory.samples(now: now).drives
+            .map { driveFixture($0, now: now).detail.driveDetails.map(\.coordinate) }
+            .filter { $0.count > 1 }
+        guard !segments.isEmpty else { return }
+        context.insert(
+            TrackRecord(serverID: profileID, carID: carID, segments: segments, coversUntil: now)
+        )
+    }
+
     @MainActor
     private static func seedCharges(in context: ModelContext, now: Date) {
         let samples = DemoAnalyticsFactory.samples(now: now).charges
         for sample in samples {
-            let fixture = chargeFixture(sample)
+            let fixture = chargeFixture(sample, now: now)
             let key = ChargeRecord.key(serverID: profileID, carID: carID, id: sample.id)
             let recordDescriptor = FetchDescriptor<ChargeRecord>(predicate: #Predicate { $0.cacheKey == key })
             if (try? context.fetch(recordDescriptor).first) == nil {
@@ -316,7 +341,18 @@ enum DemoExperience {
         }
     }
 
-    private static func driveFixture(_ sample: AnalyticsDriveSample) -> (summary: DriveSummaryDTO, detail: DriveDetailDTO) {
+    /// Miles a demo car adds per day. Two months of history then spans a
+    /// believable stretch of odometer instead of a few hundred metres.
+    private static let demoMilesPerDay = 31.0
+    private static let demoLatestOdometer = 18_642.0
+
+    /// The odometer as it would have read then, from how long ago it was.
+    private static func odometer(at date: Date, now: Date) -> Double {
+        let days = max(now.timeIntervalSince(date) / 86_400, 0)
+        return max(demoLatestOdometer - days * demoMilesPerDay, 500)
+    }
+
+    private static func driveFixture(_ sample: AnalyticsDriveSample, now: Date) -> (summary: DriveSummaryDTO, detail: DriveDetailDTO) {
         let startName = sample.id.isMultiple(of: 2) ? "Home" : "Office"
         let endName = sample.destination ?? "Downtown"
         let startCoordinate = coordinate(for: startName)
@@ -324,7 +360,7 @@ enum DemoExperience {
         let duration = sample.durationMinutes ?? 28
         let endDate = sample.date.addingTimeInterval(Double(duration) * 60)
         let distance = sample.distance ?? 12
-        let odometerStart = 18_642 - Double(abs(sample.id % 700)) - distance
+        let odometerStart = odometer(at: sample.date, now: now) - distance
         let startLevel = 62 + abs(sample.id) % 24
         let endLevel = max(12, startLevel - Int(max(2, distance / 5)))
         let summary = DriveSummaryDTO(
@@ -359,7 +395,9 @@ enum DemoExperience {
                 endRange: ratedRange(atLevel: endLevel, odometer: odometerStart + distance),
                 rangeDiff: nil
             ),
-            rangeIdeal: nil
+            rangeIdeal: nil,
+            startCoordinate: startCoordinate,
+            endCoordinate: endCoordinate
         )
         let points = (0..<7).map { index in
             let progress = Double(index) / 6
@@ -395,11 +433,11 @@ enum DemoExperience {
         return (summary, detail)
     }
 
-    private static func chargeFixture(_ sample: AnalyticsChargeSample) -> (summary: ChargeSummaryDTO, detail: ChargeDetailDTO) {
+    private static func chargeFixture(_ sample: AnalyticsChargeSample, now: Date) -> (summary: ChargeSummaryDTO, detail: ChargeDetailDTO) {
         let duration = sample.durationMinutes ?? 90
         let endDate = sample.date.addingTimeInterval(Double(duration) * 60)
         let energy = sample.energy ?? 24
-        let chargeOdometer = 18_642 - Double(abs(sample.id % 600))
+        let chargeOdometer = odometer(at: sample.date, now: now)
         let startLevel = 24 + abs(sample.id) % 18
         let endLevel = min(92, startLevel + max(6, Int(energy / 0.75)))
         let summary = ChargeSummaryDTO(

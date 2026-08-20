@@ -30,6 +30,18 @@ struct CapacityByMileageChart: View {
         return (low - padding)...(high + padding)
     }
 
+    /// Compact notation rounds to whole thousands, so a car logged across a
+    /// narrow band renders every tick as the same "18K". The precision follows
+    /// the span rather than being fixed.
+    private func odometerLabel(_ odometer: Double) -> String {
+        let span = odometerDomain.upperBound - odometerDomain.lowerBound
+        guard odometer >= 1_000 else {
+            return odometer.formatted(.number.precision(.fractionLength(0)))
+        }
+        let digits = span < 2_000 ? 2 : (span < 12_000 ? 1 : 0)
+        return "\((odometer / 1_000).formatted(.number.precision(.fractionLength(digits))))K"
+    }
+
     private var capacityDomain: ClosedRange<Double> {
         let values = observations.map(\.capacity) + medians.map(\.capacity) + [capacityNew].compactMap { $0 }
         guard let low = values.min(), let high = values.max(), high > low else { return 0...100 }
@@ -98,7 +110,7 @@ struct CapacityByMileageChart: View {
                         AxisTick()
                         AxisValueLabel {
                             if let odometer = value.as(Double.self) {
-                                Text(odometer.formatted(.number.notation(.compactName)))
+                                Text(odometerLabel(odometer))
                                     .font(.caption2.monospacedDigit())
                             }
                         }

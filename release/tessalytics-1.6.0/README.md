@@ -31,24 +31,22 @@ two, and no more fixing everything twice.
   cache, collapsing 747 samples onto 211 and silently dropping marks; and value
   axes now only include zero where zero is a floor.
 
-## Store submission status
+## Store submission
 
-**Not submittable as-is.** Two things block it, both mechanical:
+Submitted. Build `202608201258` as 1.6.0, `WAITING_FOR_REVIEW`.
 
-1. **No iPad screenshot set.** `TARGETED_DEVICE_FAMILY` is `"1,2"`, so App Store
-   Connect requires an iPad set. Only `APP_IPHONE_67` is uploaded.
-2. **The iPhone screenshots are five versions stale.** They predate the home
-   screen rebuild, the ring gauge, the places map and the chart explorer, so they
-   no longer represent the app.
+The 1.2.1 submission was withdrawn first: App Store Connect keeps one editable
+version per app, so a queued submission blocks store copy for everything behind
+it. The 1.2.1 record was renamed to 1.6.0 rather than adding a version, which is
+the normal flow.
 
-`scripts/asc.py` cannot help with either yet: it has no screenshot upload, no
-review submission, and no way to withdraw one. Those are three new capabilities
-(a reserve/upload/commit flow for assets, and the `reviewSubmissions` collection),
-not flags on an existing command.
+Both screenshot sets were re-captured from demo mode — the previous iPhone set
+predated this release's home screen, and an iPad-capable build cannot be
+submitted without an iPad set at all. `ScreenshotCaptureTests` takes them, so the
+next release is one command rather than a manual pass.
 
-Version 1.2.1 is still `WAITING_FOR_REVIEW` and is the only version record — App
-Store Connect keeps one editable version per app, so 1.6.0 cannot get store copy
-until that submission is withdrawn.
+`scripts/asc.py` gained `push-screenshots`, `review-status`, `withdraw-review`,
+`submit-for-review` and `prepare-version` to do all of this.
 
 ## Verification
 

@@ -34,9 +34,21 @@
 - [ ] Rename the 1.1.0 version record to 1.2.1 and select build `202608192006` (build 5 has expired)
 - [ ] Re-shoot 6.9-inch screenshots if the dashboard or Activity changes are visible in them
 
-## 1.6.0 submission blockers
+## 1.6.0 submission
 
-- [ ] Capture a current iPad screenshot set (`TARGETED_DEVICE_FAMILY` is `"1,2"`, so App Store Connect requires one)
-- [ ] Re-capture the 6.9-inch iPhone set; the uploaded one predates the 1.6.0 home screen
-- [ ] Teach `scripts/asc.py` to upload screenshots (reserve, PUT, commit) and to create/withdraw a review submission
-- [ ] Withdraw the 1.2.1 submission so 1.6.0 can hold the editable version record
+- [x] Capture a current iPad screenshot set (`TARGETED_DEVICE_FAMILY` is `"1,2"`, so App Store Connect requires one)
+- [x] Re-capture the 6.9-inch iPhone set; the uploaded one predated the 1.6.0 home screen
+- [x] Teach `scripts/asc.py` to upload screenshots (reserve, PUT, commit) and to create/withdraw a review submission
+- [x] Withdraw the 1.2.1 submission so 1.6.0 could hold the editable version record
+- [x] Submit 1.6.0 (build `202608201258`) — `WAITING_FOR_REVIEW`
+
+Both sets are captured by `ScreenshotCaptureTests` from demo mode, so they can be
+retaken for any device class in one command and never carry the real vehicle's
+addresses or VIN:
+
+    TEST_RUNNER_TESSALYTICS_SCREENSHOT_DIR=/tmp/shots xcodebuild test \
+      -only-testing:TessalyticsUITests/ScreenshotCaptureTests \
+      -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max'
+
+`whatsNew` stays locked until the app has a released version, so `push-locale`
+reports it as skipped rather than failing the whole push.
