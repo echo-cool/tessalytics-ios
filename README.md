@@ -45,6 +45,7 @@ The screenshots use generated demo data. No real vehicle, location, route, serve
 - Estimates battery capacity, range, and health with explicit “estimate, not diagnostic” language
 - Forecasts travel, charging time, charging cost, and efficiency from synchronized history
 - Creates optional local alerts for low battery, charge completion, software updates, and notable changes
+- Signs a browser in to the [web dashboard](https://github.com/echo-cool/tessalytics-web) by scanning a QR code, so the car's own screen never has to be given a token
 - Supports multiple TeslaMate servers and multiple vehicles
 - Supports Bearer token, HTTP Basic, and explicitly private/VPN-only connections
 - Includes an on-device demo with generated status, routes, charging sessions, analytics, battery trends, and forecasts
@@ -200,13 +201,46 @@ Use the mode bar to switch between overview, driving, charging, forecasts, and b
 
 Predictions are on-device statistical estimates based on synchronized history. They are not guarantees, safety guidance, or commands to the vehicle.
 
+### The hero card
+
+Every figure on it is a control that leads where the figure is about: the battery ring and the range open battery health, the odometer and the week's driving open the drive history, the tyre diagram opens the tyres, and the car's name opens its settings — which is where the manufacturer's rating lives. The gear the car reports (P, D, R, N) sits beside the state.
+
 ### Live driving
 
 While a drive is in progress the Status tab shows the route so far on a map, the speed, power and consumption as they change, and where the car is — the road it is on while it moves, the street address while it is standing. A car stopped at a light says "Stopped" rather than "Driving · 0 mph", because a screen that reads as frozen is worse than one that says what is happening.
 
 If your server reports what is steering, a badge next to the location says so — blue for Full Self-Driving or Autopilot, grey when the car reports driving itself is off. TeslaMate does not publish this, so on most deployments the badge is simply absent; the app never guesses.
 
-Where the car is comes from the coordinate the server reports, resolved on the device and throttled so a drive costs a handful of lookups rather than one per reading. A geofence you have drawn always wins: "Home" is what you called the place.
+Where the car is comes from the coordinate the server reports, reverse-geocoded on the device with MapKit and throttled so a drive costs a handful of lookups rather than one per reading. TeslaMate's geofences are deliberately not used for this: it names a place only when a *drive* ended inside one you had drawn, so a car parked anywhere else keeps reporting the last named place it visited — a home address, shown for days, for a car that is nowhere near it. A parked Tesla sleeps and stops reporting a position at all, so the card falls back to the last position reported while it was awake — it has not moved since. When nothing resolves at all, the line is hidden rather than guessed at.
+
+### Signing a browser in to the car's screen
+
+The backend can also serve a [wide dashboard](https://github.com/echo-cool/tessalytics-web) meant for the car's own
+browser, where a metre of screen shows at once what this app pages between. It needs a credential, and a car's
+touchscreen is the last place anyone wants to type a 64-character token — so the dashboard displays a QR code and
+**the scan button at the top left of the Status tab** reads it.
+
+Before anything is granted, the app shows what it is about to approve: the pairing code to compare against the
+screen, the address the request arrived at, and the browser that made it. Approving then asks for Face ID or the
+device passcode, because handing over a complete location history is not a smaller decision than sending the car a
+command.
+
+What the browser receives is not this app's token. It is read-only — the server refuses vehicle actions to a paired
+session, so a dashboard left open in a car cannot lock, unlock, wake or command it — and it expires, and it can be
+revoked at any time from **Settings → Paired browsers**. Restarting the backend signs every browser out, because the
+sessions live in its memory and nowhere else.
+
+If the camera is unavailable, **Enter code** takes the code printed beside the QR symbol instead.
+
+### Software history
+
+Software updates are shown as a timeline rather than a list of version numbers and dates: a bar per version across the months it ran, and beside each version, how many days the car spent on it. TeslaMate records the moment a version was *installed*; how long it then ran is the gap between one install and the next, which the app now derives instead of leaving to the reader.
+
+### Achievements
+
+A dozen achievements for things the car has actually done — distance covered, a drive in one sitting, energy through the pack, a week of consecutive days, places visited, pack health held past 50,000 km. They are computed on the device from synced history and shown in Settings whether or not Game Center is available; when it is, progress is reported to Game Center as it changes. Nothing here rewards opening the app.
+
+Distances are measured in kilometres internally whatever your display units, so a target cannot move when a preference does.
 
 ### Settings
 
@@ -231,6 +265,8 @@ Tesla changes this API without notice, and the app is written to say so plainly 
 - Secrets, VINs, coordinates, addresses, and private deployment URLs are excluded from fixtures and logs
 - TLS certificate validation is never bypassed
 - Owner API credentials can be disconnected and removed from the device in Settings
+- The camera is used only to read a pairing QR code: no image is stored, and nothing is sent anywhere
+- A browser paired from this app gets read-only access, and it never sees this app's server token
 
 Read the full [Privacy Policy](PRIVACY.md) and [Security Policy](SECURITY.md). Report vulnerabilities privately according to `SECURITY.md`, not in a public issue.
 

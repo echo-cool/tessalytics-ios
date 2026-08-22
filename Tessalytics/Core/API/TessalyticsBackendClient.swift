@@ -302,6 +302,21 @@ struct TessalyticsBackendClient: VehicleDataAPI, Sendable {
         query: [URLQueryItem] = [],
         as type: T.Type
     ) async throws -> T {
+        try await send("GET", path, query: query, as: type)
+    }
+
+    /// One request, with retries and the server's own error messages.
+    ///
+    /// Not `private`: the pairing calls live in their own file and go through this
+    /// same path deliberately. A second request builder is a second place for the
+    /// header rules, the retry policy and the problem-document handling to drift.
+    func send<T: Decodable & Sendable>(
+        _ method: String,
+        _ path: String,
+        query: [URLQueryItem] = [],
+        body: (any Encodable & Sendable)? = nil,
+        as type: T.Type
+    ) async throws -> T {
         guard var components = URLComponents(url: baseURL.appending(path: path), resolvingAgainstBaseURL: false) else {
             throw ClientError.invalidConfiguration
         }
@@ -309,11 +324,19 @@ struct TessalyticsBackendClient: VehicleDataAPI, Sendable {
         guard let url = components.url else { throw ClientError.invalidConfiguration }
 
         var request = URLRequest(url: url, timeoutInterval: timeout)
-        request.httpMethod = "GET"
+        request.httpMethod = method
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue(Self.userAgent, forHTTPHeaderField: "User-Agent")
+        if let body {
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = try JSONEncoder().encode(body)
+        }
         authentication.apply(to: &request)
 
+        // A GET may be repeated freely. A POST may not: retrying an approval that
+        // actually reached the server turns "already resolved" into a failure the
+        // caller reports as one, having granted access.
+        let maximumAttempts = method == "GET" ? 2 : 0
         var attempt = 0
         while true {
             do {
@@ -327,11 +350,11 @@ struct TessalyticsBackendClient: VehicleDataAPI, Sendable {
                 catch { throw ClientError.decoding }
             } catch is CancellationError { throw CancellationError() }
             catch let error as ClientError {
-                guard error.isRetryable, attempt < 2 else { throw error }
+                guard error.isRetryable, attempt < maximumAttempts else { throw error }
                 attempt += 1
                 try await Task.sleep(for: .milliseconds(250 * attempt))
             } catch {
-                guard attempt < 2 else { throw ClientError.transport }
+                guard attempt < maximumAttempts else { throw ClientError.transport }
                 attempt += 1
                 try await Task.sleep(for: .milliseconds(250 * attempt))
             }
@@ -350,6 +373,7 @@ struct TessalyticsBackendClient: VehicleDataAPI, Sendable {
         case 403: throw ClientError.forbidden
         case 404: throw ClientError.notFound
         case 422: throw ClientError.serverMessage(problem?.detail ?? "The server rejected a parameter.")
+        case 409: throw ClientError.serverMessage(problem?.detail ?? "That request is no longer valid.")
         case 429: throw ClientError.rateLimited
         case 500, 502, 503, 504:
             if let detail = problem?.detail { throw ClientError.serverMessage(detail) }

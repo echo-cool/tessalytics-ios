@@ -196,9 +196,18 @@ enum DemoExperience {
                 frunkOpen: false
             ),
             carDetails: CarDetailsDTO(model: "Model Y", trimBadging: "Long Range", efficiency: 0.158),
-            carGeodata: CarGeodataDTO(geofence: "Home", location: nil),
+            // A position and no geofence: where the car is comes from geocoding
+            // the coordinate, and the server's geofence is deliberately unused —
+            // it names the last place a drive ended inside one, which is an
+            // address the car may have left days ago.
+            carGeodata: CarGeodataDTO(
+                geofence: nil,
+                location: CoordinateDTO(latitude: 37.4062, longitude: -122.0723)
+            ),
             carVersions: CarVersionsDTO(version: "2026.20.3", updateAvailable: false, updateVersion: nil),
-            drivingDetails: DrivingDetailsDTO(shiftState: nil, power: 0, speed: 0, heading: nil, elevation: nil),
+            // A parked car reports P, and the hero shows the gear the car is
+            // actually in rather than only the app's word for it.
+            drivingDetails: DrivingDetailsDTO(shiftState: "P", power: 0, speed: 0, heading: nil, elevation: nil),
             climateDetails: ClimateDetailsDTO(
                 isClimateOn: false,
                 insideTemp: 21.5,
@@ -433,7 +442,11 @@ enum DemoExperience {
             let key = "\(profileID.uuidString):\(carID):update:\(id)"
             let descriptor = FetchDescriptor<FirmwareUpdateRecord>(predicate: #Predicate { $0.cacheKey == key })
             guard (try? context.fetch(descriptor).first) == nil else { continue }
-            let end = Calendar.current.date(byAdding: .month, value: -(index * 2), to: now) ?? now
+            // The newest install is three weeks old, not this instant: a car that
+            // updated a moment ago has run its current version for zero days,
+            // which draws as a missing bar on the timeline rather than a short one.
+            let installed = Calendar.current.date(byAdding: .day, value: -21, to: now) ?? now
+            let end = Calendar.current.date(byAdding: .month, value: -(index * 2), to: installed) ?? installed
             let start = end.addingTimeInterval(-2_700)
             context.insert(
                 FirmwareUpdateRecord(

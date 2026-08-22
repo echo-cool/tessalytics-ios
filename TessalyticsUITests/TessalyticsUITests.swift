@@ -24,9 +24,18 @@ final class TessalyticsUITests: XCTestCase {
         let app = launch("-ui-demo")
         XCTAssertTrue(app.otherElements["dashboard-screen"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.otherElements["vehicle-snapshot-card"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Home"].exists, "A parked car shows its place, not a state word")
-        XCTAssertFalse(app.staticTexts["Parked at Home"].exists, "The state prefix is gone for the common case")
-        XCTAssertTrue(app.staticTexts["238"].exists)
+        // The place is geocoded from the car's coordinate. It is deliberately not
+        // the server's geofence, which names the last place a *drive* ended
+        // inside one an owner had drawn — an address a parked car may have left
+        // days ago, and the reason the hero kept showing a home address.
+        XCTAssertTrue(
+            app.staticTexts["1350 El Camino Real, Mountain View"].waitForExistence(timeout: 5),
+            "A parked car shows where it is, not a state word"
+        )
+        XCTAssertFalse(app.staticTexts["Home"].exists, "The geofence is not the source for this")
+        // Two decimals: rounding the range to a whole unit made a figure that was
+        // visibly falling look like one that was stuck.
+        XCTAssertTrue(app.staticTexts["238.00"].exists)
         XCTAssertTrue(app.descendants(matching: .any)["home-driving-chart"].exists)
 
         // The hero carries the battery ring, the odometer, the tyres and a week of
@@ -34,11 +43,12 @@ final class TessalyticsUITests: XCTestCase {
         // three chips that held them restated figures already on the card, where
         // the shape of the week does not.
         //
-        // Asserted through visible text rather than identifiers: the card is a
-        // NavigationLink label, so it collapses into one accessibility button and
-        // the identifiers of anything inside it are not exposed.
+        // Asserted through visible text rather than identifiers. The card is no
+        // longer one big button — each figure is its own control now, and
+        // `HeroNavigationUITests` covers where each of them leads — but reading
+        // the numbers is still what this smoke test is for.
         XCTAssertTrue(app.staticTexts["78"].exists, "Battery ring shows the level")
-        XCTAssertTrue(app.staticTexts["18,642"].exists, "Odometer sits beside the range")
+        XCTAssertTrue(app.staticTexts["18,642.0"].exists, "Odometer sits beside the range, to a tenth")
         XCTAssertTrue(app.staticTexts["42.1"].exists, "A tyre pressure is shown at its corner")
         XCTAssertTrue(app.staticTexts["Battery level · 7 days"].exists)
 

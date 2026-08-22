@@ -105,10 +105,14 @@ struct SettingsView: View {
                                 Label("Live charts", systemImage: "chart.xyaxis.line")
                             }
                             .accessibilityIdentifier("live-charts-settings")
+                            Button { presentedSheet = .pairedBrowsers } label: {
+                                Label("Paired browsers", systemImage: "qrcode.viewfinder")
+                            }
+                            .accessibilityIdentifier("paired-browsers-settings")
                         } header: {
                             Label("Live data & controls", systemImage: "dot.radiowaves.left.and.right")
                         } footer: {
-                            Text("Connect an Owner API token pair for live state and confirmed vehicle commands.")
+                            Text("Connect an Owner API token pair for live state and confirmed vehicle commands. Paired browsers are the read-only web sessions this phone has signed in.")
                         }
 
                         Section {
@@ -152,6 +156,10 @@ struct SettingsView: View {
                         Button { presentedSheet = .privacy } label: {
                             Label("Privacy", systemImage: "hand.raised.fill")
                         }
+                        Button { presentedSheet = .achievements } label: {
+                            Label("Achievements", systemImage: "trophy.fill")
+                        }
+                        .accessibilityIdentifier("settings-achievements")
                         Button { presentedSheet = .about } label: {
                             Label("About Tessalytics", systemImage: "info.circle.fill")
                         }
@@ -245,6 +253,10 @@ struct SettingsView: View {
                     OwnerAPIConnectionView()
                 case .diagnostics:
                     SettingsSheetContainer { DiagnosticsView() }
+                case .achievements:
+                    SettingsSheetContainer { AchievementsView() }
+                case .pairedBrowsers:
+                    SettingsSheetContainer { PairedBrowsersView() }
                 }
             }
         }
@@ -349,6 +361,8 @@ private enum SettingsSheet: String, Identifiable {
     case about
     case ownerAPI
     case diagnostics
+    case achievements
+    case pairedBrowsers
 
     var id: String { rawValue }
 }

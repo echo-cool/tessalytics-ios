@@ -1,0 +1,38 @@
+Tessalytics 1.8.2 — the address on the home screen is where the car actually is.
+
+WHAT TO TEST FIRST
+
+Drive somewhere. The address under "Driving" used to say your home address for
+the whole journey.
+
+The app was reading TeslaMate's geofence, and TeslaMate only names a place when a
+*drive* ended inside a geofence you had drawn — so the answer was the last named
+place the car had visited, not where it was. Correct data, answering a different
+question, which is the worst kind of wrong because it looks right.
+
+The geofence is no longer used for this at all. The address is reverse-geocoded on
+this device with MapKit from the coordinate your server reports: the road you are
+on while moving, the full address once stopped. Throttled, so a drive costs a
+handful of lookups rather than one per reading.
+
+THEN PARK IT
+
+A parked Tesla goes to sleep and stops reporting a position entirely. The card now
+falls back to the last position reported while the car was awake — it has not
+moved since, so that is still where it is. This is the same rule the tyre
+pressures already followed.
+
+If nothing resolves at all — no position ever recorded, or no network — the line
+is hidden rather than guessed at.
+
+The Location row under "Software & details" follows the same rule.
+
+EVERYTHING FROM 1.8.1 IS STILL HERE
+
+- Direct Tesla works again (the HTTP 412), and asks only for a refresh token.
+- The hero card's figures each lead somewhere: battery ring and range to battery
+  health, odometer and the week's driving to drives, the tyres to a tyre screen,
+  the car's name to vehicle settings with the rating.
+- Software updates as a timeline, with days spent on each version.
+- Achievements in Settings, reported to Game Center when you are signed in.
+- Range to two decimals, odometer to one, and the gear the car is in.

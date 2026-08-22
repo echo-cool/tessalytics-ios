@@ -78,11 +78,17 @@ final class OfflineTelemetryTests: XCTestCase {
         // where it is rather than spending its loudest line on the least
         // surprising fact. The state noun stays for accessibility.
         XCTAssertFalse(summary.isNotable)
-        XCTAssertEqual(summary.headline, "Home")
-        XCTAssertEqual(summary.placeText, "Home")
+        // Where it is comes from a geocoded coordinate, and this summary was
+        // built without one: the server's geofence is the last place a drive
+        // ended inside one, which for a car parked anywhere else is an address
+        // it left days ago.
+        XCTAssertEqual(summary.headline, "Last seen")
+        XCTAssertNil(summary.placeText)
         // The battery level itself survives the last poll and stays trustworthy.
         XCTAssertEqual(summary.batteryText, "80")
-        XCTAssertEqual(summary.rangeValue, "263")
+        // Two decimals: the server reports them, and rounding them off made a
+        // range that was visibly falling look like one that was stuck.
+        XCTAssertEqual(summary.rangeValue, "263.38")
     }
 
     func testAwakeCarStillReportsAnUnlockedDoorHonestly() throws {

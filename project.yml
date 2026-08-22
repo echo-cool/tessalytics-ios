@@ -9,8 +9,8 @@ settings:
     SWIFT_VERSION: 6.0
     DEVELOPMENT_TEAM: P8FYZDZ6AA
     CODE_SIGN_STYLE: Automatic
-    CURRENT_PROJECT_VERSION: 202608220330
-    MARKETING_VERSION: 1.8.0
+    CURRENT_PROJECT_VERSION: 202608221500
+    MARKETING_VERSION: 1.8.3
     ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS: YES
 targets:
   Tessalytics:
@@ -28,6 +28,9 @@ targets:
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO
         INFOPLIST_KEY_NSFaceIDUsageDescription: Confirm vehicle commands before Tessalytics sends them.
+        # Scanning the pairing code the web dashboard displays. The camera is used
+        # for nothing else: no photos are taken, kept, or sent anywhere.
+        INFOPLIST_KEY_NSCameraUsageDescription: Scan the pairing code shown by the Tessalytics dashboard to sign a browser in.
         GENERATE_INFOPLIST_FILE: YES
         # Merged into the generated plist. Needed because NSAppTransportSecurity
         # is a dictionary and INFOPLIST_KEY_* can only set top-level scalars —

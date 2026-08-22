@@ -35,5 +35,8 @@ struct RootView: View {
             }
         }
         .tint(TessalyticsTheme.accent)
+        // Once, at launch. Game Center may answer "signed out", which is fine:
+        // the achievements are computed on the device either way.
+        .task { environment.gameCenter.authenticate() }
     }
 }

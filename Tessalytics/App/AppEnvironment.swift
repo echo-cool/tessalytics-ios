@@ -94,6 +94,11 @@ final class AppEnvironment {
     private(set) var isDemoMode = false
     /// Debug mode's log. Records nothing until it is unlocked by hand.
     let diagnostics = Diagnostics()
+    /// Game Center, which may or may not be available. The achievements below
+    /// are computed either way.
+    let gameCenter = GameCenterService()
+    /// What the car has earned, recomputed whenever history changes.
+    private(set) var achievements: [AchievementProgress] = AchievementCatalogue.evaluate(AchievementFacts())
 
     /// Fleet-wide totals derived from the complete cached history.
     private(set) var fleet = FleetStatistics()
@@ -833,6 +838,12 @@ final class AppEnvironment {
     }
 
     #if DEBUG
+    /// Swaps the geocoder for one a test can observe. Nothing in the app calls
+    /// this; a unit test must not depend on Apple's geocoder answering.
+    func usePlaceNamesForTesting(_ resolver: any PlaceNaming) {
+        livePlace = LivePlaceName(resolver: resolver)
+    }
+
     /// Feeds a reading down the same path the stream and the poll both use.
     ///
     /// Exists so the latch can be tested at the exact instants that matter — the
@@ -888,7 +899,7 @@ final class AppEnvironment {
     /// the answer. A car that has stopped — at a light or for the night — is at
     /// an address, and the house number is the point of asking.
     private func updateLivePlace(_ status: VehicleStatus?) {
-        guard let status, let coordinate = status.carGeodata?.location, coordinate.isReported else {
+        guard let status, let coordinate = placeCoordinate(for: status) else {
             livePlace.clear()
             return
         }
@@ -896,6 +907,23 @@ final class AppEnvironment {
             for: coordinate,
             precision: status.isDriving && !status.isStoppedInDrive ? .street : .address
         )
+    }
+
+    /// The position worth naming, which is not always the one on this reading.
+    ///
+    /// A sleeping car reports nothing at all — no position, no tyre pressures, no
+    /// lock state — and a parked car is asleep for most of its life. Falling back
+    /// to the last reading taken while it was awake is the same rule the tyre
+    /// diagram already follows, and it is right for the same reason: the car has
+    /// not moved since, so that reading is still where it is.
+    private func placeCoordinate(for status: VehicleStatus) -> CoordinateDTO? {
+        let reported = status.carGeodata?.location.flatMap { $0.isReported ? $0 : nil }
+        guard !status.isDriving else {
+            // Mid-drive, a reading without a position is a gap in what the car
+            // published rather than a car that has stopped reporting where it is.
+            return reported ?? liveCoordinate
+        }
+        return reported ?? lastLiveStatus?.carGeodata?.location.flatMap { $0.isReported ? $0 : nil }
     }
 
     /// Rebuilds the drawn route, and writes it back only when it changed.
@@ -1179,6 +1207,44 @@ final class AppEnvironment {
         )
         if let serverTotals { computed.applyServerTotals(serverTotals) }
         fleet = computed
+        recomputeAchievements(profile: profile, vehicle: vehicle, battery: computed.battery)
+    }
+
+    /// Re-judges the achievements against the history just summed.
+    ///
+    /// Shares the fetch above rather than running its own: both read every cached
+    /// drive and charge for the car, and doing that twice on each sync is the
+    /// kind of cost that only shows up on the owner with four years of history.
+    private func recomputeAchievements(
+        profile: ServerProfile,
+        vehicle: Vehicle,
+        battery: FleetStatistics.BatteryHealth?
+    ) {
+        let context = container.mainContext
+        let drives = DriveRepository(context: context).cached(serverID: profile.id, carID: vehicle.id)
+        let charges = ChargeRepository(context: context).cached(serverID: profile.id, carID: vehicle.id)
+        let facts = AchievementFactsBuilder.build(
+            drives: drives,
+            charges: charges,
+            battery: battery,
+            placesVisited: VisitedPlacesModel.places(from: drives.flatMap(\.visitedEndpoints)).count,
+            softwareVersions: softwareVersionCount(serverID: profile.id, carID: vehicle.id),
+            units: statusUnits
+        )
+        let evaluated = AchievementCatalogue.evaluate(facts)
+        guard evaluated != achievements else { return }
+        achievements = evaluated
+        let gameCenter = gameCenter
+        Task { await gameCenter.report(evaluated) }
+    }
+
+    private func softwareVersionCount(serverID: UUID, carID: Int) -> Int {
+        let server = serverID.uuidString
+        let descriptor = FetchDescriptor<FirmwareUpdateRecord>(
+            predicate: #Predicate { $0.serverID == server && $0.carID == carID }
+        )
+        let records = (try? container.mainContext.fetch(descriptor)) ?? []
+        return Set(records.compactMap { $0.version?.nilIfEmpty }).count
     }
 
     /// Fetches the driven path, but only when there is something new to draw.
@@ -1487,10 +1553,13 @@ final class AppEnvironment {
             return
         }
         status = cached.status
-        updateLivePlace(cached.status)
         statusUnits = cached.units ?? cachedSettings(serverID: profile.id)
         statusFetchedAt = cached.fetchedAt
+        // Before the place is resolved, not after: a cold launch onto a sleeping
+        // car has no position on the newest reading, and the fallback is the last
+        // one taken while it was awake.
         restoreLastLiveStatus(profile: profile, vehicle: vehicle)
+        updateLivePlace(cached.status)
         statusUsesOwnerAPI = false
     }
 

@@ -142,3 +142,145 @@ private struct NoStoredCredentials: CredentialStore {
     func credentials(profileID: UUID) throws -> StoredCredentials? { nil }
     func delete(profileID: UUID) throws {}
 }
+
+/// Where the car is, in words.
+///
+/// Two reports shaped this. The hero kept showing a home address — the app was
+/// preferring TeslaMate's geofence, which names the last place a *drive* ended
+/// inside one an owner had drawn, so a car parked or driving anywhere else got an
+/// address it had left days ago. And a sleeping car reports no position at all,
+/// which left the line blank for the state a car spends most of its life in.
+@MainActor
+final class LivePlaceResolutionTests: XCTestCase {
+    private var environment: AppEnvironment!
+
+    /// Answers with the coordinate it was asked about, so a test can see which
+    /// position the app chose to name.
+    private final class EchoingNames: PlaceNaming, @unchecked Sendable {
+        private(set) var asked: [CoordinateDTO] = []
+
+        func name(for coordinate: CoordinateDTO, precision: PlacePrecision) async -> String? {
+            asked.append(coordinate)
+            return "\(coordinate.latitude), \(coordinate.longitude)"
+        }
+    }
+
+    private var names: EchoingNames!
+
+    override func setUpWithError() throws {
+        let schema = Schema([ServerProfileRecord.self, VehicleRecord.self, DriveRecord.self, ChargeRecord.self,
+                             DetailCacheRecord.self, BatteryHealthRecord.self, FirmwareUpdateRecord.self,
+                             GlobalSettingsRecord.self, SyncMetadataRecord.self])
+        let container = try ModelContainer(
+            for: schema,
+            configurations: [ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)]
+        )
+        environment = AppEnvironment(container: container, keychain: NoStoredCredentials())
+        names = EchoingNames()
+        environment.usePlaceNamesForTesting(names)
+    }
+
+    override func tearDown() {
+        environment = nil
+        names = nil
+    }
+
+    private func reading(
+        state: String?,
+        shift: String?,
+        speed: Double?,
+        geofence: String? = nil,
+        coordinate: CoordinateDTO?
+    ) -> VehicleStatus {
+        VehicleStatus(
+            displayName: "Car",
+            state: state,
+            stateSince: nil,
+            odometer: 1_000,
+            carStatus: nil,
+            carDetails: nil,
+            carGeodata: CarGeodataDTO(geofence: geofence, location: coordinate),
+            carVersions: nil,
+            drivingDetails: DrivingDetailsDTO(shiftState: shift, power: 0, speed: speed, heading: nil, elevation: nil),
+            climateDetails: nil,
+            batteryDetails: nil,
+            chargingDetails: nil,
+            tpmsDetails: nil
+        )
+    }
+
+    private func settle() async {
+        for _ in 0..<60 where environment.livePlace.name == nil {
+            try? await Task.sleep(for: .milliseconds(5))
+        }
+    }
+
+    func testADrivingCarIsNamedByItsOwnPositionAndNotByAGeofence() async {
+        // The reported bug, in live mode: the card said "Home" for a car that was
+        // driving somewhere else entirely.
+        let onTheRoad = CoordinateDTO(latitude: 37.4062, longitude: -122.0723)
+        environment.applyLiveReadingForTesting(
+            reading(state: "driving", shift: "D", speed: 55, geofence: "Home", coordinate: onTheRoad)
+        )
+        await settle()
+        XCTAssertEqual(names.asked.last, onTheRoad)
+        XCTAssertEqual(environment.livePlace.name, "37.4062, -122.0723")
+    }
+
+    func testAParkedCarWithNoPositionUsesTheLastOneItReported() async {
+        // A sleeping car reports nothing. It has not moved since, so the last
+        // reading taken while it was awake is still where it is.
+        let driveway = CoordinateDTO(latitude: 51.5007, longitude: -0.1246)
+        environment.lastLiveStatus = reading(state: "online", shift: "P", speed: 0, coordinate: driveway)
+        environment.applyLiveReadingForTesting(
+            reading(state: "asleep", shift: nil, speed: nil, coordinate: nil)
+        )
+        await settle()
+        XCTAssertEqual(names.asked.last, driveway, "The last known position is where it is")
+    }
+
+    func testAParkedCarPrefersItsOwnReadingOverTheLastKnownOne() async {
+        let stale = CoordinateDTO(latitude: 51.5007, longitude: -0.1246)
+        let current = CoordinateDTO(latitude: 48.8584, longitude: 2.2945)
+        environment.lastLiveStatus = reading(state: "online", shift: "P", speed: 0, coordinate: stale)
+        environment.applyLiveReadingForTesting(
+            reading(state: "online", shift: "P", speed: 0, coordinate: current)
+        )
+        await settle()
+        XCTAssertEqual(names.asked.last, current)
+    }
+
+    func testNullIslandIsNotAFallbackEither() async {
+        // A server with no reading publishes 0,0. Naming it would put the car in
+        // the Gulf of Guinea.
+        environment.lastLiveStatus = reading(
+            state: "online", shift: "P", speed: 0, coordinate: CoordinateDTO(latitude: 0, longitude: 0)
+        )
+        environment.applyLiveReadingForTesting(
+            reading(state: "asleep", shift: nil, speed: nil, coordinate: nil)
+        )
+        try? await Task.sleep(for: .milliseconds(60))
+        XCTAssertTrue(names.asked.isEmpty)
+        XCTAssertNil(environment.livePlace.name, "Hidden rather than wrong")
+    }
+
+    func testAGapMidDriveKeepsNamingTheLastPositionRatherThanFallingBack() async {
+        let onTheRoad = CoordinateDTO(latitude: 37.4062, longitude: -122.0723)
+        let home = CoordinateDTO(latitude: 51.5007, longitude: -0.1246)
+        environment.lastLiveStatus = reading(state: "online", shift: "P", speed: 0, coordinate: home)
+        environment.applyLiveReadingForTesting(
+            reading(state: "driving", shift: "D", speed: 55, coordinate: onTheRoad)
+        )
+        await settle()
+
+        environment.applyLiveReadingForTesting(
+            reading(state: "driving", shift: "D", speed: 55, coordinate: nil)
+        )
+        try? await Task.sleep(for: .milliseconds(60))
+        XCTAssertEqual(
+            names.asked.last,
+            onTheRoad,
+            "A gap mid-drive must not send the car home"
+        )
+    }
+}

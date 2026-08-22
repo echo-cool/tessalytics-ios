@@ -1,0 +1,38 @@
+Tessalytics 1.8.3 — everything from 1.8.1 and 1.8.2, plus web pairing in progress.
+
+THE ADDRESS FIX (1.8.2), IF YOU HAVE NOT TRIED IT YET
+
+Drive somewhere. The address under "Driving" used to show your home address for
+the whole journey — the app preferred TeslaMate's geofence, which names the last
+place a *drive* ended inside one you had drawn rather than where the car is.
+
+The geofence is no longer used for this. The address is reverse-geocoded on this
+device with MapKit: the road while moving, the full address once stopped. A parked
+Tesla sleeps and reports no position at all, so the card falls back to the last
+position reported while it was awake. When nothing resolves, the line is hidden
+rather than guessed at.
+
+DIRECT TESLA (1.8.1)
+
+Fixed the HTTP 412 — Tesla retired /api/1/vehicles in January 2023, so the
+account's cars now come from /api/1/products. Connecting asks only for a refresh
+token now; the app mints the access token itself.
+
+THE HERO CARD (1.8.1)
+
+Every figure leads where the figure is about: battery ring and range to battery
+health, odometer and the week's driving to drives, the tyres to a tyre screen, the
+car's name to vehicle settings with the rating. Range shows two decimals, the
+odometer one, and the gear the car is in is shown beside the state.
+
+SOFTWARE AND ACHIEVEMENTS (1.8.1)
+
+Software updates are a timeline with days spent on each version. Achievements are
+in Settings — twelve, computed from your synced history, reported to Game Center
+when you are signed in.
+
+WEB PAIRING — IN PROGRESS
+
+This build also carries the in-progress browser pairing feature. It is unfinished
+and included so it can be tried alongside the backend work; treat anything it does
+as provisional.

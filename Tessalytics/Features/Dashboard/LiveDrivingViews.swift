@@ -156,6 +156,51 @@ struct SelfDrivingBadge: View {
     }
 }
 
+/// The gear, as the car reports it.
+///
+/// One letter, because that is what is on the stalk and what the car publishes.
+/// Drive is the unremarkable one and stays neutral; reverse and neutral are worth
+/// a colour, and a car in neutral on a hill is worth noticing.
+struct ShiftStateBadge: View {
+    let gear: String
+
+    private var normalised: String { gear.trimmingCharacters(in: .whitespaces).uppercased() }
+
+    private var color: Color {
+        switch normalised {
+        case "P": TessalyticsTheme.steel
+        case "D": TessalyticsTheme.accentBright
+        case "R", "N": TessalyticsTheme.warning
+        default: TessalyticsTheme.steel
+        }
+    }
+
+    private var spokenName: String {
+        switch normalised {
+        case "P": "Park"
+        case "D": "Drive"
+        case "R": "Reverse"
+        case "N": "Neutral"
+        default: normalised
+        }
+    }
+
+    var body: some View {
+        Text(normalised)
+            .font(.caption.weight(.bold))
+            .monospaced()
+            .frame(minWidth: 14)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 4)
+            .foregroundStyle(color)
+            .background(color.opacity(0.14), in: .capsule)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Gear")
+            .accessibilityValue(spokenName)
+            .accessibilityIdentifier("vehicle-shift-state")
+    }
+}
+
 /// The badge that says readings are arriving as they happen.
 struct LiveIndicator: View {
     let isStreaming: Bool

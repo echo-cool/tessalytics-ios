@@ -80,17 +80,30 @@ final class VehicleHeroSummaryTests: XCTestCase {
         XCTAssertEqual(summary(status(), placeName: "El Camino Real").placeText, "El Camino Real")
     }
 
-    func testAGeofenceOutranksAResolvedAddress() {
-        // "Home" is what the owner called the place. No geocoder improves on it.
+    /// The reported bug: the hero kept showing a home address for a car that was
+    /// nowhere near home.
+    ///
+    /// TeslaMate names a place only when a *drive* ended inside a geofence the
+    /// owner had drawn, so the server's answer is the last named place the car
+    /// visited rather than where it is — and for a car that parks anywhere else,
+    /// that is a home address displayed indefinitely. The geocoded coordinate is
+    /// about now, so it is the only source.
+    func testTheServersGeofenceIsIgnoredEntirely() {
         XCTAssertEqual(
             summary(status(state: "online", shift: "P", speed: 0, geofence: "Home"), placeName: "1 Elm Street").placeText,
-            "Home"
+            "1 Elm Street"
         )
     }
 
-    func testAParkedCarWithNoGeofenceStillKnowsWhereItIs() {
-        // The reported bug, from the app's side: without a geofence there was
-        // nothing to show, so the screen fell back to whatever it had last.
+    func testWithNothingResolvedThereIsNoPlaceToShow() {
+        // Hidden rather than guessed at: "somewhere near home, probably" is not
+        // something this line is allowed to say.
+        let parked = summary(status(state: "online", shift: "P", speed: 0, geofence: "Home"))
+        XCTAssertNil(parked.placeText, "A geofence is not a fallback")
+        XCTAssertEqual(parked.headline, "Parked")
+    }
+
+    func testAParkedCarShowsTheAddressItIsActuallyAt() {
         let parked = summary(status(state: "online", shift: "P", speed: 0), placeName: "12 Crystal Drive")
         XCTAssertEqual(parked.headline, "12 Crystal Drive")
         XCTAssertEqual(parked.stateNoun, "Parked")

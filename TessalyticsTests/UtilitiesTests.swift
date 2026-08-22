@@ -109,13 +109,14 @@ final class UtilitiesTests: XCTestCase {
 
         XCTAssertEqual(summary.activity, .parked)
         XCTAssertFalse(summary.isNotable, "Parked is the normal case and is not announced")
-        XCTAssertEqual(summary.headline, "Home")
+        // No resolved place was supplied, and the server's geofence is not a
+        // fallback — it names where a drive last ended, not where the car is.
+        XCTAssertEqual(summary.headline, "Parked")
         XCTAssertEqual(summary.batteryText, "78")
-        XCTAssertEqual(summary.rangeValue, "238")
+        XCTAssertEqual(summary.rangeValue, "238.00", "Two decimals, whether or not the value has any")
         XCTAssertEqual(summary.rangeLabel, "mi estimated range")
         XCTAssertEqual(summary.security.text, "Locked")
         XCTAssertEqual(summary.climateText, "Cabin 21.5°C")
-        XCTAssertEqual(summary.locationText, "Home")
         XCTAssertEqual(summary.batteryFraction, 0.78)
         XCTAssertNil(summary.charging)
     }

@@ -1,0 +1,36 @@
+Tessalytics 1.8.1 — Direct Tesla works again, and the hero card leads somewhere.
+
+WHAT TO TEST FIRST
+
+1. Direct Tesla. It failed at the first request with HTTP 412 because Tesla made
+   /api/1/vehicles answer that in January 2023 and never brought it back. The
+   account's cars now come from /api/1/products, which still works.
+
+   And it only asks for the REFRESH token now. Paste that one field and connect;
+   Tessalytics exchanges it for an access token itself. If you have a Powerwall
+   or solar, they should not appear in the vehicle picker.
+
+2. Tap things on the hero card. Each figure now leads where the figure is about:
+   - battery ring or range → battery health
+   - odometer or the week's driving → drives
+   - the tyre diagram → a tyre screen with each corner and the car's own warnings
+   - the car's name → vehicle settings, which holds the rating when new
+   All of them used to open battery health, including the tyres.
+
+3. Software updates. A timeline bar per version across the months it ran, and
+   each row says how many days the car spent on that version.
+
+4. Achievements, in Settings. Twelve of them, computed from your synced history —
+   distance, a drive in one sitting, energy through the pack, consecutive days,
+   places visited, pack health held past 50,000 km. They are listed whether or
+   not you are signed in to Game Center; when you are, progress is recorded there.
+
+   Note: the achievements will not appear in Game Center itself until they are
+   created in App Store Connect. The in-app list works regardless.
+
+ALSO IN THIS BUILD
+
+- Estimated range shows two decimals and the odometer shows one. Rounded to whole
+  units, a range that was visibly falling looked like one that was stuck.
+- The gear the car reports — P, D, R, N — is shown beside the state. The app was
+  reading it on every reading and showing it nowhere.

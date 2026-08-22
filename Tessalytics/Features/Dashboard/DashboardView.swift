@@ -18,7 +18,10 @@ struct DashboardView: View {
     /// standing warning.
     @AppStorage("dismissedHistoryNotice") private var dismissedHistoryNotice = false
     @State private var isShowingLiveMap = false
-    @State private var isShowingBatteryHealth = false
+    /// The QR sheet that signs a browser in to the web dashboard.
+    @State private var isShowingPairing = false
+    /// Which of the hero card's destinations is open, if any.
+    @State private var heroDestination: VehicleHeroDestination?
 
     var body: some View {
         NavigationStack {
@@ -40,10 +43,14 @@ struct DashboardView: View {
             .navigationTitle("Tessalytics")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                // Top left, where a car's screen sends people looking for it: the
+                // dashboard shows a code and this is the thing that reads it.
+                ToolbarItem(placement: .topBarLeading) { pairingButton }
                 ToolbarItem(placement: .topBarTrailing) { vehicleMenu }
             }
             .safeAreaInset(edge: .top) { statusBanner }
             .fullScreenCover(isPresented: $isShowingLiveMap) { LiveMapScreen() }
+            .sheet(isPresented: $isShowingPairing) { WebPairingSheet() }
             // Keyed on the vehicle so this also fires the first time a vehicle
             // becomes known — right after a server is configured, for instance.
             .task(id: environment.selectedVehicle?.id) {
@@ -75,6 +82,30 @@ struct DashboardView: View {
             }
         }
         .accessibilityIdentifier("dashboard-screen")
+    }
+
+    /// Opens the scanner that signs a browser in to the web dashboard.
+    ///
+    /// Deliberately a single tap from the first screen rather than buried in
+    /// Settings: it is used while sitting in the car with the dashboard already
+    /// open on the centre screen, waiting on a code that expires in three minutes.
+    private var pairingButton: some View {
+        Button {
+            isShowingPairing = true
+        } label: {
+            Image(systemName: "qrcode.viewfinder")
+        }
+        .accessibilityLabel("Sign in a browser")
+        .accessibilityIdentifier("scan-pairing-code")
+    }
+
+    /// The map is presented full screen; everything else is a push.
+    private func open(_ destination: VehicleHeroDestination) {
+        if destination == .map {
+            isShowingLiveMap = true
+        } else {
+            heroDestination = destination
+        }
     }
 
     @ViewBuilder private var statusBanner: some View {
@@ -130,10 +161,19 @@ struct DashboardView: View {
                     isDriving: environment.isLiveDriving,
                     coordinate: environment.liveCoordinate ?? environment.status?.carGeodata?.location,
                     placeName: environment.livePlace.name,
-                    onOpenMap: { isShowingLiveMap = true },
-                    onOpenBattery: { isShowingBatteryHealth = true }
+                    onOpen: open
                 )
-                .navigationDestination(isPresented: $isShowingBatteryHealth) { BatteryHealthView() }
+                .navigationDestination(item: $heroDestination) { destination in
+                    switch destination {
+                    case .batteryHealth: BatteryHealthView()
+                    case .drives: DriveHistoryView()
+                    case .tyres: TyrePressureView()
+                    case .vehicle: VehicleSettingsView()
+                    // The map is a cover rather than a push, and is handled
+                    // before it ever reaches here.
+                    case .map: EmptyView()
+                    }
+                }
 
                 historyNotice
 
@@ -227,7 +267,7 @@ struct DashboardView: View {
                     )
                     TirePressureCard(status: status, units: environment.statusUnits)
                     VehicleActivityCard(vehicle: environment.selectedVehicle, weeklyDrives: history.weeklyDrives)
-                    VehicleDetailsCard(status: status)
+                    VehicleDetailsCard(status: status, placeName: environment.livePlace.name)
                 } else {
                     StatusRefreshCard(
                         isRefreshing: environment.isStatusRefreshing,
@@ -1045,6 +1085,19 @@ private struct StatusRefreshCard: View {
     }
 }
 
+/// Where a tap on the hero card leads.
+///
+/// The card used to answer "battery health" to every tap, including the one on
+/// the tyre diagram. Each figure now leads to the screen it is about.
+enum VehicleHeroDestination: Hashable, Sendable {
+    case batteryHealth
+    case drives
+    case tyres
+    /// The car itself: its name, its specification and what it was rated at new.
+    case vehicle
+    case map
+}
+
 private struct VehicleHeroCard: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
@@ -1077,10 +1130,12 @@ private struct VehicleHeroCard: View {
     let coordinate: CoordinateDTO?
     /// Where the car is, in words. Resolved on the device from the coordinate.
     let placeName: String?
-    /// Opens the full-screen map.
-    let onOpenMap: () -> Void
-    /// Opens battery health, which is where the card as a whole leads.
-    let onOpenBattery: () -> Void
+    /// Opens whatever was tapped.
+    ///
+    /// One closure and a destination rather than a closure per region: the card
+    /// grew from "tap it for battery health" to six different answers, and six
+    /// stored closures is a parameter list nobody reads.
+    let onOpen: (VehicleHeroDestination) -> Void
 
     private var mapCoordinate: CLLocationCoordinate2D? {
         guard let coordinate, coordinate.isReported else { return nil }
@@ -1122,9 +1177,14 @@ private struct VehicleHeroCard: View {
 
     private var distanceUnit: String { (units ?? .metricDefaults).lengthSymbol }
 
+    /// The odometer to a tenth.
+    ///
+    /// A whole number hides the thing this figure is most used for: watching it
+    /// move. Rounded to the nearest unit, a short errand changes nothing on
+    /// screen, which reads as a stale reading rather than a short drive.
     private var odometerValue: String {
         guard let odometer = status?.odometer else { return "—" }
-        return odometer.formatted(.number.precision(.fractionLength(0)))
+        return odometer.formatted(.number.precision(.fractionLength(1)))
     }
 
     private var odometerAccessibilityValue: String {
@@ -1147,16 +1207,16 @@ private struct VehicleHeroCard: View {
             // without a position — replaced the whole card, `MKMapView` and all,
             // and a map that leaves the view tree comes back as an empty grey
             // rectangle for as long as it takes to redraw. That was the flicker.
+            // Nothing here is wrapped in an outer button any more. Each figure
+            // leads somewhere of its own, and a control inside another control is
+            // both unreliable to tap and invisible to VoiceOver, which collapses
+            // a button's children into one element.
             VStack(alignment: .leading, spacing: 12) {
-                Button(action: onOpenBattery) { identity }
-                    .buttonStyle(.plain)
-                    .accessibilityHint("Opens battery health")
+                identity
                 if isDriving, let mapCoordinate {
                     mapButton(coordinate: mapCoordinate)
                 }
-                Button(action: onOpenBattery) { details }
-                    .buttonStyle(.plain)
-                    .accessibilityHint("Opens battery health")
+                details
             }
         }
         // A container rather than a plain identifier: an identifier on a view with
@@ -1167,7 +1227,7 @@ private struct VehicleHeroCard: View {
     }
 
     private func mapButton(coordinate: CLLocationCoordinate2D) -> some View {
-        Button(action: onOpenMap) {
+        Button { onOpen(.map) } label: {
             LiveLocationMap(
                 coordinate: coordinate,
                 heading: status?.drivingDetails?.heading,
@@ -1196,7 +1256,8 @@ private struct VehicleHeroCard: View {
                 name: vehicle?.name?.nilIfEmpty,
                 model: modelText,
                 freshnessLabel: freshnessLabel,
-                freshnessColor: freshnessColor
+                freshnessColor: freshnessColor,
+                onOpenVehicle: { onOpen(.vehicle) }
             )
 
             // Only motion and charging get the loud line. The rest of the
@@ -1222,6 +1283,12 @@ private struct VehicleHeroCard: View {
                             .accessibilityIdentifier("vehicle-place")
                     }
                     Spacer(minLength: 6)
+                    // The gear the car is actually in. Reported on every reading
+                    // and previously shown nowhere: "Parked" is the app's word
+                    // for it, and P is the car's.
+                    if let gear = summary.shiftState {
+                        ShiftStateBadge(gear: gear)
+                    }
                     if isDriving {
                         LiveIndicator(isStreaming: isStreaming)
                     } else {
@@ -1266,36 +1333,56 @@ private struct VehicleHeroCard: View {
 
     private var details: some View {
         VStack(alignment: .leading, spacing: 12) {
+                // Each figure is a control that leads where the figure is about.
+                // The whole card used to open battery health, so tapping the
+                // tyres to see the tyres took you to the battery.
                 HStack(alignment: .center, spacing: 14) {
-                    BatteryRingGauge(
-                        level: summary.batteryFraction,
-                        limit: summary.chargeLimitFraction,
-                        isCharging: summary.activity == .charging,
-                        diameter: dynamicTypeSize.isAccessibilitySize ? 92 : 76
-                    )
+                    Button { onOpen(.batteryHealth) } label: {
+                        BatteryRingGauge(
+                            level: summary.batteryFraction,
+                            limit: summary.chargeLimitFraction,
+                            isCharging: summary.activity == .charging,
+                            diameter: dynamicTypeSize.isAccessibilitySize ? 92 : 76
+                        )
+                        .contentShape(.circle)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Opens battery health")
                     .accessibilityIdentifier("vehicle-snapshot-battery")
 
                     VStack(alignment: .leading, spacing: 8) {
-                        HeroFigure(
-                            value: summary.rangeValue,
-                            label: summary.rangeLabel,
-                            symbol: "gauge.open.with.lines.needle.33percent",
-                            tint: TessalyticsTheme.accent
-                        )
+                        Button { onOpen(.batteryHealth) } label: {
+                            HeroFigure(
+                                value: summary.rangeValue,
+                                label: summary.rangeLabel,
+                                symbol: "gauge.open.with.lines.needle.33percent",
+                                tint: TessalyticsTheme.accent
+                            )
+                            .contentShape(.rect)
+                        }
+                        .buttonStyle(.plain)
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel("Estimated range")
                         .accessibilityValue(summary.rangeAccessibilityValue)
+                        .accessibilityHint("Opens battery health")
                         .accessibilityIdentifier("vehicle-snapshot-range")
 
-                        HeroFigure(
-                            value: odometerValue,
-                            label: "\(distanceUnit) on the odometer",
-                            symbol: "road.lanes",
-                            tint: TessalyticsTheme.steel
-                        )
+                        // The odometer is a driving figure, so it leads to the
+                        // drives that produced it.
+                        Button { onOpen(.drives) } label: {
+                            HeroFigure(
+                                value: odometerValue,
+                                label: "\(distanceUnit) on the odometer",
+                                symbol: "road.lanes",
+                                tint: TessalyticsTheme.steel
+                            )
+                            .contentShape(.rect)
+                        }
+                        .buttonStyle(.plain)
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel("Odometer")
                         .accessibilityValue(odometerAccessibilityValue)
+                        .accessibilityHint("Opens the drive history")
                         .accessibilityIdentifier("vehicle-snapshot-odometer")
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -1303,8 +1390,13 @@ private struct VehicleHeroCard: View {
                     // Placed where the wheels are: four numbers in a row cannot
                     // say which corner each belongs to.
                     if !dynamicTypeSize.isAccessibilitySize, tyres?.hasAnyReading == true {
-                        TirePressureDiagram(pressures: tyres, units: units, height: 84)
-                            .accessibilityIdentifier("vehicle-snapshot-tyres")
+                        Button { onOpen(.tyres) } label: {
+                            TirePressureDiagram(pressures: tyres, units: units, height: 84)
+                                .contentShape(.rect)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityHint("Opens tyre pressures")
+                        .accessibilityIdentifier("vehicle-snapshot-tyres")
                     }
                 }
 
@@ -1320,7 +1412,11 @@ private struct VehicleHeroCard: View {
                     .accessibilityIdentifier("hero-live-metrics")
                 } else if !batteryLevels.isEmpty {
                     Divider()
-                    HeroBatteryLevelChart(points: batteryLevels)
+                    Button { onOpen(.batteryHealth) } label: {
+                        HeroBatteryLevelChart(points: batteryLevels).contentShape(.rect)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Opens battery health")
                 }
 
                 Divider()
@@ -1332,7 +1428,8 @@ private struct VehicleHeroCard: View {
                         points: activity,
                         efficiency: efficiency,
                         units: units,
-                        health: battery?.healthPercent
+                        health: battery?.healthPercent,
+                        onOpen: onOpen
                     )
                 }
 
@@ -1350,6 +1447,7 @@ private struct VehicleHeroHeader: View {
     let model: String
     let freshnessLabel: String?
     let freshnessColor: Color
+    let onOpenVehicle: () -> Void
 
     var body: some View {
         if dynamicTypeSize.isAccessibilitySize {
@@ -1374,20 +1472,27 @@ private struct VehicleHeroHeader: View {
     /// the tab bar occupies the navigation bar and the title is not displayed at
     /// all, so the card has to say which car it is describing.
     private var identity: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            if let name {
-                Text(name)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
+        Button(action: onOpenVehicle) {
+            VStack(alignment: .leading, spacing: 2) {
+                if let name {
+                    Text(name)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                }
+                Text(model.uppercased())
+                    .font(.caption2.weight(.bold))
+                    .tracking(0.7)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
             }
-            Text(model.uppercased())
-                .font(.caption2.weight(.bold))
-                .tracking(0.7)
-                .foregroundStyle(.secondary)
-                .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(.rect)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityHint("Opens this vehicle's settings")
+        .accessibilityIdentifier("vehicle-snapshot-identity")
     }
 }
 
@@ -1510,7 +1615,6 @@ struct VehicleHeroSummary: Equatable {
     let rangeAccessibilityValue: String
     let security: Security
     let climateText: String
-    let locationText: String
     let charging: Charging?
     /// 0...1 for the ring gauge, nil when the level is unknown.
     let batteryFraction: Double?
@@ -1521,13 +1625,24 @@ struct VehicleHeroSummary: Equatable {
     let selfDriving: SelfDrivingMode?
     /// Whether the car is in a drive and standing still.
     let isStoppedInDrive: Bool
+    /// The gear the car reports, uppercased — P, R, N or D — or nil when the
+    /// server says nothing.
+    let shiftState: String?
 
     /// - Parameter placeName: where the car is, resolved on the device from its
     ///   coordinate. A geofence still wins when there is one: "Home" is what the
     ///   owner called the place, and no geocoder will improve on that.
     init(status: VehicleStatus?, units: UnitsDTO?, placeName: String? = nil) {
         let resolvedUnits = units ?? .metricDefaults
-        let location = status?.carGeodata?.reportedGeofence ?? placeName?.nilIfEmpty
+        // Resolved on this device from the coordinate, and from nothing else.
+        //
+        // The server's geofence was the first choice here and it was wrong more
+        // often than it was right: TeslaMate names a place only when a *drive*
+        // ended inside one an owner had drawn, so a car parked anywhere else kept
+        // reporting the last named place it had visited — a home address, shown
+        // for days, for a car that was nowhere near it. A geocoded coordinate is
+        // about where the car is now, which is the only thing this line claims.
+        let location = placeName?.nilIfEmpty
         let state = status?.state?.lowercased()
         let shift = status?.drivingDetails?.shiftState?.uppercased()
         let chargingState = status?.chargingDetails?.chargingState?.lowercased()
@@ -1536,6 +1651,7 @@ struct VehicleHeroSummary: Equatable {
         let isPluggedIn = status?.chargingDetails?.pluggedIn == true
 
         placeText = location
+        shiftState = shift?.nilIfEmpty
         selfDriving = status?.selfDrivingMode
         isStoppedInDrive = status?.isStoppedInDrive ?? false
         if isDriving {
@@ -1606,7 +1722,9 @@ struct VehicleHeroSummary: Equatable {
         // `est_battery_range` is reported as 0 while the car sleeps, which showed
         // "0 mi estimated range" next to a battery at 80%.
         if let range = status?.batteryDetails?.displayRange {
-            rangeValue = range.value.formatted(.number.precision(.fractionLength(0)))
+            // Two decimals, because the server reports them and rounding them off
+            // made a range that was visibly falling look like one that was stuck.
+            rangeValue = range.value.formatted(.number.precision(.fractionLength(2)))
             rangeLabel = "\(resolvedUnits.lengthSymbol) \(range.label)"
             rangeAccessibilityValue = "\(rangeValue) \(resolvedUnits.lengthSymbol), \(range.label)"
         } else {
@@ -1617,7 +1735,6 @@ struct VehicleHeroSummary: Equatable {
 
         security = Self.security(status?.carStatus, isLive: status?.reportsLiveTelemetry ?? false)
         climateText = Self.climate(status?.climateDetails, temperatureUnit: resolvedUnits.temperatureSymbol)
-        locationText = location ?? "Location unavailable"
         charging = Self.charging(status: status, isPluggedIn: isPluggedIn)
     }
 
@@ -1906,6 +2023,9 @@ private struct TireValue: View {
 
 private struct VehicleDetailsCard: View {
     let status: VehicleStatus
+    /// Where the car is, resolved on this device. The server's geofence used to
+    /// fill this row and named the last place a drive happened to end inside one.
+    let placeName: String?
 
     var body: some View {
         NavigationSectionCard(
@@ -1920,7 +2040,7 @@ private struct VehicleDetailsCard: View {
             VStack(spacing: 12) {
                 DetailRow(
                     title: "Location",
-                    value: status.carGeodata?.reportedGeofence ?? "Not reported",
+                    value: placeName ?? "Not reported",
                     symbol: "mappin.and.ellipse"
                 )
                 DetailRow(
@@ -1976,6 +2096,7 @@ private struct HeroActivityStrip: View {
     let efficiency: Double?
     let units: UnitsDTO?
     let health: Double?
+    let onOpen: (VehicleHeroDestination) -> Void
 
     private var resolvedUnits: UnitsDTO { units ?? .metricDefaults }
     private var total: Double { points.map(\.distance).reduce(0, +) }
@@ -2002,6 +2123,13 @@ private struct HeroActivityStrip: View {
     /// No axes and no legend: at this size the shape is the information, and the
     /// total beside it supplies the scale.
     private var sparkline: some View {
+        Button { onOpen(.drives) } label: { sparklineContent.contentShape(.rect) }
+            .buttonStyle(.plain)
+            .accessibilityHint("Opens the drive history")
+            .accessibilityIdentifier("hero-recent-driving")
+    }
+
+    private var sparklineContent: some View {
         VStack(alignment: .leading, spacing: 3) {
             Chart(sparklinePoints) { point in
                 BarMark(
@@ -2032,23 +2160,37 @@ private struct HeroActivityStrip: View {
     @ViewBuilder private var figures: some View {
         HStack(spacing: 12) {
             if let efficiency {
-                HeroFigure(
-                    value: efficiency.formatted(.number.precision(.fractionLength(0))),
-                    label: "Wh/\(resolvedUnits.lengthSymbol)",
-                    symbol: "leaf.fill",
-                    tint: TessalyticsTheme.positive
-                )
+                // Consumption is a fact about the driving, so it leads there.
+                Button { onOpen(.drives) } label: {
+                    HeroFigure(
+                        value: efficiency.formatted(.number.precision(.fractionLength(0))),
+                        label: "Wh/\(resolvedUnits.lengthSymbol)",
+                        symbol: "leaf.fill",
+                        tint: TessalyticsTheme.positive
+                    )
+                    .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Opens the drive history")
             }
             if let health {
-                HeroFigure(
-                    value: ValueFormatting.percentage(health / 100, digits: 1),
-                    label: "health",
-                    symbol: "heart.text.square.fill",
-                    tint: health >= 90 ? TessalyticsTheme.positive : TessalyticsTheme.warning
-                )
+                Button { onOpen(.batteryHealth) } label: {
+                    healthFigure(health).contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Opens battery health")
             }
         }
         .fixedSize(horizontal: true, vertical: false)
+    }
+
+    private func healthFigure(_ health: Double) -> some View {
+        HeroFigure(
+            value: ValueFormatting.percentage(health / 100, digits: 1),
+            label: "health",
+            symbol: "heart.text.square.fill",
+            tint: health >= 90 ? TessalyticsTheme.positive : TessalyticsTheme.warning
+        )
     }
 }
 
