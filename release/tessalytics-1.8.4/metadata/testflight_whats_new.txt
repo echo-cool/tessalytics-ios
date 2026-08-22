@@ -1,0 +1,42 @@
+Tessalytics 1.8.4 — the app works out what pack your car was built with.
+
+WHAT TO TEST FIRST
+
+Settings → the car's name on the home screen → Vehicle rating.
+
+There is a new "From your VIN" section. Your VIN names the model, the factory and
+the model year; a table shipped inside the app turns those into the pack the car
+left the factory with — the figure every battery-health estimate divides by, and
+until now the only number you had to know and type in yourself.
+
+1. Check the model, factory and model year are right. If your server does not
+   report a VIN the section is simply absent.
+
+2. Pick your variant. The VIN does not reliably encode it, so it is a picker,
+   pre-filled from TeslaMate's trim badge where that is unambiguous. Getting this
+   wrong is the one way to get a wrong answer here, so it asks rather than
+   guesses.
+
+3. Tap the pack to fill the capacity field. Nothing is applied until you save,
+   and a figure you have typed yourself always wins. If Tesla changed suppliers
+   during your model year — a 2023 Berlin Model Y Standard, for instance — you
+   will be offered both and asked to pick; a delivery invoice or the original
+   range figure will say which.
+
+Why it matters: the app otherwise derives "capacity when new" from your recorded
+history, which understates any car whose logging began after the pack had already
+aged. A car rated 78 kWh new reads as 74 if TeslaMate started at 15,000 miles, and
+health, capacity lost and equivalent cycles all inherit the error.
+
+The factory is the part that is easy to get wrong, and it is why this needs the
+VIN rather than the model name: a 2021 Long Range AWD Model 3 is 82 kWh from
+Fremont and 79 kWh from Shanghai, and both were sold in Europe.
+
+ALSO FIXED
+
+- An achievement's requirement was written in kilometres directly above its
+  progress in miles — "Complete a single drive of 300 km" over "96 of 186 mi".
+- Debug mode wanted five taps on the version number inside three seconds measured
+  from the first tap. Settings has grown; that was tight enough to fail mid-run
+  with nothing on screen explaining it. Five seconds, between taps.
+- The About screen links to all three repositories, which are now public.
