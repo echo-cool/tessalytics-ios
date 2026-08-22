@@ -92,16 +92,28 @@ final class DiagnosticsTests: XCTestCase {
         XCTAssertNil(Diagnostics.headline(forEventBody: Data("not json at all".utf8)))
     }
 
+    /// The stand-in for a token, deliberately unmistakable.
+    ///
+    /// This fixture is a public repository's idea of a credential, so it must not
+    /// be shaped like one. An earlier version used an `sk-` prefix — the shape
+    /// Stripe and OpenAI keys take — and a secret scanner opened an incident
+    /// against the commit. The redactor keys on the `Authorization:` and
+    /// `token=` labels, not on what follows them, so nothing is lost by making
+    /// the value obviously inert.
+    private static let notASecret = "EXAMPLE-PLACEHOLDER-NOT-A-REAL-CREDENTIAL"
+    /// A VIN's shape, with a serial no car was ever built with.
+    private static let sampleVIN = "5YJYGDEE1LF000001"
+
     func testTheExportIsRedacted() {
         let diagnostics = unlocked()
         diagnostics.record(
             .request,
             "Fetched status",
-            detail: "Authorization: Bearer sk-abcdefghijklmnop\n5YJYGDEE1LF000001\n37.40621, -122.07234"
+            detail: "Authorization: Bearer \(Self.notASecret)\n\(Self.sampleVIN)\n37.40621, -122.07234"
         )
         let export = diagnostics.exportText()
-        XCTAssertFalse(export.contains("sk-abcdefghijklmnop"), "A token must not leave the device")
-        XCTAssertFalse(export.contains("5YJYGDEE1LF000001"), "Nor a VIN")
+        XCTAssertFalse(export.contains(Self.notASecret), "A token must not leave the device")
+        XCTAssertFalse(export.contains(Self.sampleVIN), "Nor a VIN")
         XCTAssertFalse(export.contains("37.40621"), "Nor a doorstep")
         XCTAssertTrue(export.contains("Fetched status"), "But the log is still a log")
     }
