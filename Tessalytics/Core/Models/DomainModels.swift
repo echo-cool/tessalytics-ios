@@ -38,7 +38,8 @@ struct ServerProfile: Identifiable, Hashable, Codable, Sendable {
 }
 
 struct ProfileDraft: Sendable {
-    var name = "My TeslaMate"
+    // Names the service the URL must point at: TeslaMate itself does not serve this API.
+    var name = "My Tessalytics Backend"
     var serverURL = ""
     var authenticationMethod: AuthenticationMethod = .bearer
     var token = ""

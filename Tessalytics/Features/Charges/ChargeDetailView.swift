@@ -156,7 +156,18 @@ struct ChargeDetailView: View {
         // A card that could only say "no samples" is worth omitting entirely: an
         // AC current chart tells a Supercharger session's owner nothing.
         if !values.isEmpty {
-            SectionCard(title, symbol: "chart.xyaxis.line", tint: tint) {
+            // Tappable, like a drive's charts: the same gesture has to mean the
+            // same thing on both screens, or neither is discoverable.
+            NavigationSectionCard(
+                title,
+                subtitle: "Tap to read values · \(values.count.formatted()) samples",
+                symbol: "chart.xyaxis.line",
+                tint: tint
+            ) {
+                ChartExplorerView(
+                    chart: .timeSeries(title: title, unit: unit, tint: tint, baseline: baseline, samples: values)
+                )
+            } content: {
                 Chart(downsampled(values)) { sample in
                     if baseline == .zero {
                         AreaMark(x: .value("Time", sample.date), y: .value(title, sample.value), stacking: .unstacked)

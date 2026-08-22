@@ -56,7 +56,11 @@ struct DriveHistoryView: View {
         .navigationDestination(item: $selectedDrive) { selection in
             DriveDetailView(driveID: selection.id)
         }
-        .task(id: environment.selectedVehicle?.id) { loadCached(); if records.isEmpty { await refresh() } }
+        .task(id: environment.selectedVehicle?.id) {
+            HistoryPreviews.shared.removeAll()
+            loadCached()
+            if records.isEmpty { await refresh() }
+        }
         .accessibilityIdentifier("drive-history-screen")
     }
 
@@ -174,19 +178,40 @@ private struct DriveRow: View {
         .accessibilityElement(children: .contain)
     }
 
+    /// The route this row draws.
+    ///
+    /// Three things keep it off the critical path of a drag. The result is cached
+    /// by drive, so a row scrolled away and back does no work at all. The decode
+    /// and the reduction happen away from the main actor. And when the payload is
+    /// already on disk it is read as bytes rather than through the repository,
+    /// which would decode it here and then re-encode it to store what it just
+    /// read — twenty thousand samples through two coders, mid-scroll.
     private func loadRoute() async {
-        guard let profile = environment.selectedProfile, let vehicle = environment.selectedVehicle else { return }
-        do {
-            let detail = try await DriveRepository(context: context).detail(
-                client: environment.client(for: profile),
-                serverID: profile.id,
-                carID: vehicle.id,
-                driveID: record.driveID
-            )
-            route = RouteSimplifier.simplify(detail.driveDetails.map(\.coordinate), tolerance: 0.00025)
-        } catch {
-            route = []
+        if let cached = HistoryPreviews.shared.route(driveID: record.driveID) {
+            route = cached
+            return
         }
+        guard let profile = environment.selectedProfile, let vehicle = environment.selectedVehicle else { return }
+
+        let simplified: [CoordinateDTO]
+        if let payload = DriveRepository(context: context).cachedDetailPayload(
+            serverID: profile.id,
+            carID: vehicle.id,
+            driveID: record.driveID
+        ) {
+            simplified = await HistoryPreviews.route(from: payload)
+        } else {
+            // Not stored yet. Asked for directly rather than through the
+            // repository so the row does not pay for the write; opening the drive
+            // is what caches it.
+            guard let client = try? environment.client(for: profile),
+                  let detail = try? await client.drive(carID: vehicle.id, driveID: record.driveID).drive
+            else { return }
+            simplified = await HistoryPreviews.route(from: detail.driveDetails.map(\.coordinate))
+        }
+        guard !Task.isCancelled else { return }
+        HistoryPreviews.shared.store(route: simplified, driveID: record.driveID)
+        route = simplified
     }
 }
 

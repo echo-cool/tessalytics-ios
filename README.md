@@ -18,6 +18,9 @@ Tessalytics is a privacy-focused native iPhone companion for a self-hosted [Tesl
 Your iPhone connects directly to infrastructure you control. Tessalytics has no developer-operated cloud, advertising, analytics SDK, or tracking.
 
 > [!IMPORTANT]
+> **A standalone TeslaMate installation will not work with this app.** Tessalytics talks to [Tessalytics Backend](https://github.com/echo-cool/tessalytics-backend), a read-only API service you deploy beside TeslaMate — the same Docker Compose file is fine. The server address you enter in the app is the backend's, not TeslaMate's or Grafana's.
+
+> [!IMPORTANT]
 > Tessalytics is an unofficial community tool and is not affiliated with, endorsed by, or supported by the official TeslaMate project or Tesla, Inc.
 
 ## Screenshots
@@ -90,12 +93,14 @@ TeslaMate ── PostgreSQL history
 
 ### 1. Add Tessalytics Backend
 
-See the [Tessalytics Backend](https://github.com/echo-cool/tessalytics-backend) repository for its own deployment guide. A generic Compose service looks like this; replace every placeholder and adapt the database/MQTT service names to your TeslaMate stack.
+TeslaMate alone does not serve this API, so the backend is not optional. It runs as one more service in the TeslaMate Compose project — see the [Tessalytics Backend](https://github.com/echo-cool/tessalytics-backend) repository for the full guide, including a complete Compose file for a fresh TeslaMate install. Added to an existing stack, the service looks like this; replace every placeholder and adapt the database/MQTT service names to your TeslaMate stack.
 
 ```yaml
 services:
   tessalytics-backend:
-    image: ghcr.io/echo-cool/tessalytics-backend:latest
+    build:
+      context: ./tessalytics-backend      # git clone beside docker-compose.yml
+      dockerfile: docker/Dockerfile
     restart: unless-stopped
     depends_on:
       - database
@@ -107,7 +112,7 @@ services:
       DATABASE_HOST: database
       MQTT_HOST: mosquitto
       API_TOKEN: "${TESSALYTICS_API_TOKEN}"
-      TZ: "${TIME_ZONE}"
+      TIMEZONE: "${TIME_ZONE}"
     expose:
       - "8080"
 ```
@@ -130,8 +135,8 @@ Use a publicly trusted certificate for public hostnames. Tessalytics never disab
 Before adding the server in Tessalytics, verify:
 
 1. `/api/ping` is reachable as intended.
-2. `/api/v1/cars` rejects missing or incorrect proxy credentials.
-3. `/api/v1/cars` succeeds with the intended credentials.
+2. `/v1/vehicles` rejects missing or incorrect proxy credentials.
+3. `/v1/vehicles` succeeds with the intended credentials.
 4. PostgreSQL and MQTT are not reachable from the public network.
 
 See [Backend setup](docs/backend-setup.md) for more security and reverse-proxy guidance.
@@ -141,8 +146,8 @@ See [Backend setup](docs/backend-setup.md) for more security and reverse-proxy g
 The generated Xcode project is checked in. [XcodeGen](https://github.com/yonaskolb/XcodeGen) is only required after changing `project.yml`.
 
 ```sh
-git clone https://github.com/echo-cool/tessalytics.git
-cd tessalytics
+git clone https://github.com/echo-cool/tessalytics-ios.git
+cd tessalytics-ios
 open Tessalytics.xcodeproj
 ```
 
@@ -171,7 +176,7 @@ xcodegen generate
 ## Connect the app
 
 1. Open Tessalytics and tap **Configure server**, or tap **Explore Demo** to try the app first.
-2. Enter a profile name and the protected Tessalytics Backend base URL.
+2. Enter a profile name and the protected Tessalytics Backend base URL. This is the backend's address, not TeslaMate's port 4000 or Grafana's port 3000.
 3. Select Bearer token, HTTP Basic, or no application authentication.
 4. Use no authentication only for a deliberately private VPN/local deployment.
 5. Tap **Test Connection**. Tessalytics checks reachability, credentials, API compatibility, and vehicle discovery.

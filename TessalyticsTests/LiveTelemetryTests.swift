@@ -33,6 +33,28 @@ final class LiveTelemetryBufferTests: XCTestCase {
         XCTAssertEqual(buffer.samples.first?.speed, 40)
     }
 
+    func testThinningKeepsTheShapeAndTheNewestReading() {
+        // The charts and the map redraw on every reading, two or three a second.
+        // Drawing every point in the buffer costs the live figures beside them the
+        // responsiveness the stream exists to provide.
+        let buffer = buffer(seconds: (0..<1_000).map(Double.init))
+        let plotted = buffer.plotted(limit: 180)
+
+        XCTAssertLessThanOrEqual(plotted.count, 181, "Thinned to the limit, plus the newest reading")
+        XCTAssertGreaterThan(plotted.count, 100, "Still enough points to draw a shape")
+        XCTAssertEqual(plotted.first, buffer.samples.first)
+        XCTAssertEqual(plotted.last, buffer.samples.last, "A live chart's right edge has to be the newest reading")
+        // Order is what a route and a time axis both depend on.
+        for (previous, next) in zip(plotted, plotted.dropFirst()) {
+            XCTAssertLessThan(previous.date, next.date)
+        }
+    }
+
+    func testShortBuffersAreNotThinned() {
+        let buffer = buffer(seconds: [0, 10, 20, 30])
+        XCTAssertEqual(buffer.plotted(limit: 180), buffer.samples)
+    }
+
     func testReadingsOlderThanTheWindowAreDropped() {
         let buffer = buffer(seconds: [0, 60, LiveTelemetryBuffer.window + 120])
         XCTAssertEqual(buffer.samples.count, 1, "Only the newest sample is inside the window")
@@ -63,9 +85,32 @@ final class LiveTelemetryBufferTests: XCTestCase {
         XCTAssertEqual(buffer.maximumRegeneration, 26, "Regen is reported as a positive peak")
     }
 
-    func testNoRegenerationReportsNothingRatherThanZero() {
+    func testNoRegenerationIsZeroRatherThanUnavailable() {
+        // A drive with no regeneration in it is a fact about the drive. Reporting
+        // nothing would say the app could not tell, which is a different claim —
+        // and it is what put "Unavailable" on a live card during a working stream.
         let buffer = buffer(seconds: [0, 10], power: { _ in 40 })
+        XCTAssertEqual(buffer.maximumRegeneration, 0)
+    }
+
+    func testWithNoPowerReadingsAtAllRegenerationIsUnknown() {
+        // No readings is the one case where there is genuinely nothing to say.
+        let buffer = buffer(seconds: [0, 10], power: { _ in Double?.none })
         XCTAssertNil(buffer.maximumRegeneration)
+    }
+
+    func testACarThatHasNotMovedYetHasDrivenZeroRatherThanAnUnknownDistance() {
+        var buffer = LiveTelemetryBuffer()
+        for index in 0...4 {
+            buffer.append(
+                date: start.addingTimeInterval(Double(index) * 5),
+                speed: 0, power: 0, level: 80, odometer: 1_000
+            )
+        }
+        XCTAssertEqual(buffer.distance, 0)
+        XCTAssertEqual(buffer.maximumSpeed, 0)
+        XCTAssertEqual(buffer.maximumPower, 0)
+        XCTAssertEqual(try XCTUnwrap(buffer.energyUsed), 0, accuracy: 1e-9)
     }
 
     func testDistanceComesFromTheOdometer() {
@@ -143,6 +188,54 @@ final class LiveTelemetryBufferTests: XCTestCase {
         )
         XCTAssertEqual(buffer.trail.count, 1)
         XCTAssertEqual(buffer.trail.first?.latitude, 37.4)
+        XCTAssertEqual(buffer.routePath, [CoordinateDTO(latitude: 37.4, longitude: -122.1)])
+    }
+
+    func testTheRoutePathIsNotThinned() {
+        // Thinning here is what made the map flash: which points survived changed
+        // every time the buffer grew. `LiveRouteTrail` thins by distance instead,
+        // and it needs every position to do that.
+        let buffer = buffer(seconds: (0..<1_000).map(Double.init))
+        var positioned = LiveTelemetryBuffer()
+        for (index, sample) in buffer.samples.enumerated() {
+            positioned.append(
+                date: sample.date, speed: sample.speed, power: sample.power, level: sample.level,
+                odometer: sample.odometer, latitude: 37 + Double(index) * 0.001, longitude: -122
+            )
+        }
+        XCTAssertEqual(positioned.routePath.count, positioned.samples.count)
+    }
+
+    func testAChartWindowShowsTheLastFewMinutesAndNoMore() {
+        // Measured back from the newest reading rather than from now, so a stream
+        // that goes quiet leaves the last minute of the drive on screen.
+        let buffer = buffer(seconds: (0..<600).map { Double($0) })
+        let window = buffer.samples(within: 120)
+        XCTAssertEqual(window.count, 121)
+        XCTAssertEqual(window.last, buffer.samples.last)
+        XCTAssertEqual(
+            try XCTUnwrap(window.first).date.timeIntervalSince(try XCTUnwrap(buffer.samples.last).date),
+            -120,
+            accuracy: 0.001
+        )
+    }
+
+    func testAWindowedChartIsStillThinnedAndStillEndsOnTheNewestReading() {
+        let buffer = buffer(seconds: (0..<1_200).map { Double($0) * 0.5 })
+        let plotted = buffer.plotted(within: 300, limit: 60)
+        XCTAssertLessThanOrEqual(plotted.count, 61)
+        XCTAssertEqual(plotted.last, buffer.samples.last)
+    }
+
+    func testAWindowLongerThanTheDriveIsTheWholeDrive() {
+        let buffer = buffer(seconds: [0, 10, 20])
+        XCTAssertEqual(buffer.samples(within: LiveTelemetryBuffer.window), buffer.samples)
+    }
+
+    func testElevationIsRecordedSoItCanBeCharted() {
+        var buffer = LiveTelemetryBuffer()
+        buffer.append(date: start, speed: 30, power: 10, level: 80, odometer: 1_000, elevation: 42)
+        XCTAssertEqual(buffer.samples.first?.elevation, 42)
     }
 
     func testResetClearsEverything() {

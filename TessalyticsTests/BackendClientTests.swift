@@ -290,6 +290,31 @@ final class BackendClientTests: XCTestCase {
 }
 
 /// Serves canned bodies by URL path suffix.
+extension BackendClientTests {
+    /// The stream carries the body of `/state`, so the two routes have to agree:
+    /// the same body must produce the same status whether it was polled or pushed.
+    /// They did not — the stream decoded an envelope the backend never sends, and
+    /// threw away every reading while reporting itself live.
+    func testAStreamedReadingMatchesTheSameBodyFetchedByRequest() async throws {
+        let body = """
+        {"data":{"state":{"vehicle_id":1,"state":"driving","state_since":"2026-08-21T02:32:18Z","name":"wyy",
+        "location":{"latitude":37.36705,"longitude":-121.983088,"heading":120},
+        "battery":{"level":71,"usable_level":71,"range":234.8},
+        "driving":{"shift_state":"D","speed":63.0,"power":34.0,"odometer":33938.43}}},
+        "meta":{"source":"mixed","units":{"length":"mi","temperature":"C","pressure":"psi","range":"rated"}}}
+        """
+        let polled = try await client(["/v1/vehicles/1/state": body]).status(carID: 1)
+        let streamed = try XCTUnwrap(LiveStateStream.decode(body: Data(body.utf8), carID: 1))
+
+        XCTAssertEqual(streamed.status.state, polled.status.state)
+        XCTAssertEqual(streamed.status.drivingDetails?.speed, polled.status.drivingDetails?.speed)
+        XCTAssertEqual(streamed.status.drivingDetails?.power, polled.status.drivingDetails?.power)
+        XCTAssertEqual(streamed.status.carGeodata?.location?.latitude, polled.status.carGeodata?.location?.latitude)
+        XCTAssertEqual(streamed.status.odometer, polled.status.odometer)
+        XCTAssertEqual(streamed.units, polled.units)
+    }
+}
+
 private final class StubTransport: HTTPTransport, @unchecked Sendable {
     private let responses: [String: String]
     private let statusCode: Int

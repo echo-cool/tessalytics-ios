@@ -1,0 +1,49 @@
+Tessalytics 1.7.1 — live mode actually goes live, and the map draws the drive.
+
+WHAT TO TEST FIRST
+
+Mount the phone and drive. 1.7.0 opened an event stream, reported itself LIVE, and
+then discarded every reading it received: the stream decoded an envelope the
+backend does not send, so each event failed to parse and was dropped in silence.
+Everything on screen still came from the poll behind it. The badge was telling the
+truth about the connection and nothing about the data.
+
+1. The speed on screen should now move continuously rather than in steps. The
+   server pushes a reading roughly every 0.4 seconds while driving, which is the
+   rate TeslaMate publishes at, and that is what the app now renders.
+
+2. The hero card reads "updated at 20:25:18" instead of "updated just now". This
+   is there so a delay can be measured rather than guessed: watch the seconds
+   while driving, and the clock time should track your own. If it stalls, the
+   number beside it is stale and now says so.
+
+3. The map draws the route of the drive in progress, not a pin. Open the app
+   halfway through a journey and the road behind the car should already be there —
+   the part before the app was listening is fetched from the server and joined to
+   the live readings. The camera frames the route and steps its zoom as the drive
+   grows, rather than rescaling on every reading.
+
+ALSO FIXED
+
+- Reconnecting no longer ages its backoff across working connections. Six tunnels
+  on one drive used to walk the retry delay up to twenty seconds; a connection
+  that stayed up now starts again at one second.
+- The stream is opened when a vehicle is selected and when a server is first
+  saved, not only when the app returns to the foreground. Those sessions silently
+  ran on the thirty-second poll with the LIVE badge lit.
+- Streamed readings are no longer written to the on-disk cache individually. Two
+  or three saves a second on the main thread cost the interface the responsiveness
+  the stream exists to provide; the cache is written every few seconds and
+  immediately whenever the state changes.
+- The live charts draw a thinned series. Fifteen minutes of readings is over two
+  thousand marks in a chart a few hundred points wide, redrawn on every reading.
+- The stream now asks for the same units as the poll. Both paths were relying on
+  the server's default agreeing with them, so a scale change on the server would
+  have shown a speed in the wrong unit depending on which route delivered it.
+
+KNOWN GAPS
+
+The route drawn on the hero map needs a backend with `/v1/vehicles/{id}/track`.
+Without it the map falls back to the readings taken since the app opened.
+
+App Store screenshots still do not cover live mode.

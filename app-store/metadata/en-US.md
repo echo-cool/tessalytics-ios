@@ -66,15 +66,15 @@ electric,vehicle,drives,charging,battery,analytics,privacy,self-hosted,energy,ca
 
 ## Support URL
 
-https://github.com/echo-cool/tessalytics/issues
+https://github.com/echo-cool/tessalytics-ios/issues
 
 ## Marketing URL
 
-https://github.com/echo-cool/tessalytics
+https://github.com/echo-cool/tessalytics-ios
 
 ## Privacy Policy URL
 
-https://github.com/echo-cool/tessalytics/blob/main/PRIVACY.md
+https://github.com/echo-cool/tessalytics-ios/blob/main/PRIVACY.md
 
 ## Copyright
 

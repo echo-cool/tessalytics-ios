@@ -71,6 +71,19 @@ enum ValueFormatting {
         guard let value, value > 0 else { return "No cost data" }
         return currency(value)
     }
+
+    /// The clock time a reading arrived, to the second.
+    ///
+    /// Absolute rather than "updated just now". Relative wording cannot say
+    /// whether a live reading is a quarter of a second or nine seconds old, which
+    /// is the only question worth asking of a stream — and it reads as current
+    /// right up to the minute mark, including when nothing is arriving at all.
+    static func readingTime(_ date: Date) -> String {
+        if Calendar.current.isDateInToday(date) {
+            return date.formatted(date: .omitted, time: .standard)
+        }
+        return date.formatted(date: .abbreviated, time: .standard)
+    }
 }
 
 extension String { var nilIfEmpty: String? { isEmpty ? nil : self } }

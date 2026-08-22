@@ -26,7 +26,13 @@ struct ChargeCurveChart: View {
     /// when there is one, so a row and its detail screen agree.
     var peakPower: Double?
     var height: CGFloat = 200
-    /// Compact form for a list row: no axes, no legend, just the two shapes.
+    /// Small form for a list row.
+    ///
+    /// Still labelled. It used to be the two shapes and nothing else, which left
+    /// a reader to guess that one line was a percentage, the other kilowatts, and
+    /// the horizontal axis time — three guesses for a chart that fits in a
+    /// thumbnail. The ticks are pared back to the ends of each scale rather than
+    /// dropped.
     var isCompact = false
 
     private var powerCeiling: Double {
@@ -83,37 +89,40 @@ struct ChargeCurveChart: View {
                 }
             }
             .chartYScale(domain: 0...100)
-            .chartXAxis(isCompact ? .hidden : .automatic)
             .chartYAxis {
-                if !isCompact {
-                    AxisMarks(position: .leading, values: [0, 25, 50, 75, 100]) { value in
-                        AxisGridLine().foregroundStyle(.secondary.opacity(0.14))
-                        AxisValueLabel {
-                            if let percent = value.as(Double.self) {
-                                Text("\(Int(percent))%")
-                                    .font(.caption2.monospacedDigit())
-                                    .foregroundStyle(TessalyticsTheme.positive)
-                            }
+                AxisMarks(position: .leading, values: isCompact ? [0, 100] : [0, 25, 50, 75, 100]) { value in
+                    AxisGridLine().foregroundStyle(.secondary.opacity(0.14))
+                    AxisValueLabel {
+                        if let percent = value.as(Double.self) {
+                            // The unit rides on the top tick in the small form,
+                            // where repeating it four times would not fit.
+                            Text(isCompact && percent < 100 ? "\(Int(percent))" : "\(Int(percent))%")
+                                .font(axisFont)
+                                .foregroundStyle(TessalyticsTheme.positive)
                         }
                     }
-                    // The same positions, labelled back in kilowatts.
-                    AxisMarks(position: .trailing, values: [0, 25, 50, 75, 100]) { value in
-                        AxisValueLabel {
-                            if let percent = value.as(Double.self) {
-                                Text("\(Int((percent / 100 * powerCeiling).rounded()))")
-                                    .font(.caption2.monospacedDigit())
-                                    .foregroundStyle(TessalyticsTheme.warning)
-                            }
+                }
+                // The same positions, labelled back in kilowatts.
+                AxisMarks(position: .trailing, values: isCompact ? [0, 100] : [0, 25, 50, 75, 100]) { value in
+                    AxisValueLabel {
+                        if let percent = value.as(Double.self) {
+                            let kilowatts = Int((percent / 100 * powerCeiling).rounded())
+                            Text(isCompact && percent < 100 ? "\(kilowatts)" : "\(kilowatts)\(isCompact ? "kW" : "")")
+                                .font(axisFont)
+                                .foregroundStyle(TessalyticsTheme.warning)
                         }
                     }
                 }
             }
             .chartXAxis {
-                if !isCompact {
-                    AxisMarks(values: .automatic(desiredCount: 4)) {
-                        AxisGridLine().foregroundStyle(.secondary.opacity(0.12))
-                        AxisTick()
-                        AxisValueLabel(format: .dateTime.hour().minute()).font(.caption2)
+                AxisMarks(values: .automatic(desiredCount: isCompact ? 3 : 4)) {
+                    AxisGridLine().foregroundStyle(.secondary.opacity(0.12))
+                    AxisTick()
+                    // Labelled by the span underneath in the small form. A clock
+                    // time truncates to "9:3…" at this width, which says less than
+                    // the two ends of the session say together.
+                    if !isCompact {
+                        AxisValueLabel(format: .dateTime.hour().minute()).font(axisFont)
                     }
                 }
             }
@@ -122,12 +131,52 @@ struct ChargeCurveChart: View {
             .accessibilityLabel("Battery level and charging power over the session")
             .accessibilityValue(accessibilityValue)
 
-            if !isCompact {
+            if isCompact {
+                microLegend
+            } else {
                 HStack(spacing: 14) {
                     ChartLegend("Battery level (%)", color: TessalyticsTheme.positive)
                     ChartLegend("Charging power (kW)", color: TessalyticsTheme.warning)
                 }
+                Text("Time of day along the bottom; level on the left axis, power on the right.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
             }
+        }
+    }
+
+    private var axisFont: Font {
+        isCompact ? .system(size: 8, weight: .medium).monospacedDigit() : .caption2.monospacedDigit()
+    }
+
+    /// Which line is which, and what the horizontal axis is, in the width a
+    /// thumbnail has.
+    private var microLegend: some View {
+        HStack(spacing: 5) {
+            swatch(TessalyticsTheme.positive, "level")
+            swatch(TessalyticsTheme.warning, "power")
+            if let span = timeSpan {
+                Spacer(minLength: 2)
+                Text(span).foregroundStyle(.secondary)
+            }
+        }
+        .font(.system(size: 8, weight: .medium))
+        .lineLimit(1)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityHidden(true)
+    }
+
+    /// The ends of the session, which is what the horizontal axis spans.
+    private var timeSpan: String? {
+        guard let first = points.first?.date, let last = points.last?.date, last > first else { return nil }
+        let style = Date.FormatStyle.dateTime.hour(.defaultDigits(amPM: .omitted)).minute()
+        return "\(first.formatted(style))–\(last.formatted(style))"
+    }
+
+    private func swatch(_ color: Color, _ label: String) -> some View {
+        HStack(spacing: 2.5) {
+            Capsule().fill(color).frame(width: 7, height: 2.5)
+            Text(label).foregroundStyle(.secondary)
         }
     }
 

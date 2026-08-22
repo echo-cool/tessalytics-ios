@@ -26,6 +26,20 @@ final class AppEnvironment {
     var lastLiveStatusAt: Date?
     /// Readings from the event stream, for the charts shown while driving.
     var liveTelemetry = LiveTelemetryBuffer()
+    /// The path of the drive in progress, as the server already has it.
+    ///
+    /// The in-memory buffer only knows what has arrived since the app opened, so a
+    /// drive joined halfway through drew a single pin and no route. Fetched once
+    /// per drive; the streamed positions extend it from there.
+    private(set) var liveRoute: [CoordinateDTO] = []
+    /// The line the live map actually draws, assembled from the two sources above.
+    ///
+    /// Stored rather than derived in the view. Rebuilding it on every render meant
+    /// a redraw of anything on the home screen redrew the route, and the thinning
+    /// it used picked a different set of points each time the buffer grew — so the
+    /// line jumped on every reading instead of growing by one point. This changes
+    /// only when the route does.
+    private(set) var liveMapRoute = LiveRouteTrail()
     /// Whether the event stream is currently connected.
     var isStreamingLive = false
     /// Why the stream is not connected, when it isn't.
@@ -52,6 +66,9 @@ final class AppEnvironment {
     private(set) var historyRevision = 0
 
     private let container: ModelContainer
+    /// The store the app writes through. Exposed so a test can read back what a
+    /// streamed reading was supposed to have cached.
+    var modelContext: ModelContext { container.mainContext }
     private let keychain: any CredentialStore
     private let ownerAPI: OwnerAPISession
     private let userDefaults: UserDefaults
@@ -59,6 +76,12 @@ final class AppEnvironment {
     private var pollingTarget: PollingTarget?
     private var liveStreamTask: Task<Void, Never>?
     private var liveStreamTarget: PollingTarget?
+    private var liveRouteTask: Task<Void, Never>?
+    private var liveRouteKey: LiveRouteKey?
+    private var liveRouteFetchedAt: Date?
+    /// The last streamed reading written to the cache, and when.
+    private var lastStreamedPersistAt: Date?
+    private var unpersistedStreamedStatus: PendingStatusWrite?
     private var statusRefreshTask: Task<Void, Never>?
     private var statusRefreshID: UUID?
     private var historyTask: Task<Void, Never>?
@@ -73,6 +96,39 @@ final class AppEnvironment {
     enum Cadence {
         static let statusForeground: Duration = .seconds(30)
         static let history: Duration = .seconds(300)
+        /// How often a streamed reading is written to the on-disk cache.
+        ///
+        /// Not every reading. The stream delivers two or three a second while
+        /// driving, and each write is an encode plus a fetch plus a save on the
+        /// main context — enough main-thread work to starve the very updates it is
+        /// recording, so the app fell further behind the car the longer it drove.
+        /// The cache exists so a cold launch has something to show, and for that a
+        /// reading every few seconds is indistinguishable from all of them.
+        static let streamedStatusPersist: TimeInterval = 5
+        /// How often the drive in progress has its route re-read from the server.
+        ///
+        /// Fetching once per drive was not enough. The live readings were meant to
+        /// extend it, so a quiet stream — or a server without one — left the route
+        /// frozen where the app joined the drive while the pin carried on ahead of
+        /// it, which reads as a broken or disconnected route. The server always has
+        /// the whole path; asking again is one small request.
+        static let liveRoute: TimeInterval = 90
+    }
+
+    /// Identifies the drive a fetched route belongs to.
+    private struct LiveRouteKey: Equatable {
+        let profileID: UUID
+        let carID: Int
+        let since: Date?
+    }
+
+    /// A streamed reading that has not been written to the cache yet.
+    private struct PendingStatusWrite {
+        let status: VehicleStatus
+        let units: UnitsDTO?
+        let profileID: UUID
+        let carID: Int
+        let fetchedAt: Date
     }
 
     /// Identifies which server/vehicle pair the status poller is currently bound to.
@@ -208,6 +264,9 @@ final class AppEnvironment {
     private func activateDemo(showDirectControls: Bool, offline: Bool = false, driving: Bool = false) {
         stopStatusPolling()
         stopHistoryPolling()
+        stopLiveStream()
+        liveRoute = []
+        clearLiveMapRoute()
         isDemoMode = true
         isOffline = false
         lastError = nil
@@ -221,6 +280,7 @@ final class AppEnvironment {
         if driving {
             status = DemoExperience.drivingStatus()
             liveTelemetry = DemoExperience.drivingTelemetry()
+            updateLiveMapRoute()
             isStreamingLive = true
         } else {
             status = offline ? DemoExperience.offlineStatus() : DemoExperience.status()
@@ -257,6 +317,10 @@ final class AppEnvironment {
     private func resetSessionState() {
         stopStatusPolling()
         stopHistoryPolling()
+        stopLiveStream()
+        liveRoute = []
+        clearLiveMapRoute()
+        liveTelemetry.reset()
         historyRefreshTask = nil
         fleet = FleetStatistics()
         statusRefreshTask?.cancel()
@@ -502,10 +566,16 @@ final class AppEnvironment {
         // A vehicle may have appeared, or a different one may now be selected, so
         // make sure the status poller is running against the current selection.
         startStatusPolling()
+        // And the stream, which is what makes the numbers move. It used to start
+        // only on a foreground transition, so the first run after a server was
+        // saved — and every vehicle switch — fell back to the thirty-second poll
+        // with no sign that anything was wrong.
+        startLiveStream()
     }
 
     func selectProfile(_ profile: ServerProfile) async {
         stopStatusPolling()
+        stopLiveStream()
         selectedProfile = profile
         vehicles = []
         selectedVehicle = nil
@@ -522,9 +592,12 @@ final class AppEnvironment {
         else { status = nil; statusUnits = nil; statusFetchedAt = nil }
         if isOwnerConnected { selectedOwnerVehicle = matchingOwnerVehicle() ?? selectedOwnerVehicle }
         stopHistoryPolling()
+        liveRoute = []
+        clearLiveMapRoute()
         recomputeFleetStatistics()
         startStatusPolling()
         startHistoryPolling()
+        startLiveStream()
     }
 
     /// Called whenever the app becomes active, and on first appearance.
@@ -571,10 +644,20 @@ final class AppEnvironment {
                 case .connected:
                     isStreamingLive = true
                     liveStreamMessage = nil
+                    // Whatever happened while the stream was down is on the server
+                    // but not in the buffer, so the route is fetched again rather
+                    // than left with a gap where the outage was.
+                    liveRouteKey = nil
                 case .interrupted(let message):
                     isStreamingLive = false
                     liveStreamMessage = message
                 case .state(let payload):
+                    // A reading is itself proof the stream is alive: the buffer
+                    // keeps only the newest events, so a `connected` that was
+                    // dropped to make room must not leave the badge saying
+                    // reconnecting during a working drive.
+                    isStreamingLive = true
+                    liveStreamMessage = nil
                     apply(streamed: payload, profile: profile, vehicle: vehicle)
                 }
             }
@@ -587,6 +670,59 @@ final class AppEnvironment {
         liveStreamTask = nil
         liveStreamTarget = nil
         isStreamingLive = false
+        liveRouteTask?.cancel()
+        liveRouteTask = nil
+        liveRouteKey = nil
+        // The throttle above means the newest reading is usually still only in
+        // memory. Write it now, or closing the app loses the freshest thing it saw.
+        flushStreamedStatus()
+    }
+
+    /// Records a reading in the live buffer the charts and the route draw from.
+    ///
+    /// Called from both the stream and the poll. It used to be the stream only,
+    /// so a stream that was quiet — or a server without one — left the live charts
+    /// empty and the route frozen at wherever it was when the app opened, with the
+    /// pin moving on ahead of it. A reading every thirty seconds is a poor route,
+    /// but it is a route.
+    private func recordLive(_ status: VehicleStatus) {
+        guard status.isDriving else {
+            if !liveTelemetry.samples.isEmpty {
+                // The journey is over; the next one starts from empty rather than
+                // continuing a chart across a stop.
+                liveTelemetry.reset()
+            }
+            clearLiveMapRoute()
+            return
+        }
+        liveTelemetry.append(
+            speed: status.liveSpeed,
+            power: status.livePower,
+            level: status.batteryDetails?.batteryLevel.map(Double.init),
+            odometer: status.odometer,
+            latitude: status.carGeodata?.location?.latitude,
+            longitude: status.carGeodata?.location?.longitude,
+            elevation: status.drivingDetails?.elevation
+        )
+        updateLiveMapRoute()
+    }
+
+    /// Rebuilds the drawn route, and writes it back only when it changed.
+    ///
+    /// The write is what matters. Observation notifies on assignment, not on
+    /// difference, so assigning an identical route on every reading would invite
+    /// exactly the redraw this exists to avoid.
+    private func updateLiveMapRoute() {
+        var next = liveMapRoute
+        next.update(seed: liveRoute, live: liveTelemetry.routePath)
+        if next != liveMapRoute { liveMapRoute = next }
+    }
+
+    private func clearLiveMapRoute() {
+        guard !liveMapRoute.isEmpty else { return }
+        var next = liveMapRoute
+        next.reset()
+        liveMapRoute = next
     }
 
     /// Folds a streamed reading into the same state the poller writes.
@@ -595,6 +731,7 @@ final class AppEnvironment {
     /// second set of rules about what counts as fresh.
     private func apply(streamed payload: StatusDataDTO, profile: ServerProfile, vehicle: Vehicle) {
         guard selectedProfile?.id == profile.id, selectedVehicle?.id == vehicle.id else { return }
+        let previousState = status?.state
         status = payload.status
         statusUnits = payload.units ?? statusUnits
         statusFetchedAt = .now
@@ -606,28 +743,116 @@ final class AppEnvironment {
             lastLiveStatusAt = statusFetchedAt
         }
 
-        if payload.status.isDriving {
-            liveTelemetry.append(
-                speed: payload.status.drivingDetails?.speed,
-                power: payload.status.drivingDetails?.power,
-                level: payload.status.batteryDetails?.batteryLevel.map(Double.init),
-                odometer: payload.status.odometer,
-                latitude: payload.status.carGeodata?.location?.latitude,
-                longitude: payload.status.carGeodata?.location?.longitude
-            )
-        } else if !liveTelemetry.samples.isEmpty {
-            // The journey is over; the next one starts from empty rather than
-            // continuing a chart across a stop.
-            liveTelemetry.reset()
-        }
+        recordLive(payload.status)
+        refreshLiveRoute(profile: profile, vehicle: vehicle, status: payload.status)
 
-        VehicleStatusCache(context: container.mainContext).save(
+        // A change of state is the one reading worth writing immediately: it is
+        // what a cold launch reads back, and "driving" turning into "parked" is
+        // not something to leave sitting in memory for the throttle.
+        persistStreamed(
             status: payload.status,
             units: payload.units,
-            serverID: profile.id,
-            carID: vehicle.id,
-            fetchedAt: statusFetchedAt ?? .now
+            profile: profile,
+            vehicle: vehicle,
+            immediately: previousState != payload.status.state
         )
+    }
+
+    /// Writes a streamed reading to the cache, at most every few seconds.
+    private func persistStreamed(
+        status: VehicleStatus,
+        units: UnitsDTO?,
+        profile: ServerProfile,
+        vehicle: Vehicle,
+        immediately: Bool
+    ) {
+        let fetchedAt = statusFetchedAt ?? .now
+        let pending = PendingStatusWrite(
+            status: status,
+            units: units,
+            profileID: profile.id,
+            carID: vehicle.id,
+            fetchedAt: fetchedAt
+        )
+        if !immediately, let last = lastStreamedPersistAt,
+           fetchedAt.timeIntervalSince(last) < Cadence.streamedStatusPersist {
+            unpersistedStreamedStatus = pending
+            return
+        }
+        writeStatusCache(pending)
+    }
+
+    /// Writes whatever the throttle is still holding, if anything.
+    private func flushStreamedStatus() {
+        guard let pending = unpersistedStreamedStatus else { return }
+        writeStatusCache(pending)
+    }
+
+    private func writeStatusCache(_ pending: PendingStatusWrite) {
+        unpersistedStreamedStatus = nil
+        lastStreamedPersistAt = pending.fetchedAt
+        VehicleStatusCache(context: container.mainContext).save(
+            status: pending.status,
+            units: pending.units,
+            serverID: pending.profileID,
+            carID: pending.carID,
+            fetchedAt: pending.fetchedAt
+        )
+    }
+
+    /// Fetches the path of the drive in progress, once per drive.
+    ///
+    /// The map draws this behind the live samples so the route is whole from the
+    /// moment the app opens, rather than starting at whatever the phone happened
+    /// to be awake for.
+    private func refreshLiveRoute(profile: ServerProfile, vehicle: Vehicle, status: VehicleStatus) {
+        guard status.isDriving else {
+            liveRouteTask?.cancel()
+            liveRouteTask = nil
+            liveRouteKey = nil
+            liveRouteFetchedAt = nil
+            if !liveRoute.isEmpty { liveRoute = [] }
+            clearLiveMapRoute()
+            return
+        }
+        let key = LiveRouteKey(profileID: profile.id, carID: vehicle.id, since: status.stateSince?.value)
+        // Called on every reading, so the common case has to be these two
+        // comparisons and nothing else.
+        let isNewDrive = key != liveRouteKey
+        let isStale = liveRouteFetchedAt.map { Date.now.timeIntervalSince($0) >= Cadence.liveRoute } ?? true
+        guard isNewDrive || isStale else { return }
+        // A running fetch is left alone when it is only the age that has expired:
+        // cancelling it would restart the same request every reading.
+        if !isNewDrive, liveRouteTask != nil { return }
+        liveRouteKey = key
+        liveRouteFetchedAt = .now
+        liveRouteTask?.cancel()
+        liveRouteTask = Task { [weak self] in
+            guard let self, let client = try? backendClient(for: profile) else { return }
+            // Without a state timestamp, assume no drive has been running longer
+            // than a couple of hours; the server segments per drive and only the
+            // last segment is used, so an over-wide window costs bytes, not
+            // correctness.
+            let start = key.since ?? Date.now.addingTimeInterval(-2 * 3_600)
+            let segments = try? await client.track(
+                carID: vehicle.id,
+                every: 5,
+                maxPoints: 2_000,
+                filter: DateRangeFilter(start: start),
+                minimumSegmentPoints: 2
+            )
+            guard !Task.isCancelled, liveRouteKey == key,
+                  selectedProfile?.id == profile.id, selectedVehicle?.id == vehicle.id else { return }
+            // Segments are one per drive, oldest first: the drive in progress is
+            // the last of them. A failed fetch leaves the previous route in place
+            // rather than blanking the map.
+            if let latest = segments?.last, !latest.isEmpty {
+                liveRoute = latest
+                updateLiveMapRoute()
+            }
+            liveRouteFetchedAt = .now
+            liveRouteTask = nil
+        }
     }
 
     func startStatusPolling() {
@@ -875,6 +1100,11 @@ final class AppEnvironment {
             notificationStatus = response.status
             // The odometer feeds the logged-versus-actual distance figures.
             recomputeFleetStatistics(profile: profile, vehicle: vehicle)
+            // Also from here, not only from the stream: a server without an event
+            // stream still has the route of the drive in progress, and the map
+            // should show it there too.
+            recordLive(response.status)
+            refreshLiveRoute(profile: profile, vehicle: vehicle, status: response.status)
             VehicleStatusCache(context: container.mainContext).save(
                 status: response.status,
                 units: response.units,

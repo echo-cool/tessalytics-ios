@@ -24,7 +24,11 @@ struct TessalyticsBackendClient: VehicleDataAPI, Sendable {
 
     /// Ask for the units the server itself is configured for, so the app keeps
     /// rendering in the owner's chosen scale without having to convert.
-    private static let unitSystem = "teslamate"
+    ///
+    /// Shared with the event stream: readings that arrive by two routes have to be
+    /// on the same scale, or a speed changes by a factor of 1.6 depending on
+    /// whether the poll or the stream delivered it.
+    static let unitSystem = "teslamate"
 
     init(
         baseURL: URL,
@@ -77,16 +81,11 @@ struct TessalyticsBackendClient: VehicleDataAPI, Sendable {
     }
 
     func status(carID: Int) async throws -> StatusDataDTO {
-        let response = try await get(
+        try await get(
             "v1/vehicles/\(carID)/state",
             query: [URLQueryItem(name: "units", value: Self.unitSystem)],
             as: BackendEnvelope<BackendStateWrapperDTO>.self
-        )
-        return StatusDataDTO(
-            car: CarReferenceDTO(carId: carID, carName: response.data.state.name),
-            status: response.data.state.vehicleStatus,
-            units: response.meta?.units?.unitsDTO
-        )
+        ).statusData(carID: carID)
     }
 
     func drives(carID: Int, page: Int, show: Int = 30, filter: DateRangeFilter = .init()) async throws -> DrivesDataDTO {
@@ -248,13 +247,30 @@ struct TessalyticsBackendClient: VehicleDataAPI, Sendable {
     /// need to be: the server groups them per drive, drops the points that lie on
     /// a line their neighbours already describe, and answers with a few hundred
     /// kilobytes. One request replaces what would otherwise be hundreds.
-    func track(carID: Int, every: Int = 10, maxPoints: Int = 24_000) async throws -> [[CoordinateDTO]] {
+    /// - Parameters:
+    ///   - filter: Narrows the window. Used by the live map to ask for nothing but
+    ///     the drive in progress.
+    ///   - minimumSegmentPoints: Segments shorter than this are dropped as noise.
+    ///     Worth lowering when the window is a single drive that has only just
+    ///     started, where the default would discard the first few positions.
+    func track(
+        carID: Int,
+        every: Int = 10,
+        maxPoints: Int = 24_000,
+        filter: DateRangeFilter = .init(),
+        minimumSegmentPoints: Int? = nil
+    ) async throws -> [[CoordinateDTO]] {
+        var query = [
+            URLQueryItem(name: "every", value: String(every)),
+            URLQueryItem(name: "max_points", value: String(maxPoints))
+        ]
+        if let minimumSegmentPoints {
+            query.append(URLQueryItem(name: "min_segment_points", value: String(minimumSegmentPoints)))
+        }
+        query.append(contentsOf: filter.backendQuery)
         let response = try await get(
             "v1/vehicles/\(carID)/track",
-            query: [
-                URLQueryItem(name: "every", value: String(every)),
-                URLQueryItem(name: "max_points", value: String(maxPoints))
-            ],
+            query: query,
             as: BackendEnvelope<BackendTrackDTO>.self
         )
         return response.data.segments.map { segment in
@@ -345,6 +361,23 @@ struct TessalyticsBackendClient: VehicleDataAPI, Sendable {
     private static var userAgent: String {
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1"
         return "Tessalytics/\(version)"
+    }
+}
+
+extension BackendEnvelope where T == BackendStateWrapperDTO {
+    /// The app's status model, from the backend's own state body.
+    ///
+    /// Shared by the request route and the event stream. They used to each decode
+    /// the body themselves, and only one of them decoded the shape the backend
+    /// actually sends — so the stream connected, reported itself live, and threw
+    /// every reading away, leaving a poll every thirty seconds as the only thing
+    /// that moved the numbers.
+    func statusData(carID: Int) -> StatusDataDTO {
+        StatusDataDTO(
+            car: CarReferenceDTO(carId: carID, carName: data.state.name),
+            status: data.state.vehicleStatus,
+            units: meta?.units?.unitsDTO
+        )
     }
 }
 

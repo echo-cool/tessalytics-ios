@@ -62,7 +62,7 @@ struct OnboardingView: View {
                         Text("Understand every drive.")
                             .font(.largeTitle.bold())
                             .multilineTextAlignment(.center)
-                        Text("Connect TeslaMate, or explore instantly with generated sample data.")
+                        Text("Connect your Tessalytics Backend, or explore instantly with generated sample data.")
                             .font(.title3)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
@@ -72,8 +72,15 @@ struct OnboardingView: View {
                 SurfaceCard {
                     VStack(spacing: 18) {
                         OnboardingFeatureRow(
+                            title: "Deploy the backend first",
+                            detail: "Tessalytics connects to Tessalytics Backend, not to TeslaMate directly. Run it beside TeslaMate — the same Docker Compose file is fine — and enter its address here.",
+                            symbol: "shippingbox.fill",
+                            tint: TessalyticsTheme.accent
+                        )
+                        Divider()
+                        OnboardingFeatureRow(
                             title: "Your server",
-                            detail: "Your TeslaMate server stays under your control.",
+                            detail: "Your TeslaMate data stays under your control.",
                             symbol: "server.rack",
                             tint: TessalyticsTheme.neutral
                         )
@@ -94,7 +101,7 @@ struct OnboardingView: View {
                     }
                 }
 
-                Link(destination: URL(string: "https://github.com/tobiasehlert/teslamateapi")!) {
+                Link(destination: URL(string: "https://github.com/echo-cool/tessalytics-backend")!) {
                     Label("Tessalytics Backend setup guide", systemImage: "arrow.up.right.square")
                         .font(.subheadline.weight(.medium))
                 }
@@ -128,9 +135,9 @@ struct OnboardingView: View {
 
                 Toggle("Allow local HTTP development server", isOn: $draft.allowsLocalHTTP)
             } header: {
-                Text("Server")
+                Text("Tessalytics Backend")
             } footer: {
-                Text("HTTP is accepted only for localhost or common private-network addresses. TLS validation is never disabled.")
+                Text("Enter the address of Tessalytics Backend, not of TeslaMate or Grafana. TeslaMate does not serve this API on its own. HTTP is accepted only for localhost or common private-network addresses. TLS validation is never disabled.")
             }
 
             Section("Authentication") {
@@ -226,7 +233,7 @@ struct OnboardingView: View {
                         .buttonStyle(.bordered)
                 }
 
-                Text("If this fails, check that Tessalytics Backend is running and reachable from this iPhone, and that the token is correct.")
+                Text("If this fails, check that Tessalytics Backend is deployed beside TeslaMate, running, and reachable from this iPhone, and that the token is correct. A TeslaMate or Grafana address will not work here.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }

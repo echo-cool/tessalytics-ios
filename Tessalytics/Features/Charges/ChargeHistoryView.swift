@@ -202,8 +202,10 @@ private struct ChargeRow: View {
                 // Fetched per row the way a drive row fetches its route, and
                 // cached the same way, so scrolling does not re-request.
                 if curve.count > 2 {
-                    ChargeCurveChart(points: curve, height: 56, isCompact: true)
-                        .frame(width: 104)
+                    // Wider than it was: the axis ticks that say what the two
+                    // lines measure need somewhere to sit.
+                    ChargeCurveChart(points: curve, height: 60, isCompact: true)
+                        .frame(width: 138)
                         .accessibilityHidden(true)
                 }
 
@@ -217,12 +219,24 @@ private struct ChargeRow: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(record.address ?? "Charging session")
         .accessibilityValue(
-            ([ValueFormatting.date(record.startDate), ValueFormatting.number(record.energyAdded, unit: "kWh")] + facts)
-                .joined(separator: ", ")
+            (
+                [ValueFormatting.date(record.startDate), ValueFormatting.number(record.energyAdded, unit: "kWh")]
+                    + facts
+                    // The thumbnail is two lines and two axes; a reader who cannot
+                    // see it is owed the same information the ticks give.
+                    + (curve.count > 2 ? ["charted: battery level and charging power over time"] : [])
+            ).joined(separator: ", ")
         )
     }
 
+    /// Cached by session, for the same reason the drive rows cache their routes:
+    /// a recycled row runs its task again, and the shape of a finished charge does
+    /// not change.
     private func loadCurve() async {
+        if let cached = HistoryPreviews.shared.curve(chargeID: record.chargeID) {
+            curve = cached
+            return
+        }
         guard curve.isEmpty,
               let profile = environment.selectedProfile,
               let vehicle = environment.selectedVehicle else { return }
@@ -233,6 +247,9 @@ private struct ChargeRow: View {
             chargeID: record.chargeID
         ) else { return }
         // Coarse for a thumbnail: the shape survives, the work does not.
-        curve = detail.curvePoints(limit: 40)
+        let points = detail.curvePoints(limit: 40)
+        guard !Task.isCancelled else { return }
+        HistoryPreviews.shared.store(curve: points, chargeID: record.chargeID)
+        curve = points
     }
 }

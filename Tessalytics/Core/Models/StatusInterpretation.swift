@@ -118,4 +118,22 @@ extension VehicleStatus {
         guard let shift = drivingDetails?.shiftState?.uppercased() else { return false }
         return ["D", "R", "N"].contains(shift)
     }
+
+    /// Road speed, where a car that is driving and reports nothing is stopped.
+    ///
+    /// TeslaMate publishes `speed: null` rather than `0` while a car sits at a
+    /// light, and the app rendered that as "Unavailable" — which claims the phone
+    /// has lost the car, in the middle of a drive it is streaming. Standing still
+    /// is a reading, and its value is zero.
+    var liveSpeed: Double? {
+        guard isDriving else { return drivingDetails?.speed }
+        return drivingDetails?.speed ?? 0
+    }
+
+    /// Instantaneous pack power, on the same terms. Coasting draws nothing, and
+    /// nothing is a number.
+    var livePower: Double? {
+        guard isDriving else { return drivingDetails?.power }
+        return drivingDetails?.power ?? 0
+    }
 }

@@ -67,8 +67,10 @@ struct CapacityByMileageChart: View {
     @ViewBuilder private var chart: some View {
         Group {
             if observations.count < 4 {
-                ChartUnavailable(
-                    message: "Needs 4+ charges with a range reading — \(observations.count) so far."
+                ChartNeedsMoreHistory(
+                    needs: "4 charges that each report a range",
+                    have: "\(observations.count) recorded so far.",
+                    symbol: "chart.dots.scatter"
                 )
             } else {
                 Chart {
@@ -177,8 +179,10 @@ struct ProjectedRangeChart: View {
             tint: TessalyticsTheme.accent
         ) {
             if points.count < 3 {
-                ChartUnavailable(
-                    message: "At least three weeks of range readings are needed. \(points.count) available."
+                ChartNeedsMoreHistory(
+                    needs: "three weeks of range readings",
+                    have: points.count == 0 ? nil : "\(points.count) week\(points.count == 1 ? "" : "s") so far.",
+                    symbol: "point.bottomleft.forward.to.point.topright.scurvepath"
                 )
             } else {
                 Chart {
@@ -237,7 +241,11 @@ struct ProjectedRangeChart: View {
     }
 }
 
-/// Shared "not enough data" panel for the capacity charts.
+/// Shared panel for a chart whose data does not exist rather than has not
+/// arrived yet.
+///
+/// For "not yet" — which is most of a new install — use
+/// `ChartNeedsMoreHistory`, which says so.
 struct ChartUnavailable: View {
     let message: String
 

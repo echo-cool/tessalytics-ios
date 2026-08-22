@@ -1,0 +1,51 @@
+Tessalytics 1.7.2 — live mode delivers a reading for the first time.
+
+WHAT TO TEST FIRST
+
+Drive. 1.7.0 and 1.7.1 both opened the event stream, both showed LIVE, and both
+discarded every reading that came down it. The cause was one line: the stream read
+the response with `AsyncLineSequence`, which does not report blank lines — and a
+blank line is what ends a server-sent event. Every reading arrived, was never
+terminated, and was dropped in silence. The server log showed a stream connected
+and stable for a whole drive while the screen updated from the thirty-second poll
+behind it, which is exactly what you reported.
+
+1. The speed on screen should now move continuously. The server pushes a reading
+   roughly every 0.4 seconds while driving; that is what the app now renders.
+   "updated at 21:12:33" on the hero card is the check — the seconds should track
+   your watch, not step every thirty.
+
+2. The route on the hero map should keep up with the car. It was frozen at
+   whichever point the app joined the drive, because the only thing that extended
+   it was the readings that were being thrown away. Three changes: the readings
+   now arrive, the poll also contributes when the stream is quiet, and the drive's
+   path is re-read from the server every 90 seconds so it cannot drift out of date.
+
+3. The stream should stay connected. A notification banner, Control Center or the
+   screen dimming used to tear it down and rebuild it — fifteen reconnects in half
+   an hour on your last drive. Only backgrounding closes it now.
+
+ALSO IN THIS BUILD
+
+- The battery capacity detail screen draws the same chart as the card that opens
+  it: the per-charge scatter, the semi-monthly median through it, and the as-new
+  line, plus a scrub, a summary and the values as a table.
+- Every chart on a drive and on a charging session opens its own screen. Touch and
+  hold to read a value; the same numbers are listed as a table underneath.
+- Charging rows say what their thumbnail measures: percent on the left axis,
+  kilowatts on the right, the session's span underneath, and both lines named.
+- The Activity list scrolls properly. Each row was decoding a full drive — up to
+  twenty thousand samples — and running Douglas-Peucker on the main thread, then
+  doing it again every time the row scrolled back into view. Now computed off the
+  main thread and cached.
+- Charts that need more history than exists say so, and say that the fix is time.
+  A new install gets a note on the home screen with what has been recorded so far.
+- The home screen is titled Tessalytics rather than the car's name, which the hero
+  card and the vehicle picker were already showing.
+
+VERIFICATION
+
+The stream is now covered by tests that talk to a real socket: a fake event-stream
+server in the test suite serves the same bytes the backend does, and the tests
+assert a reading reaches the state the screens read. Against the old code those
+tests report zero readings, which is the bug, reproduced on demand.

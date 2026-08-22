@@ -14,6 +14,11 @@ struct DashboardView: View {
     @State private var visitedPlaces: [VisitedPlace] = []
     @State private var visitedSegments: [[CoordinateDTO]] = []
     @State private var batteryLevels: [BatteryLevelPoint] = []
+    /// Kept out of the way once read: it is a first-week explanation, not a
+    /// standing warning.
+    @AppStorage("dismissedHistoryNotice") private var dismissedHistoryNotice = false
+    @State private var isShowingLiveMap = false
+    @State private var isShowingBatteryHealth = false
 
     var body: some View {
         NavigationStack {
@@ -28,14 +33,17 @@ struct DashboardView: View {
                     dashboardContent
                 }
             }
-            .navigationTitle(environment.selectedVehicle?.name ?? "Status")
-            // A long vehicle name truncates to nothing useful as a large title,
-            // and the hero card already names the car.
+            // The app's name, not the car's. The hero card names the car
+            // directly beneath this, and the vehicle picker in the toolbar names
+            // it again — three times over, with a long name truncating to nothing
+            // useful in the one place that cannot show the rest.
+            .navigationTitle("Tessalytics")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) { vehicleMenu }
             }
             .safeAreaInset(edge: .top) { statusBanner }
+            .fullScreenCover(isPresented: $isShowingLiveMap) { LiveMapScreen() }
             // Keyed on the vehicle so this also fires the first time a vehicle
             // becomes known — right after a server is configured, for instance.
             .task(id: environment.selectedVehicle?.id) {
@@ -48,7 +56,22 @@ struct DashboardView: View {
             // History syncs replace the cached rows underneath this screen.
             .task(id: environment.historyRevision) { loadCachedHistory() }
             .onChange(of: scenePhase) { _, phase in
-                phase == .active ? environment.handleForegroundEntry() : environment.handleBackgroundEntry()
+                switch phase {
+                case .active:
+                    environment.handleForegroundEntry()
+                case .background:
+                    environment.handleBackgroundEntry()
+                case .inactive:
+                    // Not backgrounded. A notification banner, the app switcher,
+                    // Control Center and the screen dimming all pass through
+                    // `.inactive` with the app still on screen — and tearing the
+                    // stream down for each of them left a drive reconnecting
+                    // fifteen times in half an hour, running on the poll in
+                    // between.
+                    break
+                @unknown default:
+                    break
+                }
             }
         }
         .accessibilityIdentifier("dashboard-screen")
@@ -85,31 +108,31 @@ struct DashboardView: View {
     private var dashboardContent: some View {
         ScrollView {
             LazyVStack(spacing: TessalyticsLayout.stackSpacing) {
-                NavigationLink {
-                    BatteryHealthView()
-                } label: {
-                    VehicleHeroCard(
-                        vehicle: environment.selectedVehicle,
-                        status: environment.status,
-                        units: environment.statusUnits,
-                        freshnessLabel: freshnessLabel,
-                        freshnessColor: freshnessColor,
-                        updatedAt: environment.statusFetchedAt,
-                        battery: environment.fleet.battery,
-                        activity: recentDrivePoints,
-                        efficiency: recentEfficiency,
-                        batteryLevels: batteryLevels,
-                        // A sleeping car reports 0 psi at every corner, so fall
-                        // back to the last reading taken while it was awake.
-                        tyres: environment.status?.tpmsDetails?.hasAnyReading == true
-                            ? environment.status?.tpmsDetails
-                            : environment.lastLiveStatus?.tpmsDetails,
-                        liveTrail: liveTrail,
-                        isStreaming: environment.isStreamingLive
-                    )
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("Opens battery health")
+                VehicleHeroCard(
+                    vehicle: environment.selectedVehicle,
+                    status: environment.status,
+                    units: environment.statusUnits,
+                    freshnessLabel: freshnessLabel,
+                    freshnessColor: freshnessColor,
+                    updatedAt: environment.statusFetchedAt,
+                    battery: environment.fleet.battery,
+                    activity: recentDrivePoints,
+                    efficiency: recentEfficiency,
+                    batteryLevels: batteryLevels,
+                    // A sleeping car reports 0 psi at every corner, so fall
+                    // back to the last reading taken while it was awake.
+                    tyres: environment.status?.tpmsDetails?.hasAnyReading == true
+                        ? environment.status?.tpmsDetails
+                        : environment.lastLiveStatus?.tpmsDetails,
+                    route: environment.liveMapRoute,
+                    liveBuffer: environment.liveTelemetry,
+                    isStreaming: environment.isStreamingLive,
+                    onOpenMap: { isShowingLiveMap = true },
+                    onOpenBattery: { isShowingBatteryHealth = true }
+                )
+                .navigationDestination(isPresented: $isShowingBatteryHealth) { BatteryHealthView() }
+
+                historyNotice
 
                 DashboardQuickLinks()
 
@@ -149,7 +172,10 @@ struct DashboardView: View {
                     VisitedPlacesScreen()
                 } content: {
                     if visitedPlaces.isEmpty {
-                        ChartUnavailable(message: "No drive coordinates synchronized yet.")
+                        ChartNeedsMoreHistory(
+                            needs: "one synced drive with coordinates",
+                            symbol: "map"
+                        )
                     } else {
                         VisitedPlacesMap(places: visitedPlaces, segments: visitedSegments)
                             .frame(height: 190)
@@ -294,15 +320,36 @@ struct DashboardView: View {
         return values[values.count / 2]
     }
 
-    /// The last few minutes of positions, from the live buffer's odometer trail.
+    /// Shown while TeslaMate has barely any history for this car.
     ///
-    /// The stream carries a position with every reading, so the trail is free —
-    /// no extra request, and it shows the approach to wherever the car is now.
-    private var liveTrail: [CLLocationCoordinate2D] {
-        guard environment.status?.isDriving == true else { return [] }
-        return environment.liveTelemetry.trail.map {
-            CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude)
+    /// Half of this app is derived from weeks of recorded drives and charges, and
+    /// on a fresh install almost none of it can be computed. Without saying so,
+    /// the first impression is a screen of blank panels that reads as broken
+    /// rather than as new — and the fix, waiting, is not one anybody guesses.
+    @ViewBuilder private var historyNotice: some View {
+        if let span = historySpan, !dismissedHistoryNotice, !environment.isDemoMode {
+            SurfaceCard(tint: TessalyticsTheme.accent) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Label("Still collecting history", systemImage: "hourglass")
+                        .font(.subheadline.weight(.semibold))
+                    Text(span)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text("Capacity, projected range and the trend charts need a week or two of driving and charging before they mean anything. They fill in on their own.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Button("Got it") { dismissedHistoryNotice = true }
+                        .font(.caption.weight(.semibold))
+                        .buttonStyle(.borderless)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .accessibilityIdentifier("history-notice")
         }
+    }
+
+    private var historySpan: String? {
+        HistoryCoverage.summary(of: recentDrives.compactMap(\.startDate) + recentCharges.compactMap(\.startDate))
     }
 
     private var placesSubtitle: String {
@@ -332,8 +379,14 @@ struct DashboardView: View {
     }
 
     /// Capacity against mileage, so a scrub reads out the odometer it belongs to.
+    ///
+    /// Drawn the same way as the card it is opened from: the faint per-charge
+    /// scatter, the semi-monthly median through it, and the as-new line above
+    /// both. A detail screen that redraws the same numbers in a different form
+    /// makes the reader work out whether they are even looking at the same thing.
     private var capacityExplorable: ExplorableChart {
         let unit = (environment.statusUnits ?? .metricDefaults).lengthSymbol
+        let odometers = capacityObservations.map(\.odometer)
         return ExplorableChart(
             title: "Battery capacity",
             subtitle: "Modeled per charge, by odometer",
@@ -351,8 +404,21 @@ struct DashboardView: View {
                     value: observation.capacity
                 )
             },
-            // A pack size is not a share of anything, so no pie here.
-            styles: [.line, .area, .bar],
+            // The medians carry their own odometers, which are not the odometers
+            // of the charges, so they are placed between the readings they sit
+            // between rather than against an index of their own.
+            trend: ExplorableTrendPoint.positioned(
+                capacityMedians.map { (x: $0.odometer, y: $0.capacity) },
+                onto: odometers
+            ),
+            pointsLabel: "Per charge",
+            trendLabel: "Semi-monthly median",
+            reference: environment.fleet.battery?.capacityNew.map {
+                ExplorableReference(value: $0, label: "When new")
+            },
+            // Points first, as the card draws it. A pack size is not a share of
+            // anything, so no pie here.
+            styles: [.scatter, .line, .area, .bar],
             tint: TessalyticsTheme.positive,
             baseline: .focused,
             isCumulative: false
@@ -970,9 +1036,16 @@ private struct VehicleHeroCard: View {
     /// Battery level over the last week, rebuilt from drives and charges.
     let batteryLevels: [BatteryLevelPoint]
     let tyres: TPMSDTO?
-    /// Recent positions, so the live map can draw where the car just came from.
-    let liveTrail: [CLLocationCoordinate2D]
+    /// The route of the drive in progress, already stabilised so a redraw of this
+    /// card does not redraw the line on the map.
+    let route: LiveRouteTrail
+    /// The readings behind the live figures under the map.
+    let liveBuffer: LiveTelemetryBuffer
     let isStreaming: Bool
+    /// Opens the full-screen map.
+    let onOpenMap: () -> Void
+    /// Opens battery health, which is where the card as a whole leads.
+    let onOpenBattery: () -> Void
 
     private var isDriving: Bool { status?.isDriving == true }
 
@@ -1002,13 +1075,16 @@ private struct VehicleHeroCard: View {
     /// How long the car has been driving or charging is news. How long it has
     /// been asleep is not, so only a notable state contributes its age.
     private var footnote: String {
-        let updated = updatedAt.map { "updated \($0.formatted(.relative(presentation: .named)))" }
+        let updated = updatedAt.map { "updated at \(Self.readingTime($0))" }
         let age = summary.isNotable ? status?.stateDuration.map { duration in
             "\(summary.stateNoun) for \(duration.elapsedDescription)"
         } : nil
         let parts = [age, updated].compactMap { $0 }
         return parts.isEmpty ? "Waiting for vehicle data" : parts.joined(separator: " · ")
     }
+
+    /// The clock time a reading arrived, to the second.
+    static func readingTime(_ date: Date) -> String { ValueFormatting.readingTime(date) }
 
     private var distanceUnit: String { (units ?? .metricDefaults).lengthSymbol }
 
@@ -1022,53 +1098,108 @@ private struct VehicleHeroCard: View {
         return "\(odometer.formatted(.number.precision(.fractionLength(0)))) \(distanceUnit)"
     }
 
+    /// The card leads to battery health, and the map on it leads to the map.
+    ///
+    /// Two buttons around the map rather than one button with the map cut out of
+    /// it. A control nested inside another control is unreliable to tap and worse
+    /// to hear: SwiftUI collapses the children of a button into a single element,
+    /// so a map inside the card's button is not something VoiceOver can reach at
+    /// all, whatever gesture is attached to it.
     var body: some View {
         TessalyticsHeroSurface(tint: tint) {
             VStack(alignment: .leading, spacing: 12) {
-                VehicleHeroHeader(
-                    name: vehicle?.name?.nilIfEmpty,
-                    model: modelText,
-                    freshnessLabel: freshnessLabel,
-                    freshnessColor: freshnessColor
-                )
-
-                // Only motion and charging get the loud line. The rest of the
-                // time the place is the interesting part — but the state is still
-                // worth a word, so it rides alongside as a pill.
-                HStack(spacing: 8) {
-                    if summary.isNotable {
-                        Label(summary.headline, systemImage: summary.activity.symbol)
-                            .font(.title3.weight(.semibold))
-                            .foregroundStyle(.primary)
-                            .symbolRenderingMode(.hierarchical)
-                            .tint(tint)
-                            .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
-                            .minimumScaleFactor(0.78)
-                    } else if let place = summary.placeText {
-                        Label(place, systemImage: "mappin.and.ellipse")
-                            .font(.subheadline.weight(.medium))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
-                    }
-                    Spacer(minLength: 6)
-                    if isDriving {
-                        LiveIndicator(isStreaming: isStreaming)
-                    } else {
-                        StatusBadge(text: summary.stateNoun, color: tint)
-                            .accessibilityIdentifier("vehicle-state-pill")
-                    }
-                }
-
                 if isDriving, let coordinate = liveCoordinate {
-                    LiveLocationMap(
-                        coordinate: coordinate,
-                        heading: status?.drivingDetails?.heading,
-                        trail: liveTrail,
-                        height: dynamicTypeSize.isAccessibilitySize ? 150 : 128
-                    )
+                    Button(action: onOpenBattery) { identity }
+                        .buttonStyle(.plain)
+                        .accessibilityHint("Opens battery health")
+                    mapButton(coordinate: coordinate)
+                    Button(action: onOpenBattery) { details }
+                        .buttonStyle(.plain)
+                        .accessibilityHint("Opens battery health")
+                } else {
+                    Button(action: onOpenBattery) {
+                        VStack(alignment: .leading, spacing: 12) {
+                            identity
+                            details
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Opens battery health")
                 }
+            }
+        }
+        // A container rather than a plain identifier: an identifier on a view with
+        // controls inside it is inherited by every one of them, which renamed the
+        // map button after the card and left nothing able to find the map.
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("vehicle-snapshot-card")
+    }
 
+    private func mapButton(coordinate: CLLocationCoordinate2D) -> some View {
+        Button(action: onOpenMap) {
+            LiveLocationMap(
+                coordinate: coordinate,
+                heading: status?.drivingDetails?.heading,
+                route: route,
+                height: dynamicTypeSize.isAccessibilitySize ? 150 : 128
+            )
+            .overlay(alignment: .bottomTrailing) {
+                Image(systemName: "arrow.up.left.and.arrow.down.right")
+                    .font(.caption2.weight(.bold))
+                    .padding(6)
+                    .background(.regularMaterial, in: .circle)
+                    .padding(8)
+                    .accessibilityHidden(true)
+            }
+            .contentShape(.rect(cornerRadius: TessalyticsTheme.compactRadius, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("The route driven so far")
+        .accessibilityHint("Opens the full screen map")
+        .accessibilityIdentifier("hero-live-map")
+    }
+
+    private var identity: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            VehicleHeroHeader(
+                name: vehicle?.name?.nilIfEmpty,
+                model: modelText,
+                freshnessLabel: freshnessLabel,
+                freshnessColor: freshnessColor
+            )
+
+            // Only motion and charging get the loud line. The rest of the
+            // time the place is the interesting part — but the state is still
+            // worth a word, so it rides alongside as a pill.
+            HStack(spacing: 8) {
+                if summary.isNotable {
+                    Label(summary.headline, systemImage: summary.activity.symbol)
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .symbolRenderingMode(.hierarchical)
+                        .tint(tint)
+                        .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
+                        .minimumScaleFactor(0.78)
+                } else if let place = summary.placeText {
+                    Label(place, systemImage: "mappin.and.ellipse")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                }
+                Spacer(minLength: 6)
+                if isDriving {
+                    LiveIndicator(isStreaming: isStreaming)
+                } else {
+                    StatusBadge(text: summary.stateNoun, color: tint)
+                        .accessibilityIdentifier("vehicle-state-pill")
+                }
+            }
+        }
+    }
+
+    private var details: some View {
+        VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .center, spacing: 14) {
                     BatteryRingGauge(
                         level: summary.batteryFraction,
@@ -1117,7 +1248,10 @@ private struct VehicleHeroCard: View {
 
                 if isDriving {
                     Divider()
-                    LiveDrivingFacts(status: status, units: units)
+                    LiveMetricGrid(
+                        metrics: LiveMetrics.hero(status: status, buffer: liveBuffer, units: units)
+                    )
+                    .accessibilityIdentifier("hero-live-metrics")
                 } else if !batteryLevels.isEmpty {
                     Divider()
                     HeroBatteryLevelChart(points: batteryLevels)
@@ -1139,9 +1273,7 @@ private struct VehicleHeroCard: View {
                 Text(footnote)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
-            }
         }
-        .accessibilityIdentifier("vehicle-snapshot-card")
     }
 }
 
@@ -1912,64 +2044,5 @@ private struct HeroBatteryLevelChart: View {
 ///
 /// Replaces the week-long battery chart for the duration of a drive: the shape of
 /// the last seven days is not what someone glancing at a mounted phone needs.
-private struct LiveDrivingFacts: View {
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-
-    let status: VehicleStatus?
-    let units: UnitsDTO?
-
-    private var resolvedUnits: UnitsDTO { units ?? .metricDefaults }
-
-    var body: some View {
-        let columns = [GridItem(.adaptive(minimum: dynamicTypeSize.isAccessibilitySize ? 150 : 104), spacing: 8)]
-        LazyVGrid(columns: columns, spacing: 8) {
-            fact(
-                ValueFormatting.speed(status?.drivingDetails?.speed, units: resolvedUnits, digits: 0),
-                "speed",
-                "speedometer",
-                TessalyticsTheme.accentBright
-            )
-            fact(
-                ValueFormatting.number(status?.drivingDetails?.power, unit: "kW", digits: 0),
-                (status?.drivingDetails?.power ?? 0) < 0 ? "regenerating" : "power",
-                "bolt.fill",
-                (status?.drivingDetails?.power ?? 0) < 0 ? TessalyticsTheme.positive : TessalyticsTheme.warning
-            )
-            fact(
-                ValueFormatting.temperature(status?.climateDetails?.outsideTemp, units: resolvedUnits),
-                "outside",
-                "thermometer.medium",
-                TessalyticsTheme.steel
-            )
-            fact(
-                status?.drivingDetails?.elevation.map { "\($0.formatted(.number.precision(.fractionLength(0)))) m" } ?? "—",
-                "elevation",
-                "mountain.2.fill",
-                TessalyticsTheme.steel
-            )
-        }
-    }
-
-    private func fact(_ value: String, _ label: String, _ symbol: String, _ tint: Color) -> some View {
-        HStack(spacing: 7) {
-            Image(systemName: symbol)
-                .font(.caption)
-                .foregroundStyle(tint)
-                .frame(width: 16)
-            VStack(alignment: .leading, spacing: 0) {
-                Text(value)
-                    .font(.subheadline.weight(.semibold))
-                    .monospacedDigit()
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-                Text(label)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer(minLength: 0)
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(label)
-        .accessibilityValue(value)
-    }
-}
+/// The figures themselves are assembled by `LiveMetrics`, so the card and the
+/// full-screen map cannot disagree about them.

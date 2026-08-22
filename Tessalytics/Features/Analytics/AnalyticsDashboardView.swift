@@ -912,16 +912,27 @@ private struct ChartSelectionReadout: View {
     }
 }
 
+/// The panel every analytics chart falls back to.
+///
+/// Carries the same closing sentence as the other still-filling-up panels: on a
+/// new install most of this screen is empty at once, and eight identical-looking
+/// blanks read as a broken screen unless they say what they are waiting for.
 private struct ChartEmptyState: View {
     let message: String
 
     var body: some View {
-        Label(message, systemImage: "chart.xyaxis.line")
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
-            .frame(maxWidth: .infinity, minHeight: 120)
-            .multilineTextAlignment(.center)
-            .padding(.horizontal)
+        VStack(spacing: 6) {
+            Label(message, systemImage: "chart.xyaxis.line")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            Text(ChartNeedsMoreHistory.reassurance)
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+        }
+        .frame(maxWidth: .infinity, minHeight: 120)
+        .multilineTextAlignment(.center)
+        .padding(.horizontal)
+        .accessibilityElement(children: .combine)
     }
 }
 

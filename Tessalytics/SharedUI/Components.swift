@@ -326,6 +326,12 @@ struct SectionCard<Content: View>: View {
 /// A `SectionCard` that pushes a destination. Used on the dashboard so each
 /// summary card leads to the screen that explains it.
 struct NavigationSectionCard<Destination: View, Content: View>: View {
+    /// A stable identifier from the title, so a test can tap the card by name.
+    /// Guessing at button indices makes a test that passes for the wrong reason.
+    static func identifier(for title: String) -> String {
+        "section-card-" + title.lowercased().replacingOccurrences(of: " ", with: "-")
+    }
+
     let title: String
     var subtitle: String?
     let symbol: String
@@ -359,6 +365,7 @@ struct NavigationSectionCard<Destination: View, Content: View>: View {
         }
         .buttonStyle(.plain)
         .accessibilityHint("Opens \(title.lowercased()) detail")
+        .accessibilityIdentifier(Self.identifier(for: title))
     }
 }
 
@@ -667,6 +674,50 @@ struct EmptyState: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .padding()
     }
+}
+
+/// Shown in place of a chart that needs more history than has been recorded yet.
+///
+/// A new TeslaMate install is hours old, and several of these charts need days or
+/// weeks: a degradation trend cannot exist after one charge, and a weekday
+/// pattern needs weekdays. The distinction that matters to a new owner is between
+/// "this is broken" and "this is still filling up", so the panel says what is
+/// missing, how much there is so far, and that the fix is time rather than a
+/// setting they have not found.
+struct ChartNeedsMoreHistory: View {
+    /// What the chart is waiting for, as a noun phrase: "4 charges with a range
+    /// reading", "three weeks of range readings".
+    let needs: String
+    /// How much there is so far, when a count means something here.
+    var have: String?
+    var symbol = "hourglass"
+
+    var body: some View {
+        VStack(spacing: 7) {
+            Image(systemName: symbol)
+                .font(.title3)
+                .foregroundStyle(.tertiary)
+                .accessibilityHidden(true)
+            Text("Still collecting")
+                .font(.subheadline.weight(.semibold))
+            Text([("Needs \(needs)."), have].compactMap { $0 }.joined(separator: " "))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text(Self.reassurance)
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+        }
+        .multilineTextAlignment(.center)
+        .frame(maxWidth: .infinity, minHeight: 130)
+        .padding(.horizontal, 8)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Still collecting. Needs \(needs). \(have ?? "") \(Self.reassurance)")
+    }
+
+    /// One sentence, worded the same everywhere it appears, because a reader who
+    /// meets it on four charts should recognise it as the same situation rather
+    /// than four different problems.
+    static let reassurance = "TeslaMate records this as you drive and charge — check back in a few days."
 }
 
 struct LoadingPanel: View {

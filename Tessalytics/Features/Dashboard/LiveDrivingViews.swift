@@ -2,23 +2,60 @@ import Charts
 import MapKit
 import SwiftUI
 
-/// Where the car is now, pointing the way it is facing.
+/// The drive so far, with the car at the end of it pointing the way it is facing.
 ///
 /// A drive is the one time a map earns space on the home screen: the number on
-/// the speedometer says how fast, and only the map says where.
+/// the speedometer says how fast, and only the map says where. A pin alone barely
+/// earns it — a coordinate is a place, and the road taken to get there is what
+/// makes the place mean something.
 struct LiveLocationMap: View {
     let coordinate: CLLocationCoordinate2D
     var heading: Double?
-    var trail: [CLLocationCoordinate2D] = []
-    var height: CGFloat = 132
+    /// The route, already stabilised. Passed as the whole value rather than as a
+    /// coordinate array so the view can tell "the same line as last time" from "a
+    /// line with a point added" without walking either of them.
+    var route = LiveRouteTrail()
+    var height: CGFloat?
+    var isInteractive = false
+    var followsCar = true
 
     @State private var camera: MapCameraPosition = .automatic
+    /// What the camera was last pointed at, so it only moves when that changes.
+    @State private var framing: LiveMapFraming?
+    /// The drawn line, held as one MapKit object across redraws.
+    ///
+    /// `MapPolyline(coordinates:)` builds a new overlay from a new array every
+    /// time the body runs — which, on a screen bound to a stream, is several times
+    /// a second — and MapKit tears the old overlay down to put the new one up.
+    /// That teardown is the flash. Holding the overlay and replacing it only when
+    /// the route's revision changes means a redraw of the surrounding card costs
+    /// the map nothing.
+    @State private var line: MKPolyline?
 
     var body: some View {
-        Map(position: $camera, interactionModes: []) {
-            if trail.count > 1 {
-                MapPolyline(coordinates: trail)
-                    .stroke(TessalyticsTheme.accentBright.opacity(0.85), lineWidth: 3)
+        Map(position: $camera, interactionModes: isInteractive ? .all : []) {
+            if let line, line.pointCount > 1 {
+                // Under the coloured line, so the route reads against both a pale
+                // and a dark map without either being tinted to suit it.
+                MapPolyline(line)
+                    .stroke(.black.opacity(0.18), style: .init(lineWidth: 6, lineCap: .round, lineJoin: .round))
+                MapPolyline(line)
+                    .stroke(
+                        TessalyticsTheme.accentBright.opacity(0.9),
+                        style: .init(lineWidth: 3.5, lineCap: .round, lineJoin: .round)
+                    )
+            }
+            if let start = route.coordinates.first, route.coordinates.count > 1 {
+                Annotation(
+                    "",
+                    coordinate: CLLocationCoordinate2D(latitude: start.latitude, longitude: start.longitude)
+                ) {
+                    Circle()
+                        .fill(TessalyticsTheme.accentBright.opacity(0.55))
+                        .frame(width: 9, height: 9)
+                        .overlay(Circle().strokeBorder(.white.opacity(0.85), lineWidth: 1.5))
+                }
+                .annotationTitles(.hidden)
             }
             Annotation("", coordinate: coordinate) {
                 ZStack {
@@ -35,23 +72,48 @@ struct LiveLocationMap: View {
         }
         .mapStyle(.standard(pointsOfInterest: .excludingAll))
         .frame(height: height)
-        .clipShape(.rect(cornerRadius: TessalyticsTheme.compactRadius, style: .continuous))
-        .allowsHitTesting(false)
+        .clipShape(.rect(cornerRadius: isInteractive ? 0 : TessalyticsTheme.compactRadius, style: .continuous))
+        .allowsHitTesting(isInteractive)
+        // Keyed on the revision, not on the coordinates: a reading that repeats
+        // the car's position leaves both the overlay and the camera alone.
+        .onChange(of: route.revision, initial: true) { _, _ in rebuildLine() }
         .onChange(of: coordinate.latitude) { _, _ in follow() }
         .onChange(of: coordinate.longitude) { _, _ in follow() }
+        .onChange(of: followsCar) { _, isFollowing in
+            guard isFollowing else { return }
+            framing = nil
+            follow()
+        }
         .task { follow() }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Current location on a map")
+        .accessibilityLabel(
+            route.coordinates.count > 1
+                ? "The route driven so far, with the vehicle at the end of it"
+                : "Current location on a map"
+        )
     }
 
-    /// Recentres as the car moves. The span is fixed: an automatic camera would
-    /// rescale on every reading and make the map appear to breathe.
+    private func rebuildLine() {
+        let points = route.coordinates.map { CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude) }
+        line = points.count > 1 ? MKPolyline(coordinates: points, count: points.count) : nil
+        follow()
+    }
+
     private func follow() {
+        guard followsCar else { return }
+        let next = LiveMapCamera.framing(
+            car: CoordinateDTO(latitude: coordinate.latitude, longitude: coordinate.longitude),
+            trail: route.coordinates
+        )
+        // Re-animating a camera already looking at this is what made the map
+        // wobble: every animation was cut off by the next reading's.
+        guard LiveMapCamera.shouldMove(from: framing, to: next) else { return }
+        framing = next
         withAnimation(.easeInOut(duration: 0.6)) {
             camera = .region(
                 MKCoordinateRegion(
-                    center: coordinate,
-                    span: MKCoordinateSpan(latitudeDelta: 0.012, longitudeDelta: 0.012)
+                    center: CLLocationCoordinate2D(latitude: next.centerLatitude, longitude: next.centerLongitude),
+                    span: MKCoordinateSpan(latitudeDelta: next.latitudeDelta, longitudeDelta: next.longitudeDelta)
                 )
             )
         }
@@ -89,6 +151,61 @@ struct LiveIndicator: View {
     }
 }
 
+extension LiveMetric.Tone {
+    var color: Color {
+        switch self {
+        case .accent: TessalyticsTheme.accentBright
+        case .positive: TessalyticsTheme.positive
+        case .warning: TessalyticsTheme.warning
+        case .neutral: TessalyticsTheme.steel
+        }
+    }
+}
+
+/// One live figure: a value, what it is, and an icon.
+struct LiveMetricTile: View {
+    let metric: LiveMetric
+
+    var body: some View {
+        HStack(spacing: 7) {
+            Image(systemName: metric.symbol)
+                .font(.caption)
+                .foregroundStyle(metric.tone.color)
+                .frame(width: 16)
+            VStack(alignment: .leading, spacing: 0) {
+                Text(metric.value)
+                    .font(.subheadline.weight(.semibold))
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                Text(metric.label)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 0)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(metric.label)
+        .accessibilityValue(metric.value)
+        .accessibilityIdentifier("live-metric-\(metric.id)")
+    }
+}
+
+/// The live figures, laid out to fill the grid rather than leave holes in it.
+struct LiveMetricGrid: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    let metrics: [LiveMetric]
+
+    var body: some View {
+        let columns = [GridItem(.adaptive(minimum: dynamicTypeSize.isAccessibilitySize ? 150 : 104), spacing: 8)]
+        LazyVGrid(columns: columns, spacing: 8) {
+            ForEach(metrics) { LiveMetricTile(metric: $0) }
+        }
+    }
+}
+
 /// The cards that only make sense while the car is moving.
 ///
 /// Built for a phone on a mount: large figures, and charts covering the last few
@@ -97,16 +214,30 @@ struct LiveDriveSection: View {
     let buffer: LiveTelemetryBuffer
     let units: UnitsDTO?
 
+    @AppStorage(LiveChartPreferences.metricsKey)
+    private var storedMetrics = LiveChartPreferences.defaultEncodedMetrics
+    @AppStorage(LiveChartPreferences.windowKey)
+    private var storedWindowMinutes = LiveChartPreferences.defaultWindowMinutes
+
+    private var preferences: LiveChartPreferences {
+        LiveChartPreferences.decode(metrics: storedMetrics, windowMinutes: storedWindowMinutes)
+    }
     private var resolvedUnits: UnitsDTO { units ?? .metricDefaults }
-    private var speedUnit: String { resolvedUnits.speedSymbol }
     private var distanceUnit: String { resolvedUnits.lengthSymbol }
 
     var body: some View {
         Group {
             liveMetrics
             if buffer.samples.count > 2 {
-                speedChart
-                powerChart
+                let plotted = buffer.plotted(within: preferences.window)
+                ForEach(preferences.metrics) { metric in
+                    LiveMetricChart(
+                        metric: metric,
+                        samples: plotted,
+                        units: resolvedUnits,
+                        windowMinutes: preferences.windowMinutes
+                    )
+                }
             }
         }
     }
@@ -159,75 +290,105 @@ struct LiveDriveSection: View {
         guard let span = buffer.span else { return "Waiting for readings" }
         return "Last \(ValueFormatting.duration(minutes: max(Int(span / 60), 1)))"
     }
+}
 
-    private var speedChart: some View {
-        SectionCard("Speed", subtitle: "Live", symbol: "speedometer", tint: TessalyticsTheme.accentBright) {
-            Chart(buffer.samples) { sample in
-                if let speed = sample.speed {
-                    AreaMark(x: .value("Time", sample.date), y: .value("Speed", speed), stacking: .unstacked)
-                        .interpolationMethod(.monotone)
-                        .foregroundStyle(
-                            .linearGradient(
-                                colors: [TessalyticsTheme.accentBright.opacity(0.25), .clear],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
-                    LineMark(x: .value("Time", sample.date), y: .value("Speed", speed))
-                        .interpolationMethod(.monotone)
-                        .foregroundStyle(TessalyticsTheme.accentBright)
-                }
-            }
-            .chartYAxis {
-                AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { value in
-                    AxisGridLine().foregroundStyle(.secondary.opacity(0.16))
-                    AxisValueLabel {
-                        if let number = value.as(Double.self) {
-                            Text(number.formatted(.number.precision(.fractionLength(0))))
-                                .font(.caption2.monospacedDigit())
-                        }
-                    }
-                }
-            }
-            .tessalyticsChartAxes(x: "Time", y: "Speed (\(speedUnit))")
-            .tessalyticsChartStyle()
-            .frame(height: 150)
-            .accessibilityLabel("Speed over the last few minutes")
-            .accessibilityValue(ValueFormatting.speed(buffer.latest?.speed, units: resolvedUnits, digits: 0))
+/// One of the live charts the owner asked for.
+///
+/// All four share a frame, an axis treatment and a window, so that turning one on
+/// does not change how the others read. Power is the exception that earns its
+/// exception: it keeps zero on the axis and draws regeneration below it, because
+/// the sign is the interesting part.
+private struct LiveMetricChart: View {
+    let metric: LiveChartMetric
+    let samples: [LiveTelemetrySample]
+    let units: UnitsDTO
+    let windowMinutes: Int
+
+    private var points: [LiveTelemetrySample] { samples.filter { metric.reading(of: $0) != nil } }
+
+    private var unitSymbol: String {
+        switch metric {
+        case .speed: units.speedSymbol
+        case .power: "kW"
+        case .batteryLevel: "%"
+        case .elevation: "m"
         }
     }
 
-    /// Power keeps zero on the axis and shows regeneration below it, because the
-    /// sign is the interesting part.
-    private var powerChart: some View {
-        SectionCard("Power", subtitle: "Negative is regeneration", symbol: "bolt.fill", tint: TessalyticsTheme.warning) {
-            Chart(buffer.samples) { sample in
-                if let power = sample.power {
-                    BarMark(x: .value("Time", sample.date), y: .value("Power", power))
-                        .foregroundStyle(power < 0 ? TessalyticsTheme.positive : TessalyticsTheme.warning)
-                }
-            }
-            .chartYAxis {
-                AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { value in
-                    AxisGridLine().foregroundStyle(.secondary.opacity(0.16))
-                    AxisValueLabel {
-                        if let number = value.as(Double.self) {
-                            Text(number.formatted(.number.precision(.fractionLength(0))))
-                                .font(.caption2.monospacedDigit())
+    private var tint: Color {
+        switch metric {
+        case .speed: TessalyticsTheme.accentBright
+        case .power: TessalyticsTheme.warning
+        case .batteryLevel: TessalyticsTheme.positive
+        case .elevation: TessalyticsTheme.steel
+        }
+    }
+
+    var body: some View {
+        SectionCard(
+            metric.title,
+            subtitle: "\(metric.subtitle) · last \(windowMinutes) min",
+            symbol: metric.symbol,
+            tint: tint
+        ) {
+            if points.isEmpty {
+                ChartNeedsMoreHistory(needs: "a few readings of \(metric.title.lowercased())", symbol: metric.symbol)
+            } else {
+                chart
+                    .chartYAxis {
+                        AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { value in
+                            AxisGridLine().foregroundStyle(.secondary.opacity(0.16))
+                            AxisValueLabel {
+                                if let number = value.as(Double.self) {
+                                    Text(number.formatted(.number.precision(.fractionLength(0))))
+                                        .font(.caption2.monospacedDigit())
+                                }
+                            }
                         }
+                    }
+                    .tessalyticsChartAxes(x: "Time", y: "\(metric.title) (\(unitSymbol))")
+                    .tessalyticsChartStyle()
+                    .frame(height: 150)
+                    .accessibilityLabel("\(metric.title) over the last \(windowMinutes) minutes")
+                    .accessibilityValue(latestDescription)
+                    .accessibilityIdentifier("live-chart-\(metric.rawValue)")
+
+                if metric == .power {
+                    HStack(spacing: 14) {
+                        ChartLegend("Drawing", color: TessalyticsTheme.warning)
+                        ChartLegend("Regenerating", color: TessalyticsTheme.positive)
                     }
                 }
             }
-            .tessalyticsChartAxes(x: "Time", y: "Power (kW)")
-            .tessalyticsChartStyle()
-            .frame(height: 150)
-            .accessibilityLabel("Power over the last few minutes, with regeneration below zero")
-            .accessibilityValue(ValueFormatting.number(buffer.latest?.power, unit: "kW", digits: 0))
+        }
+    }
 
-            HStack(spacing: 14) {
-                ChartLegend("Drawing", color: TessalyticsTheme.warning)
-                ChartLegend("Regenerating", color: TessalyticsTheme.positive)
+    private var chart: some View {
+        Chart(points) { sample in
+            if let value = metric.reading(of: sample) {
+                marks(for: sample, value: value)
             }
         }
+    }
+
+    @ChartContentBuilder private func marks(for sample: LiveTelemetrySample, value: Double) -> some ChartContent {
+        if metric == .power {
+            BarMark(x: .value("Time", sample.date), y: .value(metric.title, value))
+                .foregroundStyle(value < 0 ? TessalyticsTheme.positive : TessalyticsTheme.warning)
+        } else {
+            AreaMark(x: .value("Time", sample.date), y: .value(metric.title, value), stacking: .unstacked)
+                .interpolationMethod(.monotone)
+                .foregroundStyle(
+                    .linearGradient(colors: [tint.opacity(0.25), .clear], startPoint: .top, endPoint: .bottom)
+                )
+            LineMark(x: .value("Time", sample.date), y: .value(metric.title, value))
+                .interpolationMethod(.monotone)
+                .foregroundStyle(tint)
+        }
+    }
+
+    private var latestDescription: String {
+        guard let value = points.last.flatMap({ metric.reading(of: $0) }) else { return "No readings" }
+        return ValueFormatting.number(value, unit: unitSymbol, digits: metric == .batteryLevel ? 0 : 1)
     }
 }

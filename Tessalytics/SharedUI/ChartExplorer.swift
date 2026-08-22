@@ -25,6 +25,9 @@ enum ExplorableChartStyle: String, CaseIterable, Identifiable, Sendable {
     case bar = "Bar"
     case area = "Area"
     case pie = "Pie"
+    /// Points alone. For a series that is noisy by nature and read through a
+    /// trend line rather than reading each reading.
+    case scatter = "Points"
 
     var id: String { rawValue }
 
@@ -34,8 +37,55 @@ enum ExplorableChartStyle: String, CaseIterable, Identifiable, Sendable {
         case .bar: "chart.bar.fill"
         case .area: "chart.line.uptrend.xyaxis"
         case .pie: "chart.pie.fill"
+        case .scatter: "chart.dots.scatter"
         }
     }
+}
+
+/// A point on a second series drawn over the first — a median or a trend through
+/// a scatter.
+///
+/// Positioned in the plotted series' index space rather than carrying its own x
+/// value, because that space is what the explorer scrubs against. A trend point
+/// between two readings sits between their indices.
+struct ExplorableTrendPoint: Identifiable, Equatable, Sendable {
+    let id: Int
+    let position: Double
+    let value: Double
+}
+
+extension ExplorableTrendPoint {
+    /// Places a series that shares an x *quantity* with the plotted points, but
+    /// not their exact x values, into their index space.
+    ///
+    /// `xs` must be ascending, which is how a series plotted against an odometer
+    /// or a date arrives. A trend point outside the plotted range is clamped to
+    /// the end it fell off, rather than dropped: a median that extends slightly
+    /// past the last reading still belongs on the chart.
+    static func positioned(_ values: [(x: Double, y: Double)], onto xs: [Double]) -> [ExplorableTrendPoint] {
+        guard xs.count > 1 else { return [] }
+        return values.enumerated().map { index, value in
+            ExplorableTrendPoint(id: index, position: position(of: value.x, in: xs), value: value.y)
+        }
+    }
+
+    private static func position(of x: Double, in xs: [Double]) -> Double {
+        guard let first = xs.first, x > first else { return 0 }
+        guard let last = xs.last, x < last else { return Double(xs.count - 1) }
+        // Ascending, so the first index whose value is past x brackets it.
+        guard let upper = xs.firstIndex(where: { $0 >= x }), upper > 0 else { return 0 }
+        let lower = upper - 1
+        let span = xs[upper] - xs[lower]
+        guard span > 0 else { return Double(lower) }
+        return Double(lower) + (x - xs[lower]) / span
+    }
+}
+
+/// A horizontal line the series is read against — a pack's capacity when new, a
+/// speed limit, a target.
+struct ExplorableReference: Equatable, Sendable {
+    let value: Double
+    let label: String
 }
 
 /// Everything the explorer needs to draw, scrub and tabulate a series.
@@ -54,6 +104,14 @@ struct ExplorableChart: Equatable, Sendable {
     /// Digits after the decimal point in every rendered value.
     var fractionDigits: Int = 1
     let points: [ExplorableChartPoint]
+    /// A bolder second series over the points, when the points alone are too
+    /// noisy to read. Drawn in every style except the pie.
+    var trend: [ExplorableTrendPoint] = []
+    /// What the two series are called, when there are two.
+    var pointsLabel: String?
+    var trendLabel: String?
+    /// A horizontal line to read the series against.
+    var reference: ExplorableReference?
     var styles: [ExplorableChartStyle] = [.bar, .line, .area]
     var tint: Color = TessalyticsTheme.accent
     /// Whether the value axis has to include zero. A distance or an energy is
@@ -69,6 +127,13 @@ struct ExplorableChart: Equatable, Sendable {
 
     static func == (lhs: ExplorableChart, rhs: ExplorableChart) -> Bool {
         lhs.title == rhs.title && lhs.points == rhs.points && lhs.yLabel == rhs.yLabel
+            && lhs.trend == rhs.trend && lhs.reference == rhs.reference
+    }
+
+    /// The span the value axis has to cover: the points, the trend over them, and
+    /// the line they are read against.
+    var plottedValues: [Double] {
+        points.map(\.value) + trend.map(\.value) + [reference?.value].compactMap { $0 }
     }
 
     var total: Double { points.map(\.value).reduce(0, +) }
@@ -79,6 +144,55 @@ struct ExplorableChart: Equatable, Sendable {
     func formatted(_ value: Double) -> String {
         let number = value.formatted(.number.precision(.fractionLength(0...fractionDigits)))
         return unit.isEmpty ? number : "\(number) \(unit)"
+    }
+}
+
+extension ExplorableChart {
+    /// A time series as the explorer draws it: a drive's speed, a session's
+    /// voltage, anything sampled against a clock.
+    ///
+    /// Shared so a drive and a charge behave the same way when tapped. Thinned,
+    /// keeping each bucket's extremes, because an hour's session logs thousands of
+    /// readings: a table with one row each is not a table, and a scrub across that
+    /// many marks stutters under the finger.
+    static func timeSeries(
+        title: String,
+        unit: String,
+        tint: Color,
+        baseline: ChartBaseline = .zero,
+        samples: [ChartSample],
+        limit: Int = 600
+    ) -> ExplorableChart {
+        let plotted = downsampled(samples, limit: limit)
+        let count = samples.count.formatted()
+        return ExplorableChart(
+            title: title,
+            subtitle: plotted.count < samples.count
+                ? "\(plotted.count.formatted()) of \(count) samples, peaks kept"
+                : "\(count) sample\(samples.count == 1 ? "" : "s")",
+            xLabel: "Time of day",
+            yLabel: "\(title) (\(unit))",
+            unit: unit,
+            fractionDigits: baseline == .focused ? 1 : 0,
+            points: plotted.enumerated().map { index, sample in
+                ExplorableChartPoint(
+                    id: index,
+                    // No AM/PM on the axis: six labels of "6:13 PM" truncate to
+                    // "6:13…" and the axis stops saying anything. The readout and
+                    // the table carry the unambiguous form.
+                    label: sample.date.formatted(.dateTime.hour(.defaultDigits(amPM: .omitted)).minute()),
+                    detail: sample.date.formatted(date: .omitted, time: .standard),
+                    value: sample.value
+                )
+            },
+            // A sequence, so no pie: a share of a speed means nothing.
+            styles: [.line, .area, .bar],
+            tint: tint,
+            baseline: baseline,
+            // Adding speeds or voltages together gives a number with no meaning;
+            // the latest reading and the spread are the real summary.
+            isCumulative: false
+        )
     }
 }
 
@@ -144,8 +258,26 @@ struct ChartExplorerView: View {
                 pieChart
             } else {
                 scrubbableChart
+                legend
                 clearReadingButton
             }
+        }
+    }
+
+    /// Names the series, when the chart carries more than one. Matches the card
+    /// this screen was opened from: the same data drawn two ways, with two
+    /// legends, reads as two different measurements.
+    @ViewBuilder private var legend: some View {
+        if chart.trend.isEmpty && chart.reference == nil {
+            EmptyView()
+        } else {
+            ChartLegend(
+                [
+                    .init(chart.pointsLabel ?? chart.yLabel, color: chart.tint.opacity(0.28)),
+                    chart.trend.isEmpty ? nil : ChartLegend.Item(chart.trendLabel ?? "Trend", color: chart.tint),
+                    chart.reference.map { ChartLegend.Item($0.label, color: TessalyticsTheme.steel.opacity(0.6)) }
+                ].compactMap { $0 }
+            )
         }
     }
 
@@ -160,7 +292,7 @@ struct ChartExplorerView: View {
     /// Places the readout beside the pivot, nudged to stay inside the plot.
     @ViewBuilder
     private func calloutOverlay(point: ExplorableChartPoint, proxy: ChartProxy, plot: CGRect) -> some View {
-        let x = proxy.position(forX: point.id) ?? 0
+        let x = proxy.position(forX: Double(point.id)) ?? 0
         let y = proxy.position(forY: point.value) ?? 0
         ScrubCallout(
             title: point.detail ?? point.label,
@@ -188,18 +320,23 @@ struct ChartExplorerView: View {
     }
 
     private var scrubbableChart: some View {
-        Chart(chart.points) { point in
-            seriesMark(for: point)
-            pivotMarks(for: point)
+        Chart {
+            referenceMark
+            ForEach(chart.points) { point in
+                seriesMark(for: point)
+                pivotMarks(for: point)
+            }
+            trendMarks
         }
         .chartXScale(domain: -0.5...(Double(chart.points.count) - 0.5))
-        .chartValueDomain(chart.baseline == .focused ? focusedChartDomain(for: chart.points.map(\.value)) : nil)
+        .chartValueDomain(chart.baseline == .focused ? focusedChartDomain(for: chart.plottedValues) : nil)
         .chartXAxis {
-            AxisMarks(values: axisIndices) { value in
+            AxisMarks(values: axisIndices.map(Double.init)) { value in
                 AxisGridLine().foregroundStyle(.secondary.opacity(0.12))
                 AxisTick()
                 AxisValueLabel {
-                    if let index = value.as(Int.self), let point = chart.points.first(where: { $0.id == index }) {
+                    if let position = value.as(Double.self),
+                       let point = chart.points.first(where: { $0.id == Int(position.rounded()) }) {
                         Text(point.label).font(.caption2)
                     }
                 }
@@ -235,34 +372,75 @@ struct ChartExplorerView: View {
         .accessibilityIdentifier("chart-explorer-plot")
     }
 
+    /// The line the series is read against, drawn under everything else.
+    @ChartContentBuilder
+    private var referenceMark: some ChartContent {
+        if let reference = chart.reference {
+            RuleMark(y: .value(reference.label, reference.value))
+                .foregroundStyle(TessalyticsTheme.steel.opacity(0.6))
+                .lineStyle(StrokeStyle(lineWidth: 1, dash: [5, 4]))
+                .annotation(position: .top, alignment: .leading) {
+                    Text(reference.label)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+        }
+    }
+
+    /// The bolder second series, over the points it summarises.
+    @ChartContentBuilder
+    private var trendMarks: some ChartContent {
+        ForEach(chart.trend) { point in
+            LineMark(
+                x: .value(chart.xLabel, point.position),
+                y: .value(chart.trendLabel ?? chart.yLabel, point.value),
+                series: .value("Series", "trend")
+            )
+            .foregroundStyle(chart.tint)
+            .lineStyle(StrokeStyle(lineWidth: 2.5))
+            .interpolationMethod(.monotone)
+        }
+    }
+
     @ChartContentBuilder
     private func seriesMark(for point: ExplorableChartPoint) -> some ChartContent {
         switch activeStyle {
+        case .scatter:
+            PointMark(
+                x: .value(chart.xLabel, Double(point.id)),
+                y: .value(chart.yLabel, point.value)
+            )
+            // Faint when a trend runs through them: the individual readings are
+            // context for the line, not the thing being read.
+            .foregroundStyle(chart.tint.opacity(chart.trend.isEmpty ? 0.7 : 0.28))
+            .symbolSize(22)
         case .bar:
             BarMark(
-                x: .value(chart.xLabel, point.id),
+                x: .value(chart.xLabel, Double(point.id)),
                 y: .value(chart.yLabel, point.value)
             )
             .foregroundStyle(chart.tint.opacity(selection == nil || selection == point.id ? 1 : 0.35))
             .clipShape(.rect(cornerRadius: 3))
         case .area:
             AreaMark(
-                x: .value(chart.xLabel, point.id),
+                x: .value(chart.xLabel, Double(point.id)),
                 y: .value(chart.yLabel, point.value),
                 stacking: .unstacked
             )
             .interpolationMethod(.monotone)
             .foregroundStyle(.linearGradient(colors: [chart.tint.opacity(0.28), .clear], startPoint: .top, endPoint: .bottom))
             LineMark(
-                x: .value(chart.xLabel, point.id),
-                y: .value(chart.yLabel, point.value)
+                x: .value(chart.xLabel, Double(point.id)),
+                y: .value(chart.yLabel, point.value),
+                series: .value("Series", "points")
             )
             .interpolationMethod(.monotone)
             .foregroundStyle(chart.tint)
         case .line, .pie:
             LineMark(
-                x: .value(chart.xLabel, point.id),
-                y: .value(chart.yLabel, point.value)
+                x: .value(chart.xLabel, Double(point.id)),
+                y: .value(chart.yLabel, point.value),
+                series: .value("Series", "points")
             )
             .interpolationMethod(.monotone)
             .foregroundStyle(chart.tint)
@@ -274,11 +452,11 @@ struct ChartExplorerView: View {
     @ChartContentBuilder
     private func pivotMarks(for point: ExplorableChartPoint) -> some ChartContent {
         if let selectedPoint, selectedPoint.id == point.id {
-            RuleMark(x: .value(chart.xLabel, selectedPoint.id))
+            RuleMark(x: .value(chart.xLabel, Double(selectedPoint.id)))
                 .foregroundStyle(TessalyticsTheme.steel.opacity(0.55))
                 .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
             PointMark(
-                x: .value(chart.xLabel, selectedPoint.id),
+                x: .value(chart.xLabel, Double(selectedPoint.id)),
                 y: .value(chart.yLabel, selectedPoint.value)
             )
             .foregroundStyle(chart.tint)
@@ -310,11 +488,12 @@ struct ChartExplorerView: View {
             }
     }
 
-    /// At most eight labels, so they never overlap on a phone.
+    /// At most six labels, so a clock time or a date reads in full rather than
+    /// truncating to "6:13…" across the whole axis.
     private var axisIndices: [Int] {
         let count = chart.points.count
-        guard count > 8 else { return chart.points.map(\.id) }
-        let stride = max(count / 6, 1)
+        guard count > 6 else { return chart.points.map(\.id) }
+        let stride = max(count / 5, 1)
         return chart.points.map(\.id).enumerated().filter { $0.offset % stride == 0 }.map(\.element)
     }
 
@@ -407,7 +586,10 @@ struct ChartExplorerView: View {
 
     private var tableCard: some View {
         SectionCard("Values", subtitle: "\(chart.points.count) rows", symbol: "tablecells", tint: TessalyticsTheme.neutral) {
-            VStack(spacing: 0) {
+            // Lazily: a drive's series runs to hundreds of rows, and realising
+            // every one of them to show the first eight is what makes opening a
+            // chart feel slow.
+            LazyVStack(spacing: 0) {
                 ForEach(chart.points.reversed()) { point in
                     if point.id != chart.points.last?.id { Divider() }
                     HStack {

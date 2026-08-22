@@ -41,6 +41,17 @@ final class DriveRepository: DriveRepositoryProtocol {
         return cached(serverID: serverID, carID: carID)
     }
 
+    /// The stored payload for a drive, still encoded.
+    ///
+    /// For the history rows, which want a route and not a decoded drive: decoding
+    /// twenty thousand samples belongs off the main actor, and this hands over the
+    /// bytes so it can happen there.
+    func cachedDetailPayload(serverID: UUID, carID: Int, driveID: Int) -> Data? {
+        let key = DriveRecord.key(serverID: serverID, carID: carID, id: driveID)
+        let descriptor = FetchDescriptor<DetailCacheRecord>(predicate: #Predicate { $0.cacheKey == key })
+        return (try? context.fetch(descriptor).first)?.payload
+    }
+
     func detail(client: any VehicleDataAPI, serverID: UUID, carID: Int, driveID: Int) async throws -> DriveDetailDTO {
         let key = DriveRecord.key(serverID: serverID, carID: carID, id: driveID)
         let descriptor = FetchDescriptor<DetailCacheRecord>(predicate: #Predicate { $0.cacheKey == key })

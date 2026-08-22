@@ -27,7 +27,10 @@ struct ChargingMapCard: View {
             tint: TessalyticsTheme.positive
         ) {
             if sites.isEmpty {
-                ChartUnavailable(message: "Charging sessions need coordinates before they can be mapped.")
+                ChartNeedsMoreHistory(
+                    needs: "a charging session that reports coordinates",
+                    symbol: "map"
+                )
             } else {
                 Map(position: $position, interactionModes: [.pan, .zoom]) {
                     ForEach(sites) { site in

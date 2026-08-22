@@ -48,6 +48,10 @@ struct SettingsView: View {
                                 }
                             }
                             .accessibilityIdentifier("owner-api-settings")
+                            Button { presentedSheet = .liveCharts } label: {
+                                Label("Live charts", systemImage: "chart.xyaxis.line")
+                            }
+                            .accessibilityIdentifier("live-charts-settings")
                         } header: {
                             Label("Live data & controls", systemImage: "dot.radiowaves.left.and.right")
                         } footer: {
@@ -89,6 +93,10 @@ struct SettingsView: View {
                                 }
                             }
                             .accessibilityIdentifier("owner-api-settings")
+                            Button { presentedSheet = .liveCharts } label: {
+                                Label("Live charts", systemImage: "chart.xyaxis.line")
+                            }
+                            .accessibilityIdentifier("live-charts-settings")
                         } header: {
                             Label("Live data & controls", systemImage: "dot.radiowaves.left.and.right")
                         } footer: {
@@ -211,6 +219,8 @@ struct SettingsView: View {
                     SettingsSheetContainer { IntelligenceNotificationSettingsView() }
                 case .software:
                     SettingsSheetContainer { SoftwareUpdatesView() }
+                case .liveCharts:
+                    SettingsSheetContainer { LiveChartSettingsView() }
                 case .privacy:
                     SettingsSheetContainer { PrivacyView() }
                 case .about:
@@ -247,6 +257,7 @@ private enum SettingsSheet: String, Identifiable {
     case specification
     case notifications
     case software
+    case liveCharts
     case privacy
     case about
     case ownerAPI
@@ -282,7 +293,15 @@ private struct AddServerView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Server") { TextField("Profile name", text: $draft.name); TextField("https://example.com", text: $draft.serverURL).textInputAutocapitalization(.never).keyboardType(.URL); Toggle("Allow local HTTP", isOn: $draft.allowsLocalHTTP) }
+                Section {
+                    TextField("Profile name", text: $draft.name)
+                    TextField("https://example.com", text: $draft.serverURL).textInputAutocapitalization(.never).keyboardType(.URL)
+                    Toggle("Allow local HTTP", isOn: $draft.allowsLocalHTTP)
+                } header: {
+                    Text("Tessalytics Backend")
+                } footer: {
+                    Text("The address of Tessalytics Backend, deployed beside TeslaMate. A TeslaMate or Grafana address will not work.")
+                }
                 Section("Authentication") { Picker("Method", selection: $draft.authenticationMethod) { ForEach(AuthenticationMethod.allCases) { Text($0.title).tag($0) } }; if draft.authenticationMethod == .bearer { SecureField("Bearer token", text: $draft.token) }; if draft.authenticationMethod == .basic { TextField("Username", text: $draft.username); SecureField("Password", text: $draft.password) }; if draft.authenticationMethod == .none { Label("Use only on a trusted private network or VPN.", systemImage: "exclamationmark.triangle").foregroundStyle(TessalyticsTheme.warning) } }
                 Section { Button(verified ? "Connection verified" : "Test Connection") { Task { await test() } }.disabled(testing); if let message { Text(message).foregroundStyle(verified ? TessalyticsTheme.positive : TessalyticsTheme.critical) } }
             }

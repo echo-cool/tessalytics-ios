@@ -120,6 +120,13 @@ struct DriveDetailView: View {
         }
     }
 
+    /// One of the drive's series.
+    ///
+    /// Tappable when there is anything to plot: the card shows the shape, and the
+    /// screen behind it re-draws the same series, reads out any point under a
+    /// finger, and lists the values as a table. A chart that cannot be
+    /// interrogated leaves "what exactly happened at that dip" unanswerable.
+    @ViewBuilder
     private func chart(
         title: String,
         unit: String,
@@ -127,55 +134,82 @@ struct DriveDetailView: View {
         baseline: ChartBaseline = .zero,
         values: [ChartSample]
     ) -> some View {
-        SectionCard(title, symbol: "chart.xyaxis.line", tint: tint) {
-            if values.isEmpty {
+        if values.isEmpty {
+            SectionCard(title, symbol: "chart.xyaxis.line", tint: tint) {
                 Text("No samples reported")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, minHeight: 100)
-            } else {
-                Chart(downsampled(values)) { sample in
-                    if baseline == .zero {
-                        // Unstacked: AreaMark stacks by default, which for a dense
-                        // single series sums neighbouring samples and draws a trace
-                        // several times the real maximum.
-                        AreaMark(x: .value("Time", sample.date), y: .value(title, sample.value), stacking: .unstacked)
-                            .interpolationMethod(.monotone)
-                            .foregroundStyle(.linearGradient(colors: [tint.opacity(0.22), .clear], startPoint: .top, endPoint: .bottom))
-                    }
-                    LineMark(x: .value("Time", sample.date), y: .value(title, sample.value))
-                        .interpolationMethod(.monotone)
-                        .foregroundStyle(tint)
-                }
-                .chartValueDomain(baseline == .focused ? focusedChartDomain(for: values.map(\.value)) : nil)
-                .chartXAxis {
-                    AxisMarks(values: .automatic(desiredCount: 4)) {
-                        AxisGridLine().foregroundStyle(.secondary.opacity(0.12))
-                        AxisTick()
-                        AxisValueLabel(format: .dateTime.hour().minute())
-                            .font(.caption2)
-                    }
-                }
-                .chartYAxis {
-                    AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { value in
-                        AxisGridLine().foregroundStyle(.secondary.opacity(0.16))
-                        AxisValueLabel {
-                            if let number = value.as(Double.self) {
-                                Text(number.formatted(.number.precision(.fractionLength(baseline == .focused ? 0...1 : 0...0))))
-                                    .font(.caption2.monospacedDigit())
-                            }
-                        }
-                    }
-                }
-                .tessalyticsChartAxes(x: "Time of day", y: "\(title) (\(unit))")
-                .tessalyticsChartStyle()
-                .frame(height: 160)
-                .accessibilityLabel("\(title) chart with \(values.count) samples in \(unit)")
-
-                ChartLegend("\(title) (\(unit))", color: tint)
+            }
+        } else {
+            NavigationSectionCard(
+                title,
+                subtitle: "Tap to read values · \(sampleCount(values))",
+                symbol: "chart.xyaxis.line",
+                tint: tint
+            ) {
+                ChartExplorerView(
+                    chart: .timeSeries(title: title, unit: unit, tint: tint, baseline: baseline, samples: values)
+                )
+            } content: {
+                plot(title: title, unit: unit, tint: tint, baseline: baseline, values: values)
             }
         }
     }
+
+    private func sampleCount(_ values: [ChartSample]) -> String {
+        "\(values.count.formatted()) sample\(values.count == 1 ? "" : "s")"
+    }
+
+    @ViewBuilder
+    private func plot(
+        title: String,
+        unit: String,
+        tint: Color,
+        baseline: ChartBaseline,
+        values: [ChartSample]
+    ) -> some View {
+        Chart(downsampled(values)) { sample in
+            if baseline == .zero {
+                // Unstacked: AreaMark stacks by default, which for a dense single
+                // series sums neighbouring samples and draws a trace several times
+                // the real maximum.
+                AreaMark(x: .value("Time", sample.date), y: .value(title, sample.value), stacking: .unstacked)
+                    .interpolationMethod(.monotone)
+                    .foregroundStyle(.linearGradient(colors: [tint.opacity(0.22), .clear], startPoint: .top, endPoint: .bottom))
+            }
+            LineMark(x: .value("Time", sample.date), y: .value(title, sample.value))
+                .interpolationMethod(.monotone)
+                .foregroundStyle(tint)
+        }
+        .chartValueDomain(baseline == .focused ? focusedChartDomain(for: values.map(\.value)) : nil)
+        .chartXAxis {
+            AxisMarks(values: .automatic(desiredCount: 4)) {
+                AxisGridLine().foregroundStyle(.secondary.opacity(0.12))
+                AxisTick()
+                AxisValueLabel(format: .dateTime.hour().minute())
+                    .font(.caption2)
+            }
+        }
+        .chartYAxis {
+            AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { value in
+                AxisGridLine().foregroundStyle(.secondary.opacity(0.16))
+                AxisValueLabel {
+                    if let number = value.as(Double.self) {
+                        Text(number.formatted(.number.precision(.fractionLength(baseline == .focused ? 0...1 : 0...0))))
+                            .font(.caption2.monospacedDigit())
+                    }
+                }
+            }
+        }
+        .tessalyticsChartAxes(x: "Time of day", y: "\(title) (\(unit))")
+        .tessalyticsChartStyle()
+        .frame(height: 160)
+        .accessibilityLabel("\(title) chart with \(values.count) samples in \(unit)")
+
+        ChartLegend("\(title) (\(unit))", color: tint)
+    }
+
     private func load() async {
         guard let profile = environment.selectedProfile, let vehicle = environment.selectedVehicle else { return }
         defer { loading = false }

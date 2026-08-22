@@ -135,14 +135,21 @@ enum DemoExperience {
             // suburban run into a dual carriageway looks like.
             let speed = max(0, 34 + sin(progress * .pi * 2.4) * 28 + progress * 12)
             let power = speed > 3 ? (14 + sin(progress * .pi * 3.1) * 42) : -18
+            // Curved rather than a straight diagonal: the hero map draws this as
+            // the route driven, and no road runs in a perfect line for eight miles.
+            // Tapered to nothing at both ends, so the route still starts and
+            // finishes where the parked and driving snapshots say the car is.
+            let sway = (sin(progress * .pi * 1.6) * 0.0022 + sin(progress * .pi * 4.4) * 0.0006)
+                * sin(progress * .pi)
             buffer.append(
                 date: now.addingTimeInterval(seconds),
                 speed: speed,
                 power: power,
                 level: 78 - progress * 7,
                 odometer: 18_642 + progress * 12.2,
-                latitude: 37.3861 + progress * 0.020,
-                longitude: -122.0839 + progress * 0.0116
+                latitude: 37.3861 + progress * 0.020 - sway * 0.55,
+                longitude: -122.0839 + progress * 0.0116 + sway,
+                elevation: 28 + sin(progress * .pi * 1.3) * 34
             )
         }
         return buffer
