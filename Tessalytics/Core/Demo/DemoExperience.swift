@@ -24,6 +24,10 @@ enum DemoExperience {
             name: "Aurora",
             model: "Model Y",
             trim: "Long Range",
+            // A real, check-digit-valid VIN for a car that does not exist:
+            // Shanghai-built Model Y, 2023 model year. It is what makes the
+            // pack lookup visible in demo mode and testable without a car.
+            vin: "LRWYGCEK9PC123456",
             totalDrives: 248,
             totalCharges: 61,
             totalUpdates: 12

@@ -68,6 +68,46 @@ final class AchievementTests: XCTestCase {
         XCTAssertFalse(progress(AchievementCatalogue.wellKept, facts).isEarned, "Unknown health earns nothing")
     }
 
+    func testARequirementIsWrittenInTheUnitsTheProgressIsWrittenIn() {
+        // The screen read "Complete a single drive of 300 km" directly above
+        // "96 of 186 mi", which is two different targets as far as a reader is
+        // concerned.
+        let imperial = UnitsDTO(unitOfLength: "mi", unitOfPressure: "psi", unitOfTemperature: "F")
+        XCTAssertEqual(
+            AchievementCatalogue.longDrive.requirement(units: imperial),
+            "Complete a single drive of 186 mi"
+        )
+        XCTAssertEqual(
+            AchievementCatalogue.longDrive.requirement(units: .metricDefaults),
+            "Complete a single drive of 300 km"
+        )
+        XCTAssertEqual(
+            AchievementCatalogue.tenThousandKilometres.requirement(units: imperial),
+            "Cover 6,214 mi of recorded driving"
+        )
+    }
+
+    func testASentenceWithNoDistanceIsLeftAlone() {
+        XCTAssertEqual(
+            AchievementCatalogue.hundredCharges.requirement(units: .metricDefaults),
+            "Record 100 charging sessions"
+        )
+        XCTAssertEqual(
+            AchievementCatalogue.megawattHour.requirement(units: .metricDefaults),
+            "Put 1,000 kWh into the pack",
+            "Kilowatt-hours do not change with a length preference"
+        )
+    }
+
+    func testAThresholdInASentenceIsConvertedEvenWhenItIsNotTheTarget() {
+        // "Well kept" is scored as a yes-or-no, but its sentence names 50,000 km.
+        let imperial = UnitsDTO(unitOfLength: "mi", unitOfPressure: "psi", unitOfTemperature: "F")
+        XCTAssertEqual(
+            AchievementCatalogue.wellKept.requirement(units: imperial),
+            "Hold 90% pack health past 31,069 mi"
+        )
+    }
+
     func testAFreshInstallHasEarnedNothingAndCrashesOnNothing() {
         let entries = AchievementCatalogue.evaluate(AchievementFacts())
         XCTAssertEqual(entries.count, AchievementCatalogue.all.count)

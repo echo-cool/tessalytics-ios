@@ -10,7 +10,7 @@ struct SettingsView: View {
     @State private var confirmsErase = false
     @State private var isWorking = false
     @State private var errorMessage: String?
-    /// Taps on the version number so far, and when the run started.
+    /// Taps on the version number so far, and when the last one landed.
     ///
     /// A run rather than a count: five taps spread over an afternoon are five
     /// people reading the version number, not one person asking for the debug
@@ -329,8 +329,15 @@ private extension SettingsView {
         return (1...2).contains(remaining) ? remaining : nil
     }
 
-    /// How long a run of taps stays open.
-    static var versionTapWindow: TimeInterval { 3 }
+    /// How long a run of taps stays open **between taps**.
+    ///
+    /// Measured from the previous tap rather than from the first, and generous
+    /// with it. A three-second budget for the whole run assumed five quick taps
+    /// on a short list; the Settings list has grown, and a slower device — or a
+    /// slower hand — spends longer than that getting through five without having
+    /// given up. Restarting the count on someone mid-run is the one failure this
+    /// gesture must not have, because nothing on screen explains it.
+    static var versionTapWindow: TimeInterval { 5 }
 
     func registerVersionTap() {
         guard !environment.diagnostics.isUnlocked else {
@@ -338,10 +345,10 @@ private extension SettingsView {
             return
         }
         let now = Date.now
-        if let started = versionTapsStartedAt, now.timeIntervalSince(started) > Self.versionTapWindow {
+        if let previous = versionTapsStartedAt, now.timeIntervalSince(previous) > Self.versionTapWindow {
             versionTaps = 0
         }
-        if versionTaps == 0 { versionTapsStartedAt = now }
+        versionTapsStartedAt = now
         versionTaps += 1
         guard versionTaps >= Diagnostics.tapsToUnlock else { return }
         versionTaps = 0

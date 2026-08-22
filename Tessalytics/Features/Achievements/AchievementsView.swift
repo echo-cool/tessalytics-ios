@@ -130,7 +130,7 @@ private struct AchievementRow: View {
                             .accessibilityHidden(true)
                     }
                 }
-                Text(achievement.requirement)
+                Text(achievement.requirement(units: units))
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
@@ -146,7 +146,7 @@ private struct AchievementRow: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(achievement.title)
-        .accessibilityValue(progress.isEarned ? "Earned. \(achievement.requirement)" : standing)
+        .accessibilityValue(progress.isEarned ? "Earned. \(achievement.requirement(units: units))" : standing)
         .accessibilityIdentifier("achievement-\(achievement.id)")
     }
 

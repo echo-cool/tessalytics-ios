@@ -73,8 +73,10 @@ struct VehicleSpecificationView: View {
             } header: {
                 Text("Manufacturer rating")
             } footer: {
-                Text("Leave blank to use the figures derived from your history.")
+                Text("Leave blank to use the figures derived from your history, or the pack below when your VIN identifies one.")
             }
+
+            packSection
 
             Section("Derived from your history") {
                 DerivedRow(
@@ -126,6 +128,88 @@ struct VehicleSpecificationView: View {
             capacityText = stored.capacityNew.map { trimmed($0, digits: 1) } ?? ""
             rangeText = stored.maxRangeNew.map { trimmed($0, digits: 0) } ?? ""
         }
+    }
+
+    /// What the car was built with, according to the VIN and the shipped table.
+    ///
+    /// Offered rather than applied. The table is good but it is not the car: a
+    /// model year spans quarters in which Tesla changed suppliers, a trim badge is
+    /// often absent, and this number is the denominator of every health figure on
+    /// every screen. So it fills the field on a tap and the owner can see what it
+    /// filled it with.
+    @ViewBuilder private var packSection: some View {
+        if let vin = environment.selectedVIN {
+            Section {
+                LabeledContent("Model", value: "Model \(vin.model)")
+                LabeledContent("Built at", value: vin.factory.displayName)
+                LabeledContent("Model year", value: String(vin.modelYear))
+
+                Picker("Variant", selection: variantBinding) {
+                    Text("Not set").tag(VehicleVariant?.none)
+                    ForEach(VehicleVariant.choices(forModel: vin.model)) { variant in
+                        Text(variant.displayName).tag(VehicleVariant?.some(variant))
+                    }
+                }
+                .accessibilityIdentifier("specification-variant-picker")
+
+                packRows
+            } header: {
+                Label("From your VIN", systemImage: "barcode.viewfinder")
+            } footer: {
+                Text(packFooter)
+            }
+        }
+    }
+
+    private var variantBinding: Binding<VehicleVariant?> {
+        Binding(
+            get: { environment.selectedPackVariant },
+            set: { environment.savePackVariant($0) }
+        )
+    }
+
+    @ViewBuilder private var packRows: some View {
+        if let match = environment.selectedPackMatch {
+            ForEach(match.candidates, id: \.code) { pack in
+                Button {
+                    capacityText = trimmed(pack.capacityKWh, digits: 1)
+                } label: {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(ValueFormatting.number(pack.capacityKWh, unit: "kWh", digits: 1))
+                                .foregroundStyle(.primary)
+                            Text("\(pack.cell) · \(pack.chemistry)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Text("Use")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(TessalyticsTheme.accent)
+                    }
+                    .contentShape(.rect)
+                }
+                .accessibilityIdentifier("specification-pack-\(pack.code)")
+            }
+        } else if environment.selectedPackVariant == nil {
+            Text("Choose the variant to look up the pack.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        } else {
+            Text("The table has no pack recorded for this variant, factory and year.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var packFooter: String {
+        guard let match = environment.selectedPackMatch else {
+            return "Your VIN names the model, the factory and the model year. The variant is not in it, so it has to be confirmed."
+        }
+        if match.isAmbiguous {
+            return "Tesla fitted more than one pack to this variant at \(match.factory.displayName) during \(match.modelYear). Pick the one that matches your car — a delivery invoice or the original range figure will say which."
+        }
+        return "Tapping this fills the capacity field above. Nothing is applied until you save, and your own figure always wins."
     }
 
     /// Health as it would read once saved, so the effect is visible before the

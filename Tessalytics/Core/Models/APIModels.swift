@@ -62,12 +62,31 @@ struct CarsDataDTO: Decodable, Sendable { let cars: [CarDTO] }
 struct CarDTO: Decodable, Identifiable, Sendable {
     let carId: Int
     let name: String?
+    /// Present on Tessalytics Backend, which reads it from `cars.vin`. It is what
+    /// names the model, the factory and the model year, and so what lets the app
+    /// look up the pack the car was built with.
+    let vin: String?
     let carDetails: CarDetailsDTO?
     let teslamateStats: TeslaMateStatsDTO?
     var id: Int { carId }
+
+    init(
+        carId: Int,
+        name: String?,
+        vin: String? = nil,
+        carDetails: CarDetailsDTO?,
+        teslamateStats: TeslaMateStatsDTO?
+    ) {
+        self.carId = carId
+        self.name = name
+        self.vin = vin
+        self.carDetails = carDetails
+        self.teslamateStats = teslamateStats
+    }
+
     func vehicle(serverID: UUID) -> Vehicle {
         Vehicle(serverID: serverID, id: carId, name: name, model: carDetails?.model,
-                trim: carDetails?.trimBadging, totalDrives: teslamateStats?.totalDrives,
+                trim: carDetails?.trimBadging, vin: vin, totalDrives: teslamateStats?.totalDrives,
                 totalCharges: teslamateStats?.totalCharges, totalUpdates: teslamateStats?.totalUpdates)
     }
 }

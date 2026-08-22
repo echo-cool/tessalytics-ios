@@ -1,0 +1,72 @@
+{
+  "version": 1,
+  "revised": "2026-08-22",
+  "notes": [
+    "Which pack a Tesla left the factory with, by model, variant, factory and quarter.",
+    "Capacities are usable kWh, which is what the app models health against.",
+    "Entries are keyed on the FACTORY, not the market: the same variant built in the",
+    "same quarter carries a different pack depending on where it was made. A 2021",
+    "Long Range AWD Model 3 is 82 kWh from Fremont and 79 kWh from Shanghai. The VIN",
+    "names the factory, so that is the key.",
+    "'from' and 'to' are inclusive production quarters."
+  ],
+  "packs": [
+    { "code": "52",   "capacityKWh": 52.0,  "cell": "Panasonic 2170C", "chemistry": "NCA" },
+    { "code": "55",   "capacityKWh": 55.0,  "cell": "CATL prismatic",  "chemistry": "LFP" },
+    { "code": "60",   "capacityKWh": 60.0,  "cell": "BYD prismatic",   "chemistry": "LFP" },
+    { "code": "62",   "capacityKWh": 62.0,  "cell": "CATL prismatic",  "chemistry": "LFP" },
+    { "code": "64.5", "capacityKWh": 64.5,  "cell": "CATL prismatic",  "chemistry": "LFP" },
+    { "code": "75",   "capacityKWh": 75.0,  "cell": "LG 2170C",        "chemistry": "NMC" },
+    { "code": "78",   "capacityKWh": 78.0,  "cell": "Panasonic 2170C", "chemistry": "NCA" },
+    { "code": "79",   "capacityKWh": 79.0,  "cell": "LG 2170L",        "chemistry": "NMC" },
+    { "code": "82",   "capacityKWh": 82.0,  "cell": "Panasonic 2170L", "chemistry": "NCA" },
+    { "code": "85",   "capacityKWh": 85.0,  "cell": "LG 2170M",        "chemistry": "NMC" },
+    { "code": "123",  "capacityKWh": 123.0, "cell": "Tesla 4680",      "chemistry": "NMC" }
+  ],
+  "entries": [
+    { "model": "3", "variant": "standard",      "factory": "fremont",  "from": "2019-Q2", "to": "2020-Q4", "pack": "52" },
+    { "model": "3", "variant": "standard",      "factory": "fremont",  "from": "2021-Q1", "to": "2021-Q2", "pack": "55" },
+    { "model": "3", "variant": "standard",      "factory": "fremont",  "from": "2021-Q3", "to": "2024-Q4", "pack": "62" },
+    { "model": "3", "variant": "longRangeRWD",  "factory": "fremont",  "from": "2024-Q3", "to": "2025-Q4", "pack": "82" },
+    { "model": "3", "variant": "longRangeAWD",  "factory": "fremont",  "from": "2019-Q1", "to": "2021-Q1", "pack": "78" },
+    { "model": "3", "variant": "longRangeAWD",  "factory": "fremont",  "from": "2021-Q2", "to": "2025-Q4", "pack": "82" },
+    { "model": "3", "variant": "performance",   "factory": "fremont",  "from": "2019-Q1", "to": "2020-Q3", "pack": "78" },
+    { "model": "3", "variant": "performance",   "factory": "fremont",  "from": "2020-Q4", "to": "2025-Q4", "pack": "82" },
+
+    { "model": "3", "variant": "standard",      "factory": "shanghai", "from": "2020-Q4", "to": "2021-Q3", "pack": "55" },
+    { "model": "3", "variant": "standard",      "factory": "shanghai", "from": "2021-Q4", "to": "2025-Q1", "pack": "62" },
+    { "model": "3", "variant": "standard",      "factory": "shanghai", "from": "2025-Q2", "to": "2025-Q2", "pack": "62" },
+    { "model": "3", "variant": "standard",      "factory": "shanghai", "from": "2025-Q2", "to": "2025-Q4", "pack": "64.5" },
+    { "model": "3", "variant": "longRangeRWD",  "factory": "shanghai", "from": "2023-Q4", "to": "2025-Q1", "pack": "79" },
+    { "model": "3", "variant": "longRangeRWD",  "factory": "shanghai", "from": "2025-Q2", "to": "2025-Q2", "pack": "79" },
+    { "model": "3", "variant": "longRangeRWD",  "factory": "shanghai", "from": "2025-Q2", "to": "2025-Q4", "pack": "85" },
+    { "model": "3", "variant": "longRangeAWD",  "factory": "shanghai", "from": "2021-Q1", "to": "2021-Q3", "pack": "75" },
+    { "model": "3", "variant": "longRangeAWD",  "factory": "shanghai", "from": "2021-Q4", "to": "2025-Q1", "pack": "79" },
+    { "model": "3", "variant": "longRangeAWD",  "factory": "shanghai", "from": "2025-Q2", "to": "2025-Q2", "pack": "79" },
+    { "model": "3", "variant": "longRangeAWD",  "factory": "shanghai", "from": "2025-Q2", "to": "2025-Q4", "pack": "85" },
+    { "model": "3", "variant": "performance",   "factory": "shanghai", "from": "2021-Q3", "to": "2022-Q1", "pack": "82" },
+    { "model": "3", "variant": "performance",   "factory": "shanghai", "from": "2022-Q2", "to": "2025-Q1", "pack": "79" },
+    { "model": "3", "variant": "performance",   "factory": "shanghai", "from": "2025-Q2", "to": "2025-Q2", "pack": "79" },
+    { "model": "3", "variant": "performance",   "factory": "shanghai", "from": "2025-Q2", "to": "2025-Q4", "pack": "85" },
+
+    { "model": "Y", "variant": "standard",      "factory": "shanghai", "from": "2022-Q2", "to": "2022-Q3", "pack": "62" },
+    { "model": "Y", "variant": "longRangeAWD",  "factory": "shanghai", "from": "2021-Q3", "to": "2021-Q4", "pack": "75" },
+    { "model": "Y", "variant": "longRangeAWD",  "factory": "shanghai", "from": "2022-Q1", "to": "2023-Q4", "pack": "79" },
+
+    { "model": "Y", "variant": "standard",      "factory": "berlin",   "from": "2022-Q3", "to": "2023-Q3", "pack": "60" },
+    { "model": "Y", "variant": "standard",      "factory": "berlin",   "from": "2022-Q3", "to": "2023-Q3", "pack": "62" },
+    { "model": "Y", "variant": "standard",      "factory": "berlin",   "from": "2023-Q4", "to": "2025-Q2", "pack": "62" },
+    { "model": "Y", "variant": "standard",      "factory": "berlin",   "from": "2025-Q3", "to": "2025-Q4", "pack": "64.5" },
+    { "model": "Y", "variant": "longRangeRWD",  "factory": "berlin",   "from": "2024-Q2", "to": "2025-Q2", "pack": "79" },
+    { "model": "Y", "variant": "longRangeRWD",  "factory": "berlin",   "from": "2025-Q3", "to": "2025-Q4", "pack": "85" },
+    { "model": "Y", "variant": "longRangeAWD",  "factory": "berlin",   "from": "2022-Q3", "to": "2025-Q1", "pack": "79" },
+    { "model": "Y", "variant": "longRangeAWD",  "factory": "berlin",   "from": "2025-Q2", "to": "2025-Q2", "pack": "79" },
+    { "model": "Y", "variant": "longRangeAWD",  "factory": "berlin",   "from": "2025-Q2", "to": "2025-Q4", "pack": "85" },
+    { "model": "Y", "variant": "performance",   "factory": "berlin",   "from": "2022-Q1", "to": "2025-Q1", "pack": "79" },
+    { "model": "Y", "variant": "performance",   "factory": "berlin",   "from": "2025-Q2", "to": "2025-Q4", "pack": "85" },
+
+    { "model": "C", "variant": "rearWheelDrive", "factory": "austin",  "from": "2025-Q2", "to": "2025-Q3", "pack": "123" },
+    { "model": "C", "variant": "allWheelDrive",  "factory": "austin",  "from": "2023-Q4", "to": "2025-Q4", "pack": "123" },
+    { "model": "C", "variant": "cyberbeast",     "factory": "austin",  "from": "2023-Q4", "to": "2025-Q4", "pack": "123" }
+  ]
+}

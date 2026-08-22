@@ -13,27 +13,94 @@
   <img alt="No tracking" src="https://img.shields.io/badge/tracking-none-1f9d55">
 </p>
 
+<p align="center">
+  <a href="https://testflight.apple.com/join/41U7UpWr"><strong>Join the TestFlight beta →</strong></a>
+</p>
+
 Tessalytics is a privacy-focused native iPhone companion for a self-hosted [TeslaMate](https://github.com/teslamate-org/teslamate) installation. It turns data from [Tessalytics Backend](https://github.com/echo-cool/tessalytics-backend) into a compact vehicle dashboard, searchable history, native charts, battery-health estimates, predictions, and local notifications.
 
 Your iPhone connects directly to infrastructure you control. Tessalytics has no developer-operated cloud, advertising, analytics SDK, or tracking.
 
 > [!IMPORTANT]
-> **A standalone TeslaMate installation will not work with this app.** Tessalytics talks to [Tessalytics Backend](https://github.com/echo-cool/tessalytics-backend), a read-only API service you deploy beside TeslaMate — the same Docker Compose file is fine. The server address you enter in the app is the backend's, not TeslaMate's or Grafana's.
+> **Unofficial community software.** Not affiliated with, endorsed by, or supported by
+> the [TeslaMate](https://github.com/teslamate-org/teslamate) project or Tesla, Inc.
+> "TeslaMate" and "Tesla" are the trademarks of their respective owners and are used
+> here only to say what this app connects to, in keeping with the
+> [TeslaMate trademark policy](https://github.com/teslamate-org/teslamate/blob/main/TRADEMARK.md).
 
 > [!IMPORTANT]
-> Tessalytics is an unofficial community tool and is not affiliated with, endorsed by, or supported by the official TeslaMate project or Tesla, Inc.
+> **A standalone TeslaMate installation will not work with this app.** Tessalytics talks to [Tessalytics Backend](https://github.com/echo-cool/tessalytics-backend), a read-only API service you deploy beside TeslaMate — the same Docker Compose file is fine. The server address you enter in the app is the backend's, not TeslaMate's or Grafana's.
 
-## Screenshots
+## Live driving
+
+The reason the app exists. While the car is moving, the backend forwards TeslaMate's
+MQTT push straight to the phone over server-sent events, so the speed, the power, the
+route and the charts move with the car rather than with a poll timer.
 
 <p align="center">
-  <img src="app-store/screenshots/en-US/6.9-inch/01-status.jpg" width="18%" alt="Vehicle status dashboard">
-  <img src="app-store/screenshots/en-US/6.9-inch/02-analytics.jpg" width="18%" alt="Driving and charging analytics">
-  <img src="app-store/screenshots/en-US/6.9-inch/03-forecast.jpg" width="18%" alt="Vehicle forecasts and intelligence">
-  <img src="app-store/screenshots/en-US/6.9-inch/04-battery.jpg" width="18%" alt="Battery health estimates">
-  <img src="app-store/screenshots/en-US/6.9-inch/05-onboarding.jpg" width="18%" alt="Private server onboarding">
+  <img src="docs/images/live-driving.gif" width="270" alt="The home screen updating live while driving">
+  &nbsp;&nbsp;
+  <img src="docs/images/live-map.png" width="270" alt="Full-screen live map with the route driven so far">
 </p>
 
-The screenshots use generated demo data. No real vehicle, location, route, server, VIN, or credential is included.
+Same drive, from the car's own cameras beside the app:
+
+<p align="center">
+  <img src="docs/images/dashcam.gif" width="720" alt="The app's live map beside Tesla dashcam footage of the same drive">
+</p>
+
+At night the screen goes darker rather than brighter — a phone on a windscreen mount
+is a light source in a dark cabin.
+
+<p align="center">
+  <img src="docs/images/night-mode.png" width="250" alt="Night driving">
+  &nbsp;
+  <img src="docs/images/live-charts.png" width="250" alt="Speed and power over the last fifteen minutes">
+</p>
+
+## History and analysis
+
+<p align="center">
+  <img src="docs/images/drives.png" width="250" alt="Drive history with route previews">
+  &nbsp;
+  <img src="docs/images/charging.png" width="250" alt="Charging history with the charge curve on each row">
+  &nbsp;
+  <img src="docs/images/demo/03-battery.png" width="250" alt="Battery health">
+</p>
+
+<p align="center">
+  <img src="docs/images/demo/04-analysis.png" width="250" alt="Analysis">
+  &nbsp;
+  <img src="docs/images/demo/02-places.png" width="250" alt="Places visited">
+  &nbsp;
+  <img src="docs/images/demo/08-software-timeline.png" width="250" alt="Software version timeline">
+</p>
+
+## The car itself
+
+Tap the name on the home screen for the car's own settings. Its VIN names the model,
+the factory and the model year, and a shipped table turns those into the pack it was
+built with — which is the figure every health estimate divides by.
+
+<p align="center">
+  <img src="docs/images/demo/06-vehicle-settings.png" width="250" alt="Vehicle settings">
+  &nbsp;
+  <img src="docs/images/demo/07-vehicle-rating-vin.png" width="250" alt="Pack capacity identified from the VIN">
+  &nbsp;
+  <img src="docs/images/demo/09-tyres.png" width="250" alt="Tyre pressures with the car's own warnings">
+</p>
+
+## Achievements
+
+Twelve, all facts about the car and all computed on the device from synced history.
+Reported to Game Center when you are signed in; the list works when you are not.
+
+<p align="center">
+  <img src="docs/images/demo/10-achievements.png" width="250" alt="Achievements">
+</p>
+
+> The live-driving captures are from a real car and show real routes and addresses.
+> Everything else uses generated demo data — no real vehicle, VIN, server or credential.
 
 ## What Tessalytics does
 
@@ -99,9 +166,7 @@ TeslaMate alone does not serve this API, so the backend is not optional. It runs
 ```yaml
 services:
   tessalytics-backend:
-    build:
-      context: ./tessalytics-backend      # git clone beside docker-compose.yml
-      dockerfile: docker/Dockerfile
+    image: echocool/tessalytics-backend:latest   # published; nothing to build
     restart: unless-stopped
     ports:
       - 3022:8080
@@ -142,7 +207,13 @@ Before adding the server in Tessalytics, verify:
 
 See [Backend setup](docs/backend-setup.md) for more security and reverse-proxy guidance.
 
-## Build and install
+## Install
+
+**[Join the TestFlight beta](https://testflight.apple.com/join/41U7UpWr)** — no Xcode, no
+signing, no developer account. You still need a TeslaMate installation and the backend
+above; the app is a client and has nothing to show without them.
+
+## Build it yourself
 
 The generated Xcode project is checked in. [XcodeGen](https://github.com/yonaskolb/XcodeGen) is only required after changing `project.yml`.
 
@@ -320,6 +391,14 @@ TeslaMate is a separate project. Review the [TeslaMate trademark policy](https:/
 - Battery health and predictions are estimates affected by data quality, weather, calibration, and driving history.
 - Custom certificate authorities are not currently supported.
 - The optional Owner API is unofficial and is not part of TeslaMate.
+
+## Related projects
+
+| | |
+| --- | --- |
+| [tessalytics-ios](https://github.com/echo-cool/tessalytics-ios) | This app. [TestFlight](https://testflight.apple.com/join/41U7UpWr) |
+| [tessalytics-backend](https://github.com/echo-cool/tessalytics-backend) | The read-only API it reads from. Published as `echocool/tessalytics-backend` |
+| [tessalytics-web](https://github.com/echo-cool/tessalytics-web) | The same data on the car's own browser |
 
 ## License
 

@@ -103,9 +103,34 @@ struct Vehicle: Identifiable, Hashable, Sendable {
     let name: String?
     let model: String?
     let trim: String?
+    /// Optional because TeslaMateApi does not report it and an older cache has
+    /// none. Everything that reads it treats absence as "cannot tell".
+    var vin: String?
     let totalDrives: Int?
     let totalCharges: Int?
     let totalUpdates: Int?
+
+    init(
+        serverID: UUID,
+        id: Int,
+        name: String?,
+        model: String?,
+        trim: String?,
+        vin: String? = nil,
+        totalDrives: Int?,
+        totalCharges: Int?,
+        totalUpdates: Int?
+    ) {
+        self.serverID = serverID
+        self.id = id
+        self.name = name
+        self.model = model
+        self.trim = trim
+        self.vin = vin
+        self.totalDrives = totalDrives
+        self.totalCharges = totalCharges
+        self.totalUpdates = totalUpdates
+    }
 }
 
 struct DateRangeFilter: Sendable {

@@ -54,6 +54,61 @@ final class ScreenshotCaptureTests: XCTestCase {
         try capture(named: "05-activity")
     }
 
+    /// The screens the App Store set does not cover, for the README.
+    ///
+    /// Separate from the store set because these are documentation rather than
+    /// marketing: the store wants five polished screens, and a README wants to
+    /// show what the app actually does.
+    func testCaptureDocumentationSet() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-ui-demo"]
+        app.launch()
+        XCTAssertTrue(app.otherElements["dashboard-screen"].waitForExistence(timeout: 20))
+        sleep(3)
+
+        // The car's own settings, and the pack its VIN identifies.
+        app.descendants(matching: .any)["vehicle-snapshot-identity"].firstMatch.tap()
+        XCTAssertTrue(app.otherElements["vehicle-settings-screen"].waitForExistence(timeout: 10))
+        sleep(1)
+        try capture(named: "06-vehicle-settings")
+
+        app.descendants(matching: .any)["vehicle-settings-rating"].firstMatch.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["specification-capacity-field"].waitForExistence(timeout: 10))
+        sleep(1)
+        try capture(named: "07-vehicle-rating-vin")
+        back(app)
+
+        // Every version the car has run, and how long it ran it.
+        app.descendants(matching: .any)["vehicle-settings-software"].firstMatch.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["software-version-timeline"].waitForExistence(timeout: 10))
+        sleep(2)
+        try capture(named: "08-software-timeline")
+        back(app)
+        back(app)
+
+        // The tyres, with the car's own warnings.
+        tab(app, "Status").tap()
+        app.descendants(matching: .any)["vehicle-snapshot-tyres"].firstMatch.tap()
+        XCTAssertTrue(app.otherElements["tyre-pressure-screen"].waitForExistence(timeout: 10))
+        sleep(1)
+        try capture(named: "09-tyres")
+        back(app)
+
+        // Achievements.
+        tab(app, "Settings").tap()
+        let achievements = app.descendants(matching: .any)["settings-achievements"].firstMatch
+        for _ in 0..<8 where !achievements.exists || !achievements.isHittable { app.swipeUp() }
+        achievements.tap()
+        XCTAssertTrue(app.otherElements["achievements-screen"].waitForExistence(timeout: 10))
+        sleep(1)
+        try capture(named: "10-achievements")
+    }
+
+    private func back(_ app: XCUIApplication) {
+        app.navigationBars.buttons.firstMatch.tap()
+        sleep(1)
+    }
+
     /// Opens a navigable card from the dashboard, captures it, and comes back.
     private func openFromHome(_ app: XCUIApplication, card: String, as name: String) throws {
         tab(app, "Status").tap()

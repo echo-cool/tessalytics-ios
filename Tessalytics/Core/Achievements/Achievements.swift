@@ -13,7 +13,16 @@ struct Achievement: Identifiable, Equatable, Sendable {
     let id: String
     let title: String
     /// What has to happen, in the second person.
-    let requirement: String
+    ///
+    /// Holds `%@` where a distance belongs, because the sentence has to be in the
+    /// owner's units and the target is stored in kilometres. Writing "300 km"
+    /// into the string put a requirement in kilometres directly above a progress
+    /// line in miles, which reads as two different targets.
+    let requirementTemplate: String
+    /// The distance the sentence names, in kilometres, when it names one. Usually
+    /// the target; for an achievement whose target is a yes-or-no it is the
+    /// threshold the sentence mentions instead.
+    let sentenceDistanceKilometres: Double?
     let symbol: String
     /// The value `progress` is measured against. Always positive.
     let target: Double
@@ -26,6 +35,35 @@ struct Achievement: Identifiable, Equatable, Sendable {
         case distance
         case kilowattHours
         case percent
+    }
+
+    init(
+        id: String,
+        title: String,
+        requirementTemplate: String,
+        symbol: String,
+        target: Double,
+        unit: Unit,
+        sentenceDistanceKilometres: Double? = nil
+    ) {
+        self.id = id
+        self.title = title
+        self.requirementTemplate = requirementTemplate
+        self.symbol = symbol
+        self.target = target
+        self.unit = unit
+        // A distance achievement names its own target unless told otherwise.
+        self.sentenceDistanceKilometres = sentenceDistanceKilometres ?? (unit == .distance ? target : nil)
+    }
+
+    /// The requirement, with any distance in the units the owner reads in.
+    func requirement(units: UnitsDTO?) -> String {
+        guard requirementTemplate.contains("%@") else { return requirementTemplate }
+        let resolved = units ?? .metricDefaults
+        guard let kilometres = sentenceDistanceKilometres else { return requirementTemplate }
+        let converted = kilometres / AchievementFactsBuilder.kilometreFactor(for: resolved)
+        let rendered = converted.formatted(.number.precision(.fractionLength(0)).grouping(.automatic))
+        return requirementTemplate.replacingOccurrences(of: "%@", with: "\(rendered) \(resolved.lengthSymbol)")
     }
 }
 
@@ -84,7 +122,7 @@ enum AchievementCatalogue {
     static let firstDrive = Achievement(
         id: prefix + "firstDrive",
         title: "Odometer Zero",
-        requirement: "Sync your first drive",
+        requirementTemplate: "Sync your first drive",
         symbol: "car.fill",
         target: 1,
         unit: .count
@@ -93,7 +131,7 @@ enum AchievementCatalogue {
     static let thousandKilometres = Achievement(
         id: prefix + "distance1000",
         title: "Long Way Round",
-        requirement: "Cover 1,000 km of recorded driving",
+        requirementTemplate: "Cover %@ of recorded driving",
         symbol: "road.lanes",
         target: 1_000,
         unit: .distance
@@ -102,7 +140,7 @@ enum AchievementCatalogue {
     static let tenThousandKilometres = Achievement(
         id: prefix + "distance10000",
         title: "Continental",
-        requirement: "Cover 10,000 km of recorded driving",
+        requirementTemplate: "Cover %@ of recorded driving",
         symbol: "globe.europe.africa.fill",
         target: 10_000,
         unit: .distance
@@ -111,7 +149,7 @@ enum AchievementCatalogue {
     static let hundredThousandKilometres = Achievement(
         id: prefix + "distance100000",
         title: "Six Figures",
-        requirement: "Cover 100,000 km of recorded driving",
+        requirementTemplate: "Cover %@ of recorded driving",
         symbol: "infinity",
         target: 100_000,
         unit: .distance
@@ -120,7 +158,7 @@ enum AchievementCatalogue {
     static let longDrive = Achievement(
         id: prefix + "longDrive300",
         title: "One Sitting",
-        requirement: "Complete a single drive of 300 km",
+        requirementTemplate: "Complete a single drive of %@",
         symbol: "arrow.left.and.right",
         target: 300,
         unit: .distance
@@ -129,7 +167,7 @@ enum AchievementCatalogue {
     static let hundredCharges = Achievement(
         id: prefix + "charges100",
         title: "Plugged In",
-        requirement: "Record 100 charging sessions",
+        requirementTemplate: "Record 100 charging sessions",
         symbol: "bolt.fill",
         target: 100,
         unit: .count
@@ -138,7 +176,7 @@ enum AchievementCatalogue {
     static let megawattHour = Achievement(
         id: prefix + "energy1000",
         title: "Megawatt Hour",
-        requirement: "Put 1,000 kWh into the pack",
+        requirementTemplate: "Put 1,000 kWh into the pack",
         symbol: "bolt.batteryblock.fill",
         target: 1_000,
         unit: .kilowattHours
@@ -147,7 +185,7 @@ enum AchievementCatalogue {
     static let weekStreak = Achievement(
         id: prefix + "streak7",
         title: "Every Day This Week",
-        requirement: "Drive on seven consecutive days",
+        requirementTemplate: "Drive on seven consecutive days",
         symbol: "calendar",
         target: 7,
         unit: .count
@@ -156,7 +194,7 @@ enum AchievementCatalogue {
     static let nightOwl = Achievement(
         id: prefix + "night10",
         title: "Night Shift",
-        requirement: "Start ten drives between midnight and 4am",
+        requirementTemplate: "Start ten drives between midnight and 4am",
         symbol: "moon.stars.fill",
         target: 10,
         unit: .count
@@ -165,7 +203,7 @@ enum AchievementCatalogue {
     static let explorer = Achievement(
         id: prefix + "places25",
         title: "Explorer",
-        requirement: "Visit 25 distinct places",
+        requirementTemplate: "Visit 25 distinct places",
         symbol: "map.fill",
         target: 25,
         unit: .count
@@ -174,7 +212,7 @@ enum AchievementCatalogue {
     static let updater = Achievement(
         id: prefix + "versions10",
         title: "Always Current",
-        requirement: "Run ten different software versions",
+        requirementTemplate: "Run ten different software versions",
         symbol: "shippingbox.fill",
         target: 10,
         unit: .count
@@ -183,10 +221,11 @@ enum AchievementCatalogue {
     static let wellKept = Achievement(
         id: prefix + "health90",
         title: "Well Kept",
-        requirement: "Hold 90% pack health past 50,000 km",
+        requirementTemplate: "Hold 90% pack health past %@",
         symbol: "heart.text.square.fill",
         target: 1,
-        unit: .count
+        unit: .count,
+        sentenceDistanceKilometres: 50_000
     )
 
     static let all: [Achievement] = [

@@ -1287,6 +1287,48 @@ final class AppEnvironment {
         )
     }
 
+    /// What the pack table says the selected car left the factory with.
+    ///
+    /// Nil when the server reports no VIN, when the VIN does not decode, or when
+    /// the table has nothing for that model, variant and factory. Every one of
+    /// those is a "cannot tell", and the owner's own figure remains the only one
+    /// the app will use until they say otherwise.
+    var selectedPackMatch: BatteryPackMatch? {
+        guard let profile = selectedProfile, let vehicle = selectedVehicle,
+              let decoded = VINDecoder.decode(vehicle.vin),
+              let variant = packVariant(serverID: profile.id, carID: vehicle.id) else { return nil }
+        let match = BatteryPackCatalogue.shipped.match(vin: decoded, variant: variant)
+        return match.candidates.isEmpty ? nil : match
+    }
+
+    /// The decoded VIN for the selected car, for the screens that explain where a
+    /// suggestion came from.
+    var selectedVIN: TeslaVIN? { VINDecoder.decode(selectedVehicle?.vin) }
+
+    /// The variant to look a pack up with: the owner's choice, or a guess from
+    /// the trim badge until they make one.
+    func packVariant(serverID: UUID, carID: Int) -> VehicleVariant? {
+        let record = vehicleRecord(serverID: serverID, carID: carID)
+        if let stored = record?.packVariant, let variant = VehicleVariant(rawValue: stored) { return variant }
+        guard let model = VINDecoder.decode(record?.vin)?.model else { return nil }
+        return VehicleVariant.suggestion(fromTrim: record?.trim, model: model)
+    }
+
+    var selectedPackVariant: VehicleVariant? {
+        guard let profile = selectedProfile, let vehicle = selectedVehicle else { return nil }
+        return packVariant(serverID: profile.id, carID: vehicle.id)
+    }
+
+    /// Records the variant the owner confirmed, and re-derives everything that
+    /// depends on the pack.
+    func savePackVariant(_ variant: VehicleVariant?) {
+        guard let profile = selectedProfile, let vehicle = selectedVehicle,
+              let record = vehicleRecord(serverID: profile.id, carID: vehicle.id) else { return }
+        record.packVariant = variant?.rawValue
+        try? container.mainContext.save()
+        recomputeFleetStatistics(profile: profile, vehicle: vehicle)
+    }
+
     var selectedSpecification: VehicleSpecification {
         guard let profile = selectedProfile, let vehicle = selectedVehicle else { return .empty }
         return specification(serverID: profile.id, carID: vehicle.id)

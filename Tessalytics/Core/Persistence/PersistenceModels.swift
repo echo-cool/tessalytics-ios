@@ -35,6 +35,15 @@ final class VehicleRecord {
     var name: String?
     var model: String?
     var trim: String?
+    /// Optional so the store migrates in place: this arrived after the schema
+    /// did, and TeslaMateApi never reports it at all.
+    var vin: String?
+    /// The variant the owner confirmed for the pack lookup.
+    ///
+    /// Stored rather than re-inferred because the inference is a guess from a
+    /// trim badge that is often absent or ambiguous, and the answer decides which
+    /// pack capacity every health figure divides by.
+    var packVariant: String?
     var totalDrives: Int?
     var totalCharges: Int?
     var totalUpdates: Int?
@@ -49,12 +58,21 @@ final class VehicleRecord {
     var maxRangeNewOverride: Double?
     init(vehicle: Vehicle) {
         cacheKey = Self.key(serverID: vehicle.serverID, carID: vehicle.id); serverID = vehicle.serverID.uuidString; carID = vehicle.id
-        name = vehicle.name; model = vehicle.model; trim = vehicle.trim; totalDrives = vehicle.totalDrives
+        name = vehicle.name; model = vehicle.model; trim = vehicle.trim; vin = vehicle.vin
+        totalDrives = vehicle.totalDrives
         totalCharges = vehicle.totalCharges; totalUpdates = vehicle.totalUpdates; updatedAt = .now
     }
     static func key(serverID: UUID, carID: Int) -> String { "\(serverID.uuidString):\(carID)" }
-    func update(_ vehicle: Vehicle) { name = vehicle.name; model = vehicle.model; trim = vehicle.trim; totalDrives = vehicle.totalDrives; totalCharges = vehicle.totalCharges; totalUpdates = vehicle.totalUpdates; updatedAt = .now }
-    var vehicle: Vehicle { Vehicle(serverID: UUID(uuidString: serverID) ?? UUID(), id: carID, name: name, model: model, trim: trim, totalDrives: totalDrives, totalCharges: totalCharges, totalUpdates: totalUpdates) }
+    func update(_ vehicle: Vehicle) {
+        name = vehicle.name; model = vehicle.model; trim = vehicle.trim
+        // A server that does not report a VIN must not erase one already known:
+        // switching a profile from Tessalytics Backend to TeslaMateApi would
+        // otherwise take the pack lookup with it.
+        if let reported = vehicle.vin?.nilIfEmpty { vin = reported }
+        totalDrives = vehicle.totalDrives; totalCharges = vehicle.totalCharges
+        totalUpdates = vehicle.totalUpdates; updatedAt = .now
+    }
+    var vehicle: Vehicle { Vehicle(serverID: UUID(uuidString: serverID) ?? UUID(), id: carID, name: name, model: model, trim: trim, vin: vin, totalDrives: totalDrives, totalCharges: totalCharges, totalUpdates: totalUpdates) }
 }
 
 @Model

@@ -20,10 +20,28 @@ struct AboutView: View {
                     .frame(maxWidth: .infinity)
                     .padding()
                 }
-                Section("Community project") {
-                    Text("This project is an unofficial community tool and is not affiliated with, endorsed by, or supported by the official TeslaMate project or Tesla, Inc.")
+                Section {
+                    Link(destination: URL(string: "https://github.com/echo-cool/tessalytics-ios")!) {
+                        Label("iPhone app", systemImage: "iphone")
+                    }
+                    Link(destination: URL(string: "https://github.com/echo-cool/tessalytics-backend")!) {
+                        Label("Backend", systemImage: "server.rack")
+                    }
+                    Link(destination: URL(string: "https://github.com/echo-cool/tessalytics-web")!) {
+                        Label("Web dashboard", systemImage: "macbook.and.iphone")
+                    }
+                } header: {
+                    Label("Open source", systemImage: "chevron.left.forwardslash.chevron.right")
+                } footer: {
+                    Text("All three are open source. Issues and pull requests are welcome.")
+                }
+
+                Section {
+                    Text("This project is an unofficial community tool and is not affiliated with, endorsed by, or supported by the official TeslaMate project or Tesla, Inc. \"TeslaMate\" and \"Tesla\" are the trademarks of their respective owners and are used here only to say what this app connects to.")
                     Link("TeslaMate", destination: URL(string: "https://github.com/teslamate-org/teslamate")!)
                     Link("TeslaMate trademark policy", destination: URL(string: "https://github.com/teslamate-org/teslamate/blob/main/TRADEMARK.md")!)
+                } header: {
+                    Label("Community project", systemImage: "person.2.fill")
                 }
                 Section("Safety") {
                     Label("Owner API commands are optional and require confirmation plus Face ID or the device passcode. Tessalytics never wakes a sleeping vehicle automatically.", systemImage: "hand.raised.fill")

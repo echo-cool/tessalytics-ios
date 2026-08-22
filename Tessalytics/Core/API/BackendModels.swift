@@ -111,6 +111,7 @@ struct BackendVehicle: Decodable, Sendable {
         CarDTO(
             carId: id,
             name: name,
+            vin: vin,
             carDetails: CarDetailsDTO(
                 model: model,
                 trimBadging: trim,
