@@ -102,6 +102,8 @@ services:
       context: ./tessalytics-backend      # git clone beside docker-compose.yml
       dockerfile: docker/Dockerfile
     restart: unless-stopped
+    ports:
+      - 3022:8080
     depends_on:
       - database
       - mosquitto
@@ -113,8 +115,6 @@ services:
       MQTT_HOST: mosquitto
       API_TOKEN: "${TESSALYTICS_API_TOKEN}"
       TIMEZONE: "${TIME_ZONE}"
-    expose:
-      - "8080"
 ```
 
 `expose` keeps the service on the Compose network instead of publishing it on every host interface.
