@@ -177,6 +177,19 @@ struct BackendState: Decodable, Sendable {
         let power: Double?
         let odometer: Double?
         let isUserPresent: Bool?
+        /// Absent entirely on a deployment whose broker says nothing about
+        /// driving aids, which is most of them — see `Autopilot`.
+        let autopilot: Autopilot?
+
+        /// What the car says is steering.
+        ///
+        /// The block is null when nothing publishes it, and present with null
+        /// members when something publishes half of it. That distinction is the
+        /// point: a badge is drawn from a reading, never from an absence.
+        struct Autopilot: Decodable, Sendable {
+            let state: String?
+            let engaged: Bool?
+        }
     }
 
     struct Charging: Decodable, Sendable {
@@ -251,7 +264,10 @@ struct BackendState: Decodable, Sendable {
                 power: driving?.power,
                 speed: driving?.speed,
                 heading: location?.heading,
-                elevation: location?.elevation
+                elevation: location?.elevation,
+                autopilotState: driving?.autopilot?.state,
+                isAutopilotEngaged: driving?.autopilot?.engaged,
+                isUserPresent: driving?.isUserPresent
             ),
             climateDetails: ClimateDetailsDTO(
                 isClimateOn: climate?.isOn,
@@ -267,7 +283,8 @@ struct BackendState: Decodable, Sendable {
                 ratedBatteryRange: battery?.rangeRated,
                 idealBatteryRange: battery?.rangeIdeal,
                 batteryLevel: battery?.level,
-                usableBatteryLevel: battery?.usableLevel
+                usableBatteryLevel: battery?.usableLevel,
+                bufferLevel: battery?.buffer
             ),
             chargingDetails: StatusChargingDTO(
                 pluggedIn: charging?.pluggedIn,
@@ -286,7 +303,11 @@ struct BackendState: Decodable, Sendable {
                 tpmsPressureFl: tyres?.frontLeft?.pressure,
                 tpmsPressureFr: tyres?.frontRight?.pressure,
                 tpmsPressureRl: tyres?.rearLeft?.pressure,
-                tpmsPressureRr: tyres?.rearRight?.pressure
+                tpmsPressureRr: tyres?.rearRight?.pressure,
+                tpmsWarningFl: tyres?.frontLeft?.warning,
+                tpmsWarningFr: tyres?.frontRight?.warning,
+                tpmsWarningRl: tyres?.rearLeft?.warning,
+                tpmsWarningRr: tyres?.rearRight?.warning
             )
         )
     }

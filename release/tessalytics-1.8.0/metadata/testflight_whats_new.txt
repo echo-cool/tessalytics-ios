@@ -1,0 +1,56 @@
+Tessalytics 1.8.0 — the flashing map, and what the screen says while you drive.
+
+WHAT TO TEST FIRST
+
+Drive, and watch the map on the home screen. It should sit still.
+
+1. The flashing is fixed. The map went red, black, red several times a minute for
+   a whole journey. The cause: the hero card had two layouts, one with a map and
+   one without, and a single reading that arrived without a position swapped
+   between them. A map that leaves the screen for one frame is torn down and
+   rebuilt, and the rebuilt one is blank until it redraws. The card now has one
+   layout and holds the last known position, so a gap in a reading changes
+   nothing on screen.
+
+2. At a red light the headline should say "Stopped", with the street address
+   under it, instead of "Driving". Moving, it names the road you are on. The
+   address is resolved on this device from the coordinate your server reports.
+
+3. The wrong address is fixed. A car parked somewhere without a geofence used to
+   show the last named place it had ever visited — an address from days earlier,
+   presented as where the car was. Needs the matching backend update.
+
+4. Night driving. The live screen was washed in red at more than twice the usual
+   strength; it is now a darker background than normal with a thin red rule at
+   the top, which is what says the screen is live.
+
+5. "This drive" is now the whole drive. The figure came from the chart buffer,
+   which holds about eight minutes — so a forty-mile run reported twelve.
+
+ALSO IN THIS BUILD
+
+- If your server reports what is steering, a blue FSD or Autopilot badge appears
+  beside the location, and grey MANUAL when the car says it is driving itself no
+  longer. TeslaMate publishes nothing about this, so on most setups you will see
+  no badge at all. The app never guesses.
+- Tyre pressure warnings from the car are now shown — the corner turns amber with
+  a mark on it. The server was sending them and the app was discarding them.
+- Occupancy, the cold-weather buffer and the direction of travel are shown too,
+  from readings that were already arriving and going nowhere.
+- Charging rows draw their curve across the full width of the card, with readable
+  times, rather than squeezed into a column beside the text.
+- Tap the version number in Settings five times for a debug screen: the live
+  state as the app holds it, connection health, an optional recording of every
+  raw event from the server, and an export you can send on. The export is
+  redacted — tokens, VINs and coordinates are stripped before the file leaves
+  your phone.
+
+FIXES YOU WILL NOT SEE
+
+- "Allow local HTTP" could not work on a device: the App Transport Security
+  policy the project meant to declare produced no key at all in the shipped app.
+- A host named 10.example.com was treated as a private address, which would have
+  sent your server token over plain HTTP to whoever registered it. Addresses are
+  now parsed as addresses. Docker's usual 172.17–172.31 range works now too.
+- Two Tesla requests refreshing at once could spend the same rotated refresh
+  token twice and disconnect an account whose credentials were fine.

@@ -120,6 +120,42 @@ struct LiveLocationMap: View {
     }
 }
 
+/// What is steering, when the server reports it.
+///
+/// Drawn only from a reading. Most TeslaMate deployments publish nothing about
+/// driving aids, and on those this view is never built at all — the app would
+/// rather say nothing than guess at whether a car is driving itself, which is
+/// not a thing to be wrong about in either direction.
+struct SelfDrivingBadge: View {
+    let mode: SelfDrivingMode
+
+    /// Blue while something is steering, grey while nobody is. The app's own red
+    /// is the colour of the car being live; this is the colour of the car driving
+    /// itself, and they are not the same statement.
+    private var color: Color {
+        mode.isEngaged ? TessalyticsTheme.autopilot : TessalyticsTheme.steel
+    }
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Image(systemName: mode.symbol)
+                .font(.caption2.weight(.bold))
+                .symbolRenderingMode(.hierarchical)
+            Text(mode.label.uppercased())
+                .font(.caption2.weight(.bold))
+                .tracking(0.5)
+                .lineLimit(1)
+        }
+        .foregroundStyle(color)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(color.opacity(mode.isEngaged ? 0.16 : 0.10), in: .capsule)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(mode.accessibilityDescription)
+        .accessibilityIdentifier("self-driving-badge")
+    }
+}
+
 /// The badge that says readings are arriving as they happen.
 struct LiveIndicator: View {
     let isStreaming: Bool
@@ -212,6 +248,9 @@ struct LiveMetricGrid: View {
 /// minutes rather than the last few months.
 struct LiveDriveSection: View {
     let buffer: LiveTelemetryBuffer
+    /// The whole journey's figures. The buffer above is the last few minutes,
+    /// which is right for a chart and wrong for a total.
+    let totals: LiveDriveTotals
     let units: UnitsDTO?
 
     @AppStorage(LiveChartPreferences.metricsKey)
@@ -247,38 +286,38 @@ struct LiveDriveSection: View {
             MetricGrid {
                 MetricCard(
                     title: "Distance",
-                    value: ValueFormatting.distance(buffer.distance, units: resolvedUnits, digits: 1),
+                    value: ValueFormatting.distance(totals.distance, units: resolvedUnits, digits: 1),
                     symbol: "arrow.left.and.right",
                     tint: TessalyticsTheme.accentBright
                 )
                 MetricCard(
                     title: "Top speed",
-                    value: ValueFormatting.speed(buffer.maximumSpeed, units: resolvedUnits, digits: 0),
+                    value: ValueFormatting.speed(totals.maximumSpeed, units: resolvedUnits, digits: 0),
                     symbol: "speedometer",
                     tint: TessalyticsTheme.warning
                 )
                 MetricCard(
                     title: "Energy used",
-                    value: ValueFormatting.number(buffer.energyUsed, unit: "kWh", digits: 2),
+                    value: ValueFormatting.number(totals.energyUsed, unit: "kWh", digits: 2),
                     symbol: "bolt.fill",
                     detail: "Net of regen",
                     tint: TessalyticsTheme.positive
                 )
                 MetricCard(
                     title: "Consumption",
-                    value: buffer.consumption().map { "\($0.formatted(.number.precision(.fractionLength(0)))) Wh/\(distanceUnit)" } ?? "—",
+                    value: totals.consumption.map { "\($0.formatted(.number.precision(.fractionLength(0)))) Wh/\(distanceUnit)" } ?? "—",
                     symbol: "leaf.fill",
                     tint: TessalyticsTheme.positive
                 )
                 MetricCard(
                     title: "Peak power",
-                    value: ValueFormatting.number(buffer.maximumPower, unit: "kW", digits: 0),
+                    value: ValueFormatting.number(totals.maximumPower, unit: "kW", digits: 0),
                     symbol: "arrow.up.right",
                     tint: TessalyticsTheme.warning
                 )
                 MetricCard(
                     title: "Peak regen",
-                    value: ValueFormatting.number(buffer.maximumRegeneration, unit: "kW", digits: 0),
+                    value: ValueFormatting.number(totals.maximumRegeneration, unit: "kW", digits: 0),
                     symbol: "arrow.down.right",
                     tint: TessalyticsTheme.positive
                 )
@@ -286,9 +325,14 @@ struct LiveDriveSection: View {
         }
     }
 
+    /// How much of the drive these figures cover.
+    ///
+    /// "Last 8m" used to describe the charts *and* the totals beside them,
+    /// because both came from the same pruned buffer. The totals now cover the
+    /// whole drive the app has seen, so this says that instead.
     private var spanLabel: String {
-        guard let span = buffer.span else { return "Waiting for readings" }
-        return "Last \(ValueFormatting.duration(minutes: max(Int(span / 60), 1)))"
+        guard let elapsed = totals.elapsed else { return "Waiting for readings" }
+        return "So far · \(ValueFormatting.duration(minutes: max(Int(elapsed / 60), 1)))"
     }
 }
 

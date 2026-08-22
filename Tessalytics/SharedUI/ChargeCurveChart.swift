@@ -33,6 +33,11 @@ struct ChargeCurveChart: View {
     /// the horizontal axis time — three guesses for a chart that fits in a
     /// thumbnail. The ticks are pared back to the ends of each scale rather than
     /// dropped.
+    ///
+    /// Compact is now a shorter chart, not a narrower one: a row gives it the
+    /// full width of the card, the same as a drive row gives its map. Squeezed
+    /// into a 138-point column beside the text, the axis labels took more of the
+    /// space than the lines did.
     var isCompact = false
 
     private var powerCeiling: Double {
@@ -118,12 +123,10 @@ struct ChargeCurveChart: View {
                 AxisMarks(values: .automatic(desiredCount: isCompact ? 3 : 4)) {
                     AxisGridLine().foregroundStyle(.secondary.opacity(0.12))
                     AxisTick()
-                    // Labelled by the span underneath in the small form. A clock
-                    // time truncates to "9:3…" at this width, which says less than
-                    // the two ends of the session say together.
-                    if !isCompact {
-                        AxisValueLabel(format: .dateTime.hour().minute()).font(axisFont)
-                    }
+                    // Labelled in both forms now. The clock times used to truncate
+                    // to "9:3…", which is why the small form replaced them with a
+                    // span in the legend; at the full width of a card they fit.
+                    AxisValueLabel(format: .dateTime.hour().minute()).font(axisFont)
                 }
             }
             .frame(height: height)
@@ -152,30 +155,20 @@ struct ChargeCurveChart: View {
     /// Which line is which, and what the horizontal axis is, in the width a
     /// thumbnail has.
     private var microLegend: some View {
-        HStack(spacing: 5) {
-            swatch(TessalyticsTheme.positive, "level")
-            swatch(TessalyticsTheme.warning, "power")
-            if let span = timeSpan {
-                Spacer(minLength: 2)
-                Text(span).foregroundStyle(.secondary)
-            }
+        HStack(spacing: 8) {
+            swatch(TessalyticsTheme.positive, "level %")
+            swatch(TessalyticsTheme.warning, "power kW")
+            Spacer(minLength: 2)
         }
-        .font(.system(size: 8, weight: .medium))
+        .font(.system(size: 9, weight: .medium))
         .lineLimit(1)
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityHidden(true)
     }
 
-    /// The ends of the session, which is what the horizontal axis spans.
-    private var timeSpan: String? {
-        guard let first = points.first?.date, let last = points.last?.date, last > first else { return nil }
-        let style = Date.FormatStyle.dateTime.hour(.defaultDigits(amPM: .omitted)).minute()
-        return "\(first.formatted(style))–\(last.formatted(style))"
-    }
-
     private func swatch(_ color: Color, _ label: String) -> some View {
-        HStack(spacing: 2.5) {
-            Capsule().fill(color).frame(width: 7, height: 2.5)
+        HStack(spacing: 3) {
+            Capsule().fill(color).frame(width: 9, height: 3)
             Text(label).foregroundStyle(.secondary)
         }
     }

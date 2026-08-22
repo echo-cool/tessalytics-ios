@@ -160,8 +160,19 @@ actor OwnerAPISession {
         return stored
     }
 
+    /// Exchanges the refresh token for a new pair, once.
+    ///
+    /// Tesla rotates the refresh token: the old one is spent the moment it is
+    /// used. Two requests that both meet a 401 therefore have to share one
+    /// exchange, and a caller that arrives holding a copy from before someone
+    /// else's exchange must take the result rather than spend a token that is
+    /// already dead — which presented as "Tesla rejected the refresh token" and
+    /// disconnected an account whose credentials were perfectly good.
     private func refresh(_ credentials: OwnerAPICredentials) async throws -> OwnerAPICredentials {
         if let refreshTask { return try await refreshTask.value }
+        if let cachedCredentials, cachedCredentials.refreshToken != credentials.refreshToken {
+            return cachedCredentials
+        }
 
         let store = store
         let transport = transport

@@ -56,13 +56,28 @@ final class LiveMetricsTests: XCTestCase {
         return buffer
     }
 
+    /// The same readings, as the drive's running totals.
+    private func totals(odometerStart: Double = 12_000, power: Double = 30) -> LiveDriveTotals {
+        var totals = LiveDriveTotals()
+        let start = Date(timeIntervalSince1970: 1_800_000_000)
+        for index in 0...24 {
+            totals.record(
+                odometer: odometerStart + Double(index) * 0.1,
+                speed: 60,
+                power: power,
+                at: start.addingTimeInterval(Double(index) * 5)
+            )
+        }
+        return totals
+    }
+
     func testStandingStillIsZeroRatherThanUnavailable() {
         // TeslaMate publishes a null speed while the car waits at a light.
         let stopped = status(speed: nil, power: nil)
         XCTAssertEqual(stopped.liveSpeed, 0)
         XCTAssertEqual(stopped.livePower, 0)
 
-        let metrics = LiveMetrics.hero(status: stopped, buffer: buffer(), units: .metricDefaults)
+        let metrics = LiveMetrics.hero(status: stopped, totals: totals(), units: .metricDefaults)
         let speed = try? XCTUnwrap(metrics.first { $0.id == "speed" })
         let power = try? XCTUnwrap(metrics.first { $0.id == "power" })
         XCTAssertEqual(speed?.value, "0 km/h")
@@ -91,7 +106,7 @@ final class LiveMetricsTests: XCTestCase {
 
     func testTheHeroGridFillsAllSixOfItsPlaces() {
         // The grid is three across and two down. Four figures left two holes in it.
-        let metrics = LiveMetrics.hero(status: status(speed: 63, power: 34), buffer: buffer(), units: .metricDefaults)
+        let metrics = LiveMetrics.hero(status: status(speed: 63, power: 34), totals: totals(), units: .metricDefaults)
         XCTAssertEqual(metrics.count, 6)
         XCTAssertEqual(Set(metrics.map(\.id)).count, 6, "Six places saying six different things")
         XCTAssertEqual(metrics.map(\.id), ["speed", "power", "distance", "energy", "outside", "elevation"])
@@ -99,24 +114,27 @@ final class LiveMetricsTests: XCTestCase {
 
     func testTheHeroGridDoesNotRepeatWhatTheRingAlreadySays() {
         // Battery level, range and the odometer are drawn directly above this grid.
-        let metrics = LiveMetrics.hero(status: status(), buffer: buffer(), units: .metricDefaults)
+        let metrics = LiveMetrics.hero(status: status(), totals: totals(), units: .metricDefaults)
         XCTAssertFalse(metrics.contains { $0.id == "battery" })
         XCTAssertFalse(metrics.contains { $0.id == "range" })
     }
 
     func testTheFullScreenMapHasRoomForTheRestOfThem() {
         // No ring gauge on the map, so the figures it replaces come back.
-        let metrics = LiveMetrics.expanded(status: status(), buffer: buffer(), units: .metricDefaults)
-        XCTAssertEqual(metrics.count, 9)
+        let metrics = LiveMetrics.expanded(status: status(), totals: totals(), units: .metricDefaults)
+        XCTAssertEqual(metrics.count, 10)
         XCTAssertTrue(metrics.contains { $0.id == "battery" })
         XCTAssertTrue(metrics.contains { $0.id == "range" })
         XCTAssertTrue(metrics.contains { $0.id == "consumption" })
+        // The arrow on the map says which way the car points, but only to
+        // someone looking at the map.
+        XCTAssertTrue(metrics.contains { $0.id == "heading" })
     }
 
     func testAccessibilityIdentifiersAreStable() {
         // A UI test taps these by name; guessing at indices passes for the wrong
         // reason the first time the order changes.
-        let metrics = LiveMetrics.expanded(status: status(), buffer: buffer(), units: .metricDefaults)
+        let metrics = LiveMetrics.expanded(status: status(), totals: totals(), units: .metricDefaults)
         for metric in metrics {
             XCTAssertFalse(metric.id.isEmpty)
             XCTAssertFalse(metric.label.isEmpty)
@@ -125,7 +143,7 @@ final class LiveMetricsTests: XCTestCase {
 
     func testUnitsFollowTheServer() {
         let imperial = UnitsDTO(unitOfLength: "mi", unitOfPressure: "psi", unitOfTemperature: "F")
-        let metrics = LiveMetrics.hero(status: status(speed: 0, power: 0), buffer: buffer(), units: imperial)
+        let metrics = LiveMetrics.hero(status: status(speed: 0, power: 0), totals: totals(), units: imperial)
         XCTAssertEqual(metrics.first { $0.id == "speed" }?.value, "0 mph")
     }
 }

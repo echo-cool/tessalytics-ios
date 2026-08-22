@@ -9,7 +9,15 @@ enum TessalyticsTheme {
     static let neutral = Color.primary
     static let steel = Color(red: 0.51, green: 0.51, blue: 0.51)        // #818181
     static let mist = Color(red: 0.95, green: 0.95, blue: 0.95)         // #F2F2F2
-    static let snow = Color(red: 0.98, green: 0.98, blue: 0.98)         // #FAFAFA
+    /// The light canvas. Faintly cool and a shade off white, so a white card on
+    /// it reads as a raised surface rather than as more page.
+    static let snow = Color(red: 0.965, green: 0.967, blue: 0.973)      // #F6F7F8
+
+    /// Autopilot and Full Self-Driving. Blue, because that is the colour the car
+    /// itself draws them in and the colour Tesla's own app uses — a driver should
+    /// not have to learn a second convention for the one reading they already
+    /// recognise at a glance.
+    static let autopilot = Color(red: 0.16, green: 0.53, blue: 0.98)
 
     // Green and amber remain reserved for semantic state, never decoration.
     static let positive = Color(red: 0.12, green: 0.58, blue: 0.34)
@@ -26,8 +34,23 @@ enum TessalyticsTheme {
     static let cardRadius: CGFloat = 16
     static let compactRadius: CGFloat = 12
 
-    static func canvas(for scheme: ColorScheme) -> Color {
-        scheme == .dark ? Color(red: 0.055, green: 0.055, blue: 0.06) : snow
+    /// The ground every screen sits on.
+    ///
+    /// `isLive` is a driving car, which is the one time the app is read at a
+    /// glance from a windscreen mount. At night it goes darker still rather than
+    /// brighter: the phone is a light source in a dark cabin, and the map is
+    /// already the bright thing on the screen. In daylight it goes the other way
+    /// and loses almost all of its tint, because a red-washed screen in direct
+    /// sun is harder to read, not more urgent.
+    static func canvas(for scheme: ColorScheme, isLive: Bool = false) -> Color {
+        if scheme == .dark {
+            return isLive
+                ? Color(red: 0.022, green: 0.022, blue: 0.026)
+                : Color(red: 0.055, green: 0.055, blue: 0.06)
+        }
+        // Slightly grey rather than off-white: white cards need something to be
+        // cards against.
+        return isLive ? Color(red: 0.955, green: 0.957, blue: 0.962) : snow
     }
 
     static func surface(for scheme: ColorScheme) -> Color {
@@ -124,16 +147,27 @@ struct TessalyticsBackdrop: View {
     /// app, and a driver has no attention to spare for relearning a layout.
     var isLive = false
 
-    private var wash: Color { isLive ? TessalyticsTheme.accentBright : TessalyticsTheme.accent }
+    /// The deep accent in the dark, the bright one in the light.
+    ///
+    /// A live screen used to wash `accentBright` over everything at more than
+    /// twice the usual strength, which turned a night drive into a red room and
+    /// a daylight one into a pink page. The signal that a screen is live is the
+    /// rule at the top and the LIVE badge beside the speed — both unmistakable,
+    /// and neither of them sitting behind the numbers being read.
+    private var wash: Color {
+        guard isLive else { return TessalyticsTheme.accent }
+        return colorScheme == .dark ? TessalyticsTheme.accent : TessalyticsTheme.accentBright
+    }
 
     private func liveScaled(dark: Double, light: Double) -> Double {
         let base = colorScheme == .dark ? dark : light
-        return isLive ? base * 2.4 : base
+        // A touch stronger than parked, not a different screen.
+        return isLive ? base * 1.25 : base
     }
 
     var body: some View {
         ZStack {
-            TessalyticsTheme.canvas(for: colorScheme)
+            TessalyticsTheme.canvas(for: colorScheme, isLive: isLive)
             LinearGradient(
                 colors: [
                     wash.opacity(liveScaled(dark: 0.10, light: 0.055)),
@@ -146,9 +180,15 @@ struct TessalyticsBackdrop: View {
 
             if showsTopAccent {
                 VStack(spacing: 0) {
-                    Rectangle()
-                        .fill(wash)
-                        .frame(height: isLive ? 4 : 2)
+                    // Fading out to the trailing edge rather than a solid band:
+                    // three points of flat red across the whole screen is a lot
+                    // of red for a status indicator.
+                    LinearGradient(
+                        colors: [wash, wash.opacity(isLive ? 0.55 : 0.35)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                    .frame(height: isLive ? 3 : 2)
                     Spacer(minLength: 0)
                 }
             }
@@ -233,8 +273,12 @@ struct TessalyticsHeroSurface<Content: View>: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(TessalyticsTheme.surface(for: colorScheme), in: shape)
             .overlay {
+                // Restrained in the dark. A card is tinted to say which state
+                // the car is in, not to become that colour — and a red-brown
+                // card at night is harder to read numbers off than a dark one
+                // with a red rule along the top of it.
                 LinearGradient(
-                    colors: [tint.opacity(colorScheme == .dark ? 0.12 : 0.055), .clear],
+                    colors: [tint.opacity(colorScheme == .dark ? 0.075 : 0.05), .clear],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )

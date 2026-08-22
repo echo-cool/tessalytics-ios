@@ -24,31 +24,40 @@ enum LiveMetrics {
     /// as the ring and the two figures directly above this grid, and a card that
     /// says the same number twice wastes the half of it that could have said
     /// something else.
-    static func hero(status: VehicleStatus?, buffer: LiveTelemetryBuffer, units: UnitsDTO?) -> [LiveMetric] {
+    static func hero(
+        status: VehicleStatus?,
+        totals: LiveDriveTotals,
+        units: UnitsDTO?
+    ) -> [LiveMetric] {
         let units = units ?? .metricDefaults
         return [
             speed(status, units),
             power(status),
-            distance(buffer, units),
-            energyUsed(buffer),
+            distance(totals, units),
+            energyUsed(totals),
             outsideTemperature(status, units),
             elevation(status)
         ]
     }
 
     /// The fuller set for the map, which has the room and no ring gauge on it.
-    static func expanded(status: VehicleStatus?, buffer: LiveTelemetryBuffer, units: UnitsDTO?) -> [LiveMetric] {
+    static func expanded(
+        status: VehicleStatus?,
+        totals: LiveDriveTotals,
+        units: UnitsDTO?
+    ) -> [LiveMetric] {
         let units = units ?? .metricDefaults
         return [
             speed(status, units),
             power(status),
             batteryLevel(status),
             range(status, units),
-            distance(buffer, units),
-            energyUsed(buffer),
-            consumption(buffer, units),
+            distance(totals, units),
+            energyUsed(totals),
+            consumption(totals, units),
             outsideTemperature(status, units),
-            elevation(status)
+            elevation(status),
+            heading(status)
         ]
     }
 
@@ -97,28 +106,33 @@ enum LiveMetrics {
         )
     }
 
-    static func distance(_ buffer: LiveTelemetryBuffer, _ units: UnitsDTO) -> LiveMetric {
+    /// Taken from the drive's totals, not from the chart buffer.
+    ///
+    /// The buffer is a rolling window of about eight minutes on a streaming
+    /// drive, so "this drive" read from it was the last eight minutes of a
+    /// forty-mile journey.
+    static func distance(_ totals: LiveDriveTotals, _ units: UnitsDTO) -> LiveMetric {
         LiveMetric(
             id: "distance",
-            value: ValueFormatting.distance(buffer.distance, units: units, digits: 1),
+            value: ValueFormatting.distance(totals.distance, units: units, digits: 1),
             label: "this drive",
             symbol: "arrow.left.and.right",
             tone: .accent
         )
     }
 
-    static func energyUsed(_ buffer: LiveTelemetryBuffer) -> LiveMetric {
+    static func energyUsed(_ totals: LiveDriveTotals) -> LiveMetric {
         LiveMetric(
             id: "energy",
-            value: ValueFormatting.number(buffer.energyUsed, unit: "kWh", digits: 1),
+            value: ValueFormatting.number(totals.energyUsed, unit: "kWh", digits: 1),
             label: "energy used",
             symbol: "bolt.batteryblock.fill",
             tone: .positive
         )
     }
 
-    static func consumption(_ buffer: LiveTelemetryBuffer, _ units: UnitsDTO) -> LiveMetric {
-        let value = buffer.consumption()
+    static func consumption(_ totals: LiveDriveTotals, _ units: UnitsDTO) -> LiveMetric {
+        let value = totals.consumption
         return LiveMetric(
             id: "consumption",
             value: value.map { "\($0.formatted(.number.precision(.fractionLength(0)))) Wh/\(units.lengthSymbol)" } ?? "—",
@@ -134,6 +148,25 @@ enum LiveMetrics {
             value: ValueFormatting.temperature(status?.climateDetails?.outsideTemp, units: units, digits: 0),
             label: "outside",
             symbol: "thermometer.medium",
+            tone: .neutral
+        )
+    }
+
+    /// Which way the car is pointing.
+    ///
+    /// The arrow on the map already says it, but only to someone looking at the
+    /// map: the readout is what a driver reads without taking their eyes far off
+    /// the road, and "NE" is a faster read than an arrow's angle.
+    static func heading(_ status: VehicleStatus?) -> LiveMetric {
+        let degrees = status?.drivingDetails?.heading
+        let point = CompassPoint.name(for: degrees)
+        return LiveMetric(
+            id: "heading",
+            value: point.map { name in
+                degrees.map { "\(name) · \($0.formatted(.number.precision(.fractionLength(0))))°" } ?? name
+            } ?? "—",
+            label: "heading",
+            symbol: "location.north.line.fill",
             tone: .neutral
         )
     }

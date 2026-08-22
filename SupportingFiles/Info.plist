@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	App Transport Security.
+
+	This has to be a real file: `NSAppTransportSecurity` is a dictionary, and
+	Xcode's `INFOPLIST_KEY_*` build settings can only set top-level scalars. The
+	project carried `INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsArbitraryLoads`
+	for several releases and it produced no key at all — the shipped Info.plist
+	had no ATS section, so the policy was whatever the default happened to be and
+	the "Allow local HTTP" setting could not work on a device.
+
+	`NSAllowsArbitraryLoads` stays false: every internet connection this app makes
+	is HTTPS. `NSAllowsLocalNetworking` is what permits cleartext to a host on the
+	local network, which is where a self-hosted TeslaMate usually lives — and it
+	is scoped to exactly that, so it cannot be used to reach anything public.
+	`ProfileDraft.isLocal` enforces the same boundary before a URL is ever saved.
+	-->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<false/>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+</dict>
+</plist>

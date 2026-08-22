@@ -95,18 +95,126 @@ struct CarStatusDTO: Codable, Sendable {
     let trunkOpen: Bool?; let frunkOpen: Bool?
 }
 struct CarGeodataDTO: Codable, Sendable { let geofence: String?; let location: CoordinateDTO? }
-struct CoordinateDTO: Codable, Hashable, Sendable { let latitude: Double; let longitude: Double }
+struct CoordinateDTO: Codable, Hashable, Sendable {
+    let latitude: Double
+    let longitude: Double
+
+    /// Whether this is a position rather than the null island a server reports
+    /// when it has none.
+    var isReported: Bool { abs(latitude) > 0.0001 || abs(longitude) > 0.0001 }
+}
 struct CarVersionsDTO: Codable, Sendable { let version: String?; let updateAvailable: Bool?; let updateVersion: String? }
-struct DrivingDetailsDTO: Codable, Sendable { let shiftState: String?; let power: Double?; let speed: Double?; let heading: Double?; let elevation: Double? }
+/// The live driving block.
+///
+/// `autopilotState` and `isAutopilotEngaged` are reported only by servers whose
+/// broker publishes them — TeslaMate itself does not — so both stay optional and
+/// the app shows nothing at all rather than claiming a car is driving itself.
+struct DrivingDetailsDTO: Codable, Sendable {
+    let shiftState: String?
+    let power: Double?
+    let speed: Double?
+    let heading: Double?
+    let elevation: Double?
+    /// What the car calls the system that is driving it, verbatim from the
+    /// server: "Full Self-Driving", "Autosteer", "off".
+    let autopilotState: String?
+    /// Whether the server says a driving aid is currently steering.
+    let isAutopilotEngaged: Bool?
+    /// Whether anyone is in the car. The server reports it and the app used to
+    /// discard it; it is the difference between a car parked with the family in
+    /// it and one parked alone with the sentry on.
+    let isUserPresent: Bool?
+
+    /// Spelled out rather than left to the memberwise initialiser so the two
+    /// autopilot fields can be omitted at the many call sites that predate them.
+    init(
+        shiftState: String?,
+        power: Double?,
+        speed: Double?,
+        heading: Double?,
+        elevation: Double?,
+        autopilotState: String? = nil,
+        isAutopilotEngaged: Bool? = nil,
+        isUserPresent: Bool? = nil
+    ) {
+        self.shiftState = shiftState
+        self.power = power
+        self.speed = speed
+        self.heading = heading
+        self.elevation = elevation
+        self.autopilotState = autopilotState
+        self.isAutopilotEngaged = isAutopilotEngaged
+        self.isUserPresent = isUserPresent
+    }
+}
 struct ClimateDetailsDTO: Codable, Sendable { let isClimateOn: Bool?; let insideTemp: Double?; let outsideTemp: Double?; let isPreconditioning: Bool?; let climateKeeperMode: String? }
-struct StatusBatteryDTO: Codable, Sendable { let estBatteryRange: Double?; let ratedBatteryRange: Double?; let idealBatteryRange: Double?; let batteryLevel: Int?; let usableBatteryLevel: Int? }
+struct StatusBatteryDTO: Codable, Sendable {
+    let estBatteryRange: Double?
+    let ratedBatteryRange: Double?
+    let idealBatteryRange: Double?
+    let batteryLevel: Int?
+    let usableBatteryLevel: Int?
+    /// The cold-weather buffer in percentage points, as the server computed it.
+    /// Preferred over subtracting the two levels here, because the server can
+    /// answer when only one of them reached this device.
+    let bufferLevel: Int?
+
+    init(
+        estBatteryRange: Double?,
+        ratedBatteryRange: Double?,
+        idealBatteryRange: Double?,
+        batteryLevel: Int?,
+        usableBatteryLevel: Int?,
+        bufferLevel: Int? = nil
+    ) {
+        self.estBatteryRange = estBatteryRange
+        self.ratedBatteryRange = ratedBatteryRange
+        self.idealBatteryRange = idealBatteryRange
+        self.batteryLevel = batteryLevel
+        self.usableBatteryLevel = usableBatteryLevel
+        self.bufferLevel = bufferLevel
+    }
+}
 struct StatusChargingDTO: Codable, Sendable {
     let pluggedIn: Bool?; let chargingState: String?; let chargeEnergyAdded: Double?; let chargeLimitSoc: Int?
     let chargePortDoorOpen: Bool?; let chargerActualCurrent: Double?; let chargerPhases: Int?; let chargerPower: Double?
     let chargerVoltage: Int?; let scheduledChargingStartTime: FlexibleDate?; let timeToFullCharge: Double?
 }
+/// Tyre pressures, and the car's own judgement on each of them.
+///
+/// The warning flags are the car's, not a threshold this app invented: a correct
+/// cold pressure for one wheel and load is a soft warning on another. They were
+/// arriving from the server and being dropped on the floor, which is a poor thing
+/// to do with the one live reading that is about safety.
 struct TPMSDTO: Codable, Sendable {
-    let tpmsPressureFl: Double?; let tpmsPressureFr: Double?; let tpmsPressureRl: Double?; let tpmsPressureRr: Double?
+    let tpmsPressureFl: Double?
+    let tpmsPressureFr: Double?
+    let tpmsPressureRl: Double?
+    let tpmsPressureRr: Double?
+    let tpmsWarningFl: Bool?
+    let tpmsWarningFr: Bool?
+    let tpmsWarningRl: Bool?
+    let tpmsWarningRr: Bool?
+
+    init(
+        tpmsPressureFl: Double?,
+        tpmsPressureFr: Double?,
+        tpmsPressureRl: Double?,
+        tpmsPressureRr: Double?,
+        tpmsWarningFl: Bool? = nil,
+        tpmsWarningFr: Bool? = nil,
+        tpmsWarningRl: Bool? = nil,
+        tpmsWarningRr: Bool? = nil
+    ) {
+        self.tpmsPressureFl = tpmsPressureFl
+        self.tpmsPressureFr = tpmsPressureFr
+        self.tpmsPressureRl = tpmsPressureRl
+        self.tpmsPressureRr = tpmsPressureRr
+        self.tpmsWarningFl = tpmsWarningFl
+        self.tpmsWarningFr = tpmsWarningFr
+        self.tpmsWarningRl = tpmsWarningRl
+        self.tpmsWarningRr = tpmsWarningRr
+    }
 }
 
 struct DrivesDataDTO: Decodable, Sendable { let car: CarReferenceDTO; let drives: [DriveSummaryDTO]; let units: UnitsDTO? }

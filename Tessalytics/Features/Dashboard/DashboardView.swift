@@ -22,7 +22,7 @@ struct DashboardView: View {
 
     var body: some View {
         NavigationStack {
-            TessalyticsScreen(isLive: environment.status?.isDriving == true) {
+            TessalyticsScreen(isLive: environment.isLiveDriving) {
                 if environment.vehicles.isEmpty {
                     EmptyState(
                         title: "No vehicles",
@@ -125,8 +125,11 @@ struct DashboardView: View {
                         ? environment.status?.tpmsDetails
                         : environment.lastLiveStatus?.tpmsDetails,
                     route: environment.liveMapRoute,
-                    liveBuffer: environment.liveTelemetry,
+                    liveTotals: environment.liveDriveTotals,
                     isStreaming: environment.isStreamingLive,
+                    isDriving: environment.isLiveDriving,
+                    coordinate: environment.liveCoordinate ?? environment.status?.carGeodata?.location,
+                    placeName: environment.livePlace.name,
                     onOpenMap: { isShowingLiveMap = true },
                     onOpenBattery: { isShowingBatteryHealth = true }
                 )
@@ -140,8 +143,12 @@ struct DashboardView: View {
                     DirectTeslaControlsCard()
                 }
 
-                if environment.status?.isDriving == true {
-                    LiveDriveSection(buffer: environment.liveTelemetry, units: environment.statusUnits)
+                if environment.isLiveDriving {
+                    LiveDriveSection(
+                        buffer: environment.liveTelemetry,
+                        totals: environment.liveDriveTotals,
+                        units: environment.statusUnits
+                    )
                 }
 
                 // Capacity against mileage, in place of the five-figure strip
@@ -566,6 +573,19 @@ private struct VehicleTelemetryGrid: View {
                     detail: cabinDeltaDetail,
                     tint: TessalyticsTheme.warning
                 )
+                // The server reports this and the app used to discard it. It is
+                // the difference between a car parked with someone in it and one
+                // parked alone with the sentry watching.
+                if let occupied = status.drivingDetails?.isUserPresent {
+                    MetricCard(
+                        title: "Occupancy",
+                        value: occupied ? "Someone aboard" : "Empty",
+                        symbol: occupied ? "figure.seated.side.right" : "car.side",
+                        detail: occupied ? "The car reports a driver" : "Nobody in the car",
+                        tint: occupied ? TessalyticsTheme.accent : TessalyticsTheme.neutral
+                    )
+                    .accessibilityIdentifier("vehicle-occupancy")
+                }
             } else {
                 MetricCard(
                     title: "Last drive",
@@ -606,7 +626,13 @@ private struct VehicleTelemetryGrid: View {
         return range.label.capitalizedFirst
     }
 
+    /// The cold-weather buffer, preferring the server's own figure.
+    ///
+    /// Subtracting the two levels here needs both of them to have arrived; the
+    /// server computes it from whatever it has, so it can answer when this
+    /// cannot.
     private var usableChargeDetail: String {
+        if let buffer = status.batteryDetails?.bufferLevel, buffer > 0 { return "\(buffer) pt cold buffer" }
         guard let displayed = status.batteryDetails?.batteryLevel else { return "Usable capacity" }
         guard let usable = status.batteryDetails?.usableBatteryLevel else { return "Displayed \(displayed)%" }
         let difference = displayed - usable
@@ -1039,23 +1065,31 @@ private struct VehicleHeroCard: View {
     /// The route of the drive in progress, already stabilised so a redraw of this
     /// card does not redraw the line on the map.
     let route: LiveRouteTrail
-    /// The readings behind the live figures under the map.
-    let liveBuffer: LiveTelemetryBuffer
+    /// The whole drive's figures, for the grid under the map.
+    let liveTotals: LiveDriveTotals
     let isStreaming: Bool
+    /// Whether a drive is in progress, latched so one odd reading cannot rebuild
+    /// the card.
+    let isDriving: Bool
+    /// The last position reported during it. Held by the environment rather than
+    /// read off `status`, so a reading without one does not take the map out of
+    /// the view tree — see `AppEnvironment.liveCoordinate`.
+    let coordinate: CoordinateDTO?
+    /// Where the car is, in words. Resolved on the device from the coordinate.
+    let placeName: String?
     /// Opens the full-screen map.
     let onOpenMap: () -> Void
     /// Opens battery health, which is where the card as a whole leads.
     let onOpenBattery: () -> Void
 
-    private var isDriving: Bool { status?.isDriving == true }
-
-    private var liveCoordinate: CLLocationCoordinate2D? {
-        guard let location = status?.carGeodata?.location,
-              abs(location.latitude) > 0.0001 || abs(location.longitude) > 0.0001 else { return nil }
-        return CLLocationCoordinate2D(latitude: location.latitude, longitude: location.longitude)
+    private var mapCoordinate: CLLocationCoordinate2D? {
+        guard let coordinate, coordinate.isReported else { return nil }
+        return CLLocationCoordinate2D(latitude: coordinate.latitude, longitude: coordinate.longitude)
     }
 
-    private var summary: VehicleHeroSummary { VehicleHeroSummary(status: status, units: units) }
+    private var summary: VehicleHeroSummary {
+        VehicleHeroSummary(status: status, units: units, placeName: placeName)
+    }
     private var isLive: Bool { status?.reportsLiveTelemetry ?? false }
     private var modelText: String {
         [TeslaModelNaming.displayName(vehicle?.model), vehicle?.trim?.nilIfEmpty]
@@ -1107,25 +1141,22 @@ private struct VehicleHeroCard: View {
     /// all, whatever gesture is attached to it.
     var body: some View {
         TessalyticsHeroSurface(tint: tint) {
+            // One layout, always, with the map inserted into it rather than a
+            // separate layout for the days the car is moving. Two branches meant
+            // that anything flipping `isDriving` — or one reading arriving
+            // without a position — replaced the whole card, `MKMapView` and all,
+            // and a map that leaves the view tree comes back as an empty grey
+            // rectangle for as long as it takes to redraw. That was the flicker.
             VStack(alignment: .leading, spacing: 12) {
-                if isDriving, let coordinate = liveCoordinate {
-                    Button(action: onOpenBattery) { identity }
-                        .buttonStyle(.plain)
-                        .accessibilityHint("Opens battery health")
-                    mapButton(coordinate: coordinate)
-                    Button(action: onOpenBattery) { details }
-                        .buttonStyle(.plain)
-                        .accessibilityHint("Opens battery health")
-                } else {
-                    Button(action: onOpenBattery) {
-                        VStack(alignment: .leading, spacing: 12) {
-                            identity
-                            details
-                        }
-                    }
+                Button(action: onOpenBattery) { identity }
                     .buttonStyle(.plain)
                     .accessibilityHint("Opens battery health")
+                if isDriving, let mapCoordinate {
+                    mapButton(coordinate: mapCoordinate)
                 }
+                Button(action: onOpenBattery) { details }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Opens battery health")
             }
         }
         // A container rather than a plain identifier: an identifier on a view with
@@ -1171,28 +1202,63 @@ private struct VehicleHeroCard: View {
             // Only motion and charging get the loud line. The rest of the
             // time the place is the interesting part — but the state is still
             // worth a word, so it rides alongside as a pill.
-            HStack(spacing: 8) {
-                if summary.isNotable {
-                    Label(summary.headline, systemImage: summary.activity.symbol)
-                        .font(.title3.weight(.semibold))
-                        .foregroundStyle(.primary)
-                        .symbolRenderingMode(.hierarchical)
-                        .tint(tint)
-                        .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
-                        .minimumScaleFactor(0.78)
-                } else if let place = summary.placeText {
-                    Label(place, systemImage: "mappin.and.ellipse")
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 8) {
+                    if summary.isNotable {
+                        Label(summary.headline, systemImage: summary.activity.symbol)
+                            .font(.title3.weight(.semibold))
+                            .foregroundStyle(.primary)
+                            .symbolRenderingMode(.hierarchical)
+                            .tint(tint)
+                            .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
+                            .minimumScaleFactor(0.78)
+                            .accessibilityIdentifier("vehicle-headline")
+                    } else if let place = summary.placeText {
+                        Label(place, systemImage: "mappin.and.ellipse")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                            .accessibilityIdentifier("vehicle-place")
+                    }
+                    Spacer(minLength: 6)
+                    if isDriving {
+                        LiveIndicator(isStreaming: isStreaming)
+                    } else {
+                        StatusBadge(text: summary.stateNoun, color: tint)
+                            .accessibilityIdentifier("vehicle-state-pill")
+                    }
                 }
-                Spacer(minLength: 6)
-                if isDriving {
-                    LiveIndicator(isStreaming: isStreaming)
-                } else {
-                    StatusBadge(text: summary.stateNoun, color: tint)
-                        .accessibilityIdentifier("vehicle-state-pill")
+
+                // "Driving" on its own says nothing a glance at the road does
+                // not. Where the car is, and whether it is steering itself, are
+                // the two things the screen knows that the driver does not — and
+                // at a red light, with the speed at zero, they are the only two
+                // things on the line worth reading.
+                if summary.isNotable {
+                    liveDetailLine
+                }
+            }
+        }
+    }
+
+    @ViewBuilder private var liveDetailLine: some View {
+        let place = summary.placeText
+        if place != nil || summary.selfDriving != nil {
+            HStack(spacing: 8) {
+                if let place {
+                    Label(place, systemImage: "mappin.and.ellipse")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 1)
+                        .minimumScaleFactor(0.8)
+                        .accessibilityLabel("Location")
+                        .accessibilityValue(place)
+                        .accessibilityIdentifier("vehicle-place")
+                }
+                Spacer(minLength: 4)
+                if let mode = summary.selfDriving {
+                    SelfDrivingBadge(mode: mode)
                 }
             }
         }
@@ -1249,7 +1315,7 @@ private struct VehicleHeroCard: View {
                 if isDriving {
                     Divider()
                     LiveMetricGrid(
-                        metrics: LiveMetrics.hero(status: status, buffer: liveBuffer, units: units)
+                        metrics: LiveMetrics.hero(status: status, totals: liveTotals, units: units)
                     )
                     .accessibilityIdentifier("hero-live-metrics")
                 } else if !batteryLevels.isEmpty {
@@ -1450,10 +1516,18 @@ struct VehicleHeroSummary: Equatable {
     let batteryFraction: Double?
     /// The configured charge limit as a fraction, for the ring's tick.
     let chargeLimitFraction: Double?
+    /// What is steering, when the server says. Nil is "the server does not
+    /// report it", and draws nothing at all.
+    let selfDriving: SelfDrivingMode?
+    /// Whether the car is in a drive and standing still.
+    let isStoppedInDrive: Bool
 
-    init(status: VehicleStatus?, units: UnitsDTO?) {
+    /// - Parameter placeName: where the car is, resolved on the device from its
+    ///   coordinate. A geofence still wins when there is one: "Home" is what the
+    ///   owner called the place, and no geocoder will improve on that.
+    init(status: VehicleStatus?, units: UnitsDTO?, placeName: String? = nil) {
         let resolvedUnits = units ?? .metricDefaults
-        let location = status?.carGeodata?.reportedGeofence
+        let location = status?.carGeodata?.reportedGeofence ?? placeName?.nilIfEmpty
         let state = status?.state?.lowercased()
         let shift = status?.drivingDetails?.shiftState?.uppercased()
         let chargingState = status?.chargingDetails?.chargingState?.lowercased()
@@ -1462,11 +1536,28 @@ struct VehicleHeroSummary: Equatable {
         let isPluggedIn = status?.chargingDetails?.pluggedIn == true
 
         placeText = location
+        selfDriving = status?.selfDrivingMode
+        isStoppedInDrive = status?.isStoppedInDrive ?? false
         if isDriving {
             activity = .driving
             let speed = Self.value(status?.drivingDetails?.speed, unit: resolvedUnits.speedSymbol)
-            headline = speed.map { "Driving · \($0)" } ?? "Driving"
-            stateNoun = "Driving"
+            // A car at a red light is not "Driving · 0 mph". Standing still in
+            // the middle of a journey is its own thing, and saying so is the
+            // difference between a screen that looks stuck and one that is
+            // telling you what the car is doing.
+            let gear = status?.drivingDetails?.notableGear
+            if let gear {
+                // Reverse and neutral outrank the speed: they are the surprising
+                // thing about the reading, and the speed is on the grid below.
+                headline = gear
+                stateNoun = gear
+            } else if status?.isStoppedInDrive == true {
+                headline = "Stopped"
+                stateNoun = "Stopped"
+            } else {
+                headline = speed.map { "Driving · \($0)" } ?? "Driving"
+                stateNoun = "Driving"
+            }
             isNotable = true
         } else if isCharging {
             activity = .charging

@@ -9,8 +9,8 @@ settings:
     SWIFT_VERSION: 6.0
     DEVELOPMENT_TEAM: P8FYZDZ6AA
     CODE_SIGN_STYLE: Automatic
-    CURRENT_PROJECT_VERSION: 202608202158
-    MARKETING_VERSION: 1.7.2
+    CURRENT_PROJECT_VERSION: 202608220330
+    MARKETING_VERSION: 1.8.0
     ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS: YES
 targets:
   Tessalytics:
@@ -26,10 +26,13 @@ targets:
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
         INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
-        INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsArbitraryLoads: NO
         INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO
         INFOPLIST_KEY_NSFaceIDUsageDescription: Confirm vehicle commands before Tessalytics sends them.
         GENERATE_INFOPLIST_FILE: YES
+        # Merged into the generated plist. Needed because NSAppTransportSecurity
+        # is a dictionary and INFOPLIST_KEY_* can only set top-level scalars —
+        # the setting that used to be here produced no key at all.
+        INFOPLIST_FILE: SupportingFiles/Info.plist
         TARGETED_DEVICE_FAMILY: "1,2"
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
@@ -51,6 +54,10 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.echocool.TessalyticsTests
         GENERATE_INFOPLIST_FILE: YES
+        # Merged into the generated plist. Needed because NSAppTransportSecurity
+        # is a dictionary and INFOPLIST_KEY_* can only set top-level scalars —
+        # the setting that used to be here produced no key at all.
+        INFOPLIST_FILE: SupportingFiles/Info.plist
   TessalyticsUITests:
     type: bundle.ui-testing
     platform: iOS
@@ -62,3 +69,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.echocool.TessalyticsUITests
         GENERATE_INFOPLIST_FILE: YES
+        # Merged into the generated plist. Needed because NSAppTransportSecurity
+        # is a dictionary and INFOPLIST_KEY_* can only set top-level scalars —
+        # the setting that used to be here produced no key at all.
+        INFOPLIST_FILE: SupportingFiles/Info.plist

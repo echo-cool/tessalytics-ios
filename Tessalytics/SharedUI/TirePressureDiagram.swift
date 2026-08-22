@@ -18,13 +18,13 @@ struct TirePressureDiagram: View {
     var body: some View {
         HStack(spacing: 6) {
             VStack(spacing: height * 0.28) {
-                reading(TPMSDTO.reported(pressures?.tpmsPressureFl), corner: "Front left")
-                reading(TPMSDTO.reported(pressures?.tpmsPressureRl), corner: "Rear left")
+                reading(for: .frontLeft)
+                reading(for: .rearLeft)
             }
             carBody
             VStack(spacing: height * 0.28) {
-                reading(TPMSDTO.reported(pressures?.tpmsPressureFr), corner: "Front right")
-                reading(TPMSDTO.reported(pressures?.tpmsPressureRr), corner: "Rear right")
+                reading(for: .frontRight)
+                reading(for: .rearRight)
             }
         }
         .frame(height: height)
@@ -73,16 +73,38 @@ struct TirePressureDiagram: View {
         }
     }
 
-    private func tint(for corner: Corner) -> Color {
-        value(for: corner) == nil ? TessalyticsTheme.steel.opacity(0.25) : TessalyticsTheme.steel.opacity(0.8)
+    /// The car's own soft-pressure warning for a corner, when it reports one.
+    private func isWarning(_ corner: Corner) -> Bool {
+        switch corner {
+        case .frontLeft: pressures?.tpmsWarningFl == true
+        case .frontRight: pressures?.tpmsWarningFr == true
+        case .rearLeft: pressures?.tpmsWarningRl == true
+        case .rearRight: pressures?.tpmsWarningRr == true
+        }
     }
 
-    private func reading(_ value: Double?, corner: String) -> some View {
-        VStack(spacing: -1) {
-            Text(value.map { $0.formatted(.number.precision(.fractionLength(0...1))) } ?? "—")
-                .font(.caption.weight(.semibold))
-                .monospacedDigit()
-                .foregroundStyle(value == nil ? .secondary : .primary)
+    private func tint(for corner: Corner) -> Color {
+        if isWarning(corner) { return TessalyticsTheme.warning }
+        return value(for: corner) == nil ? TessalyticsTheme.steel.opacity(0.25) : TessalyticsTheme.steel.opacity(0.8)
+    }
+
+    private func reading(for corner: Corner) -> some View {
+        let value = value(for: corner)
+        let warns = isWarning(corner)
+        return VStack(spacing: -1) {
+            HStack(spacing: 2) {
+                // The car said this one is soft. Colour alone would not carry it
+                // to a reader who cannot see the difference, so the mark does.
+                if warns {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 8))
+                        .foregroundStyle(TessalyticsTheme.warning)
+                }
+                Text(value.map { $0.formatted(.number.precision(.fractionLength(0...1))) } ?? "—")
+                    .font(.caption.weight(warns ? .bold : .semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(warns ? TessalyticsTheme.warning : (value == nil ? .secondary : .primary))
+            }
             Text(unit)
                 .font(.system(size: 8))
                 .foregroundStyle(.secondary)
@@ -100,7 +122,8 @@ struct TirePressureDiagram: View {
             case .rearLeft: "rear left"
             case .rearRight: "rear right"
             }
-            return "\(name) \(value.formatted(.number.precision(.fractionLength(0...1)))) \(unit)"
+            let warning = isWarning(corner) ? ", low pressure warning" : ""
+            return "\(name) \(value.formatted(.number.precision(.fractionLength(0...1)))) \(unit)\(warning)"
         }
         return readings.isEmpty ? "No readings" : readings.joined(separator: ", ")
     }

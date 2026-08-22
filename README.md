@@ -200,9 +200,19 @@ Use the mode bar to switch between overview, driving, charging, forecasts, and b
 
 Predictions are on-device statistical estimates based on synchronized history. They are not guarantees, safety guidance, or commands to the vehicle.
 
+### Live driving
+
+While a drive is in progress the Status tab shows the route so far on a map, the speed, power and consumption as they change, and where the car is — the road it is on while it moves, the street address while it is standing. A car stopped at a light says "Stopped" rather than "Driving · 0 mph", because a screen that reads as frozen is worse than one that says what is happening.
+
+If your server reports what is steering, a badge next to the location says so — blue for Full Self-Driving or Autopilot, grey when the car reports driving itself is off. TeslaMate does not publish this, so on most deployments the badge is simply absent; the app never guesses.
+
+Where the car is comes from the coordinate the server reports, resolved on the device and throttled so a drive costs a handful of lookups rather than one per reading. A geofence you have drawn always wins: "Home" is what you called the place.
+
 ### Settings
 
 Settings switches servers and vehicles, manages notifications, displays software history and privacy information, and adds optional direct connectivity.
+
+Tapping the version number five times turns on **debug mode**: a screen showing the live state exactly as the app holds it, the connection's health, an optional recording of every raw event the server sends, and an export you can share. The export is redacted — tokens, VINs and coordinates are stripped before the file leaves the device. Turning debug mode off clears the log and hides the screen again.
 
 ### Optional direct live data and controls
 
@@ -255,6 +265,8 @@ xcodebuild -project Tessalytics.xcodeproj \
 ```
 
 Live-server tests are opt-in and prompt for credentials so secrets are never committed. See [Testing](docs/testing.md).
+
+Live mode can be exercised without a moving car. `-ui-demo -ui-demo-driving` shows one frozen instant of a journey; adding `-ui-demo-driving-live` advances it at the rate a car publishes, through an acceleration, a red light and a stretch of Full Self-Driving. Adding `-ui-demo-gappy-readings` makes a third of those readings arrive with no position at all, which is the fault that used to make the map on the home screen flash.
 
 ## Contributing
 

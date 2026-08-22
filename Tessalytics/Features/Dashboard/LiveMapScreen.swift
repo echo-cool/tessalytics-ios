@@ -18,16 +18,21 @@ struct LiveMapScreen: View {
 
     private var status: VehicleStatus? { environment.status }
 
+    /// The held position, not the one on the newest reading.
+    ///
+    /// Same reason as the hero card: a reading that arrives without a position
+    /// would otherwise replace the whole map with the "No position" state and
+    /// then build a fresh `MKMapView` when the next one arrives.
     private var coordinate: CLLocationCoordinate2D? {
-        guard let location = status?.carGeodata?.location,
-              abs(location.latitude) > 0.0001 || abs(location.longitude) > 0.0001 else { return nil }
+        guard let location = environment.liveCoordinate ?? status?.carGeodata?.location,
+              location.isReported else { return nil }
         return CLLocationCoordinate2D(latitude: location.latitude, longitude: location.longitude)
     }
 
     private var metrics: [LiveMetric] {
         LiveMetrics.expanded(
             status: status,
-            buffer: environment.liveTelemetry,
+            totals: environment.liveDriveTotals,
             units: environment.statusUnits
         )
     }

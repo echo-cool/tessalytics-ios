@@ -34,6 +34,13 @@ struct LiveStateStream: Sendable {
     /// rather than replay a queue of superseded ones — an unbounded buffer turns a
     /// momentary stall into a permanently growing lag.
     var bufferDepth = 8
+    /// Handed every event body as it arrives, before it is decoded.
+    ///
+    /// Debug mode's window onto the wire. Given the raw bytes on purpose: the
+    /// question it exists to answer is "is what the server sent what the app
+    /// understood", and a recording of the app's own interpretation cannot
+    /// answer it. Nil in normal use, and the stream does no extra work for it.
+    var recorder: (@Sendable (Data) -> Void)?
 
     enum Event: Sendable {
         case state(StatusDataDTO)
@@ -103,9 +110,9 @@ struct LiveStateStream: Sendable {
         // reported itself connected. Verified: feeding "a\n\nb\n\n" through
         // `.lines` yields two lines and no blank.
         for try await byte in bytes {
-            guard let body = frames.consume(byte: byte),
-                  let status = Self.decode(body: body, carID: carID)
-            else { continue }
+            guard let body = frames.consume(byte: byte) else { continue }
+            recorder?(body)
+            guard let status = Self.decode(body: body, carID: carID) else { continue }
             if Task.isCancelled { throw CancellationError() }
             continuation.yield(.state(status))
         }

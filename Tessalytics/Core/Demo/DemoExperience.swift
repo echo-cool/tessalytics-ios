@@ -103,7 +103,15 @@ enum DemoExperience {
                 location: CoordinateDTO(latitude: 37.4062, longitude: -122.0723)
             ),
             carVersions: CarVersionsDTO(version: "2026.20.3", updateAvailable: false, updateVersion: nil),
-            drivingDetails: DrivingDetailsDTO(shiftState: "D", power: 34, speed: 63, heading: 118, elevation: 42),
+            drivingDetails: DrivingDetailsDTO(
+                shiftState: "D",
+                power: 34,
+                speed: 63,
+                heading: 118,
+                elevation: 42,
+                autopilotState: "Full Self-Driving",
+                isAutopilotEngaged: true
+            ),
             climateDetails: ClimateDetailsDTO(
                 isClimateOn: true,
                 insideTemp: 21.5,
@@ -153,6 +161,23 @@ enum DemoExperience {
             )
         }
         return buffer
+    }
+
+    /// The whole-journey figures for the generated drive.
+    ///
+    /// Built by walking the same samples the buffer holds, so the demo's
+    /// "this drive" figures are the ones its own readings imply.
+    static func drivingTotals(now: Date = .now) -> LiveDriveTotals {
+        var totals = LiveDriveTotals()
+        for sample in drivingTelemetry(now: now).samples {
+            totals.record(
+                odometer: sample.odometer,
+                speed: sample.speed,
+                power: sample.power,
+                at: sample.date
+            )
+        }
+        return totals
     }
 
     static func status(now: Date = .now) -> VehicleStatus {
@@ -209,6 +234,13 @@ enum DemoExperience {
             )
         )
     }
+
+    /// Demo mode never reaches a network, so the reverse geocoder does not
+    /// either. The names are the ones the generated route actually runs along.
+    static let placeNames = FixedPlaceNames(
+        street: "El Camino Real, Mountain View",
+        address: "1350 El Camino Real, Mountain View"
+    )
 
     /// Health for a Model Y Long Range with a little age on it. Demo units are
     /// miles; rated efficiency is kWh per 100 km, as TeslaMateApi reports it.

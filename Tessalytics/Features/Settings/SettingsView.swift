@@ -10,6 +10,14 @@ struct SettingsView: View {
     @State private var confirmsErase = false
     @State private var isWorking = false
     @State private var errorMessage: String?
+    /// Taps on the version number so far, and when the run started.
+    ///
+    /// A run rather than a count: five taps spread over an afternoon are five
+    /// people reading the version number, not one person asking for the debug
+    /// screens.
+    @State private var versionTaps = 0
+    @State private var versionTapsStartedAt: Date?
+    @State private var showsUnlockConfirmation = false
 
     var body: some View {
         @Bindable var environment = environment
@@ -149,6 +157,8 @@ struct SettingsView: View {
                         }
                     }
                     .foregroundStyle(.primary)
+
+                    versionSection
                 }
                 .scrollContentBackground(.hidden)
             }
@@ -192,6 +202,12 @@ struct SettingsView: View {
             } message: {
                 Text("Removes every server, all history, and all stored tokens. This cannot be undone.")
             }
+            .alert("Debug mode is on", isPresented: $showsUnlockConfirmation) {
+                Button("Open") { presentedSheet = .diagnostics }
+                Button("Later", role: .cancel) {}
+            } message: {
+                Text("A Debug section is now at the bottom of Settings. Turn it off from there when you are finished.")
+            }
             .alert(
                 "Could not complete",
                 isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })
@@ -227,6 +243,8 @@ struct SettingsView: View {
                     SettingsSheetContainer { AboutView() }
                 case .ownerAPI:
                     OwnerAPIConnectionView()
+                case .diagnostics:
+                    SettingsSheetContainer { DiagnosticsView() }
                 }
             }
         }
@@ -252,6 +270,75 @@ private extension SettingsView {
     }
 }
 
+private extension SettingsView {
+    /// The version number, and the way in.
+    ///
+    /// Five taps rather than a switch in a menu, because this is a hatch for the
+    /// one person a year who is chasing something — not a feature. The count is
+    /// deliberately not shown until it is nearly there, so a stray double tap on
+    /// a footer does not read as the app doing something.
+    @ViewBuilder var versionSection: some View {
+        Section {
+            Button {
+                registerVersionTap()
+            } label: {
+                HStack {
+                    Label("Version", systemImage: "number")
+                    Spacer()
+                    Text(Diagnostics.appVersion)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+                .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("settings-version")
+            .accessibilityHint("Tap five times to turn on debug mode")
+
+            if environment.diagnostics.isUnlocked {
+                Button { presentedSheet = .diagnostics } label: {
+                    Label("Debug", systemImage: "ladybug.fill")
+                }
+                .foregroundStyle(.primary)
+                .accessibilityIdentifier("settings-diagnostics")
+            }
+        } footer: {
+            if let remaining = remainingTapsToUnlock {
+                Text("\(remaining) more \(remaining == 1 ? "tap" : "taps") to turn on debug mode.")
+            }
+        }
+    }
+
+    /// How many taps are left, once a reader is close enough for the hint to be
+    /// an answer rather than a distraction.
+    var remainingTapsToUnlock: Int? {
+        guard !environment.diagnostics.isUnlocked else { return nil }
+        let remaining = Diagnostics.tapsToUnlock - versionTaps
+        return (1...2).contains(remaining) ? remaining : nil
+    }
+
+    /// How long a run of taps stays open.
+    static var versionTapWindow: TimeInterval { 3 }
+
+    func registerVersionTap() {
+        guard !environment.diagnostics.isUnlocked else {
+            presentedSheet = .diagnostics
+            return
+        }
+        let now = Date.now
+        if let started = versionTapsStartedAt, now.timeIntervalSince(started) > Self.versionTapWindow {
+            versionTaps = 0
+        }
+        if versionTaps == 0 { versionTapsStartedAt = now }
+        versionTaps += 1
+        guard versionTaps >= Diagnostics.tapsToUnlock else { return }
+        versionTaps = 0
+        versionTapsStartedAt = nil
+        environment.diagnostics.unlock()
+        showsUnlockConfirmation = true
+    }
+}
+
 private enum SettingsSheet: String, Identifiable {
     case addServer
     case specification
@@ -261,11 +348,12 @@ private enum SettingsSheet: String, Identifiable {
     case privacy
     case about
     case ownerAPI
+    case diagnostics
 
     var id: String { rawValue }
 }
 
-private struct SettingsSheetContainer<Content: View>: View {
+struct SettingsSheetContainer<Content: View>: View {
     @Environment(\.dismiss) private var dismiss
     @ViewBuilder let content: Content
 

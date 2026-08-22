@@ -25,7 +25,17 @@ final class AppEnvironment {
     var lastLiveStatus: VehicleStatus?
     var lastLiveStatusAt: Date?
     /// Readings from the event stream, for the charts shown while driving.
+    ///
+    /// A rolling window, by design. The figures for the *whole* journey live in
+    /// `liveDriveTotals`, because this one is pruned.
     var liveTelemetry = LiveTelemetryBuffer()
+    /// Distance, energy and the peaks for the drive in progress.
+    ///
+    /// Kept apart from the buffer above, which holds about eight minutes of a
+    /// streaming drive. "This drive" used to be derived from that buffer, so on a
+    /// long journey it silently reported the last eight minutes under a label
+    /// that said otherwise.
+    private(set) var liveDriveTotals = LiveDriveTotals()
     /// The path of the drive in progress, as the server already has it.
     ///
     /// The in-memory buffer only knows what has arrived since the app opened, so a
@@ -40,6 +50,34 @@ final class AppEnvironment {
     /// line jumped on every reading instead of growing by one point. This changes
     /// only when the route does.
     private(set) var liveMapRoute = LiveRouteTrail()
+    /// The position the live map draws the car at.
+    ///
+    /// Held here rather than read off `status` at render time. A reading that
+    /// arrives without a position is a gap in what the car published, not the car
+    /// disappearing — and reading it as the latter took the map out of the view
+    /// tree for one frame, which tears down `MKMapView` and puts an empty map
+    /// surface up in its place when it comes back. That is the flash: the card's
+    /// tint, then a blank map, then the map again, several times a minute.
+    private(set) var liveCoordinate: CoordinateDTO?
+    /// Whether the screen should be in live driving mode.
+    ///
+    /// Latched off `status.isDriving` for the same reason. The screen changes
+    /// shape between driving and not — a map appears, the charts appear, the
+    /// backdrop changes — and rebuilding all of that for a single reading that
+    /// forgot to mention the gear is a flicker, not an update. A drive ends on a
+    /// reading that says so, or on the grace expiring; not on a silence.
+    private(set) var isLiveDriving = false
+    private var lastDrivingReadingAt: Date?
+
+    /// Where the car is, in words.
+    ///
+    /// Resolved on the device from the coordinate the server reports, because no
+    /// server reports an address for a car between drives — TeslaMate names a
+    /// place only when the car is standing inside a geofence the owner drew. The
+    /// alternative the app used to live with was the geofence of the last drive
+    /// that happened to end in one, which is an address from days ago presented
+    /// as where the car is now.
+    private(set) var livePlace = LivePlaceName()
     /// Whether the event stream is currently connected.
     var isStreamingLive = false
     /// Why the stream is not connected, when it isn't.
@@ -54,6 +92,8 @@ final class AppEnvironment {
     var ownerLastError: String?
     var isOwnerCommandRunning = false
     private(set) var isDemoMode = false
+    /// Debug mode's log. Records nothing until it is unlocked by hand.
+    let diagnostics = Diagnostics()
 
     /// Fleet-wide totals derived from the complete cached history.
     private(set) var fleet = FleetStatistics()
@@ -75,6 +115,8 @@ final class AppEnvironment {
     private var statusTask: Task<Void, Never>?
     private var pollingTarget: PollingTarget?
     private var liveStreamTask: Task<Void, Never>?
+    /// The ticker behind `-ui-demo-driving-live`, and nothing else.
+    private var demoDriveTask: Task<Void, Never>?
     private var liveStreamTarget: PollingTarget?
     private var liveRouteTask: Task<Void, Never>?
     private var liveRouteKey: LiveRouteKey?
@@ -159,10 +201,15 @@ final class AppEnvironment {
             return
         }
         if ProcessInfo.processInfo.arguments.contains("-ui-demo") {
+            let arguments = ProcessInfo.processInfo.arguments
             activateDemo(
-                showDirectControls: !ProcessInfo.processInfo.arguments.contains("-ui-owner-disconnected"),
-                offline: ProcessInfo.processInfo.arguments.contains("-ui-demo-offline"),
-                driving: ProcessInfo.processInfo.arguments.contains("-ui-demo-driving")
+                showDirectControls: !arguments.contains("-ui-owner-disconnected"),
+                offline: arguments.contains("-ui-demo-offline"),
+                driving: arguments.contains("-ui-demo-driving"),
+                // A drive that actually moves. Off by default: the screenshot
+                // sets want one fixed frame, not a car that has driven away by
+                // the time the shutter opens.
+                animated: arguments.contains("-ui-demo-driving-live")
             )
             return
         }
@@ -261,12 +308,19 @@ final class AppEnvironment {
         startHistoryPolling()
     }
 
-    private func activateDemo(showDirectControls: Bool, offline: Bool = false, driving: Bool = false) {
+    private func activateDemo(
+        showDirectControls: Bool,
+        offline: Bool = false,
+        driving: Bool = false,
+        animated: Bool = false
+    ) {
         stopStatusPolling()
         stopHistoryPolling()
         stopLiveStream()
+        stopDemoDrive()
         liveRoute = []
         clearLiveMapRoute()
+        clearDrivingLatch()
         isDemoMode = true
         isOffline = false
         lastError = nil
@@ -277,14 +331,23 @@ final class AppEnvironment {
         selectedProfile = profile
         vehicles = [vehicle]
         selectedVehicle = vehicle
+        // Demo mode never reaches the network, so the geocoder must not either.
+        livePlace = LivePlaceName(resolver: DemoExperience.placeNames)
         if driving {
-            status = DemoExperience.drivingStatus()
+            let reading = DemoExperience.drivingStatus()
+            status = reading
             liveTelemetry = DemoExperience.drivingTelemetry()
+            liveDriveTotals = DemoExperience.drivingTotals()
             updateLiveMapRoute()
+            updateLivePlace(reading)
+            updateDrivingLatch(reading, now: .now)
+            liveCoordinate = reading.carGeodata?.location
             isStreamingLive = true
+            if animated { startDemoDrive() }
         } else {
             status = offline ? DemoExperience.offlineStatus() : DemoExperience.status()
             liveTelemetry.reset()
+            updateLivePlace(status)
             isStreamingLive = false
         }
         statusUnits = DemoExperience.units
@@ -318,8 +381,11 @@ final class AppEnvironment {
         stopStatusPolling()
         stopHistoryPolling()
         stopLiveStream()
+        stopDemoDrive()
+        livePlace = LivePlaceName()
         liveRoute = []
         clearLiveMapRoute()
+        clearDrivingLatch()
         liveTelemetry.reset()
         historyRefreshTask = nil
         fleet = FleetStatistics()
@@ -560,6 +626,7 @@ final class AppEnvironment {
         } catch {
             isOffline = true
             lastError = error.userFacingMessage
+            diagnostics.record(.failure, error.userFacingMessage, detail: String(describing: error))
             vehicles = cachedVehicles(serverID: profile.id)
             selectedVehicle = vehicles.first(where: { $0.id == previouslySelectedID }) ?? vehicles.first
         }
@@ -594,6 +661,7 @@ final class AppEnvironment {
         stopHistoryPolling()
         liveRoute = []
         clearLiveMapRoute()
+        clearDrivingLatch()
         recomputeFleetStatistics()
         startStatusPolling()
         startHistoryPolling()
@@ -636,7 +704,13 @@ final class AppEnvironment {
         guard let client = try? backendClient(for: profile) else { return }
 
         liveStreamTarget = target
-        let stream = LiveStateStream(baseURL: profile.baseURL, authentication: client.authentication)
+        var stream = LiveStateStream(baseURL: profile.baseURL, authentication: client.authentication)
+        // Straight off the wire, before anything here has had an opinion on it.
+        let diagnostics = diagnostics
+        stream.recorder = { body in
+            Task { @MainActor in diagnostics.recordLiveEvent(body: body) }
+        }
+        diagnostics.record(.stream, "Opening the event stream for vehicle \(vehicle.id)")
         liveStreamTask = Task { [weak self] in
             for await event in stream.events(carID: vehicle.id) {
                 guard let self, !Task.isCancelled else { return }
@@ -644,6 +718,7 @@ final class AppEnvironment {
                 case .connected:
                     isStreamingLive = true
                     liveStreamMessage = nil
+                    diagnostics.record(.stream, "Connected")
                     // Whatever happened while the stream was down is on the server
                     // but not in the buffer, so the route is fetched again rather
                     // than left with a gap where the outage was.
@@ -651,6 +726,7 @@ final class AppEnvironment {
                 case .interrupted(let message):
                     isStreamingLive = false
                     liveStreamMessage = message
+                    diagnostics.record(.stream, "Interrupted", detail: message)
                 case .state(let payload):
                     // A reading is itself proof the stream is alive: the buffer
                     // keeps only the newest events, so a `connected` that was
@@ -665,7 +741,41 @@ final class AppEnvironment {
         }
     }
 
+    /// Advances the demo drive at the rate a car publishes.
+    ///
+    /// Deliberately the same path a streamed reading takes — status, buffer,
+    /// route, place name — because a demo that updates through a shortcut proves
+    /// nothing about the screen it is meant to be exercising.
+    private func startDemoDrive() {
+        stopDemoDrive()
+        // The seeded telemetry is the first few minutes of a journey. The
+        // simulation carries on from the end of it, so the live route extends
+        // the drawn one instead of doubling back to where it began.
+        var drive = DemoDriveSimulation(
+            from: liveTelemetry.routePath.last ?? DemoDriveSimulation.origin,
+            odometer: status?.odometer ?? 18_642,
+            dropsPositions: ProcessInfo.processInfo.arguments.contains("-ui-demo-gappy-readings")
+        )
+        demoDriveTask = Task { [weak self] in
+            let step = DemoDriveSimulation.publishInterval
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(step))
+                guard let self, !Task.isCancelled else { return }
+                let reading = drive.advance(by: step)
+                status = reading
+                statusFetchedAt = .now
+                recordLive(reading)
+            }
+        }
+    }
+
+    private func stopDemoDrive() {
+        demoDriveTask?.cancel()
+        demoDriveTask = nil
+    }
+
     func stopLiveStream() {
+        if liveStreamTask != nil { diagnostics.record(.stream, "Closed the event stream") }
         liveStreamTask?.cancel()
         liveStreamTask = nil
         liveStreamTarget = nil
@@ -685,16 +795,31 @@ final class AppEnvironment {
     /// empty and the route frozen at wherever it was when the app opened, with the
     /// pin moving on ahead of it. A reading every thirty seconds is a poor route,
     /// but it is a route.
-    private func recordLive(_ status: VehicleStatus) {
+    private func recordLive(_ status: VehicleStatus, now: Date = .now) {
+        updateLivePlace(status)
+        updateDrivingLatch(status, now: now)
         guard status.isDriving else {
+            // Still latched: the reading did not say the journey ended, so the
+            // charts and the route stay where they are for another moment rather
+            // than being thrown away and rebuilt.
+            guard !isLiveDriving else { return }
             if !liveTelemetry.samples.isEmpty {
                 // The journey is over; the next one starts from empty rather than
                 // continuing a chart across a stop.
                 liveTelemetry.reset()
             }
+            if !liveDriveTotals.isEmpty { liveDriveTotals.reset() }
             clearLiveMapRoute()
+            liveCoordinate = nil
             return
         }
+        if let position = status.carGeodata?.location, position.isReported { liveCoordinate = position }
+        liveDriveTotals.record(
+            odometer: status.odometer,
+            speed: status.liveSpeed,
+            power: status.livePower,
+            at: now
+        )
         liveTelemetry.append(
             speed: status.liveSpeed,
             power: status.livePower,
@@ -707,6 +832,72 @@ final class AppEnvironment {
         updateLiveMapRoute()
     }
 
+    #if DEBUG
+    /// Feeds a reading down the same path the stream and the poll both use.
+    ///
+    /// Exists so the latch can be tested at the exact instants that matter — the
+    /// grace expiring is a clock question, and a test that has to wait five real
+    /// seconds for it is a test nobody runs.
+    func applyLiveReadingForTesting(_ status: VehicleStatus, now: Date = .now) {
+        recordLive(status, now: now)
+    }
+    #endif
+
+    /// How long a drive survives readings that neither confirm nor deny it.
+    ///
+    /// Long enough to ride out a gap in the stream, short enough that a car that
+    /// really has stopped does not sit on screen still driving.
+    static let drivingGrace: TimeInterval = 5
+
+    /// Decides whether the screen is still in a drive.
+    private func updateDrivingLatch(_ status: VehicleStatus, now: Date) {
+        let was = isLiveDriving
+        defer {
+            if was != isLiveDriving {
+                diagnostics.record(
+                    .state,
+                    isLiveDriving ? "Drive started" : "Drive ended",
+                    detail: "state=\(status.state ?? "nil") shift=\(status.drivingDetails?.shiftState ?? "nil")"
+                )
+            }
+        }
+        guard !status.isDriving else {
+            lastDrivingReadingAt = now
+            isLiveDriving = true
+            return
+        }
+        // A statement that the journey is over ends it immediately; only silence
+        // is given the benefit of the doubt.
+        if status.isPositivelyNotDriving {
+            isLiveDriving = false
+            lastDrivingReadingAt = nil
+            return
+        }
+        guard let last = lastDrivingReadingAt else {
+            isLiveDriving = false
+            return
+        }
+        guard now.timeIntervalSince(last) >= Self.drivingGrace else { return }
+        isLiveDriving = false
+        lastDrivingReadingAt = nil
+    }
+
+    /// Keeps the resolved place name in step with the reading on screen.
+    ///
+    /// The precision follows the car: a moving car is on a road, and the road is
+    /// the answer. A car that has stopped — at a light or for the night — is at
+    /// an address, and the house number is the point of asking.
+    private func updateLivePlace(_ status: VehicleStatus?) {
+        guard let status, let coordinate = status.carGeodata?.location, coordinate.isReported else {
+            livePlace.clear()
+            return
+        }
+        livePlace.update(
+            for: coordinate,
+            precision: status.isDriving && !status.isStoppedInDrive ? .street : .address
+        )
+    }
+
     /// Rebuilds the drawn route, and writes it back only when it changed.
     ///
     /// The write is what matters. Observation notifies on assignment, not on
@@ -716,6 +907,13 @@ final class AppEnvironment {
         var next = liveMapRoute
         next.update(seed: liveRoute, live: liveTelemetry.routePath)
         if next != liveMapRoute { liveMapRoute = next }
+    }
+
+    private func clearDrivingLatch() {
+        isLiveDriving = false
+        lastDrivingReadingAt = nil
+        liveCoordinate = nil
+        liveDriveTotals.reset()
     }
 
     private func clearLiveMapRoute() {
@@ -933,6 +1131,7 @@ final class AppEnvironment {
             if error is CancellationError { return }
             isOffline = true
             lastError = error.userFacingMessage
+            diagnostics.record(.failure, error.userFacingMessage, detail: String(describing: error))
         }
         // Recompute from whatever landed, so a partial sync still improves things.
         recomputeFleetStatistics(profile: profile, vehicle: vehicle)
@@ -1097,6 +1296,11 @@ final class AppEnvironment {
             statusFetchedAt = .now
             statusUsesOwnerAPI = false
             isOffline = false
+            diagnostics.record(
+                .request,
+                "Status polled: \(response.status.state ?? "unknown")",
+                detail: Diagnostics.describe(response.status)
+            )
             notificationStatus = response.status
             // The odometer feeds the logged-versus-actual distance figures.
             recomputeFleetStatistics(profile: profile, vehicle: vehicle)
@@ -1120,6 +1324,7 @@ final class AppEnvironment {
             if error is CancellationError { return }
             isOffline = true
             lastError = error.userFacingMessage
+            diagnostics.record(.failure, error.userFacingMessage, detail: String(describing: error))
         }
 
         // Direct live state remains useful when the separate TeslaMate history server is offline.
@@ -1223,6 +1428,7 @@ final class AppEnvironment {
         do {
             let live = try await ownerAPI.vehicleData(vehicleID: vehicle.id)
             status = live.tessalyticsStatus
+            updateLivePlace(live.tessalyticsStatus)
             statusUnits = live.tessalyticsUnits
             statusFetchedAt = .now
             statusUsesOwnerAPI = true
@@ -1282,6 +1488,7 @@ final class AppEnvironment {
             return
         }
         status = cached.status
+        updateLivePlace(cached.status)
         statusUnits = cached.units ?? cachedSettings(serverID: profile.id)
         statusFetchedAt = cached.fetchedAt
         restoreLastLiveStatus(profile: profile, vehicle: vehicle)

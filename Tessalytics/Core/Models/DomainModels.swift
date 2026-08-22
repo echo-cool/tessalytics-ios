@@ -65,8 +65,35 @@ struct ProfileDraft: Sendable {
         }
     }
 
-    private static func isLocal(_ host: String) -> Bool {
-        host == "localhost" || host.hasSuffix(".local") || host.hasPrefix("127.") || host.hasPrefix("10.") || host.hasPrefix("192.168.") || host.hasPrefix("172.16.")
+    /// Whether a host is on the local network, and so may be reached over plain
+    /// HTTP when the owner has asked for it.
+    ///
+    /// Matched as an address rather than as a prefix of a name. `hasPrefix("10.")`
+    /// is true of `10.example.com`, which is a public host an attacker can
+    /// register — and answering yes to it downgraded the connection to cleartext
+    /// and put the bearer token on the wire in the clear. The private ranges are
+    /// also checked properly: 172.16.0.0/12 is 172.16 through 172.31, and the
+    /// old prefix test rejected the 172.17–172.31 addresses Docker hands out by
+    /// default.
+    static func isLocal(_ host: String) -> Bool {
+        let name = host.lowercased()
+        if name == "localhost" || name.hasSuffix(".local") || name.hasSuffix(".localhost") { return true }
+        // IPv6 loopback and unique-local, with or without the URL's brackets.
+        let bare = name.trimmingCharacters(in: CharacterSet(charactersIn: "[]"))
+        if bare == "::1" { return true }
+        if bare.hasPrefix("fd") || bare.hasPrefix("fc") || bare.hasPrefix("fe80:") { return true }
+
+        let octets = bare.split(separator: ".", omittingEmptySubsequences: false).map(String.init)
+        guard octets.count == 4, let first = UInt8(octets[0]), let second = UInt8(octets[1]),
+              octets.allSatisfy({ UInt8($0) != nil }) else { return false }
+        switch first {
+        case 10: return true
+        case 127: return true
+        case 169: return second == 254            // link-local
+        case 172: return (16...31).contains(second)
+        case 192: return second == 168
+        default: return false
+        }
     }
 }
 

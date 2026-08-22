@@ -164,31 +164,48 @@ private struct ChargeRow: View {
         ].compactMap { $0 }
     }
 
+    /// The same shape as a drive row: a date across the top, the picture of the
+    /// session across the full width of the card, then where and how much.
+    ///
+    /// The chart used to be a 138-point column beside the text, which left its
+    /// axis labels taking more room than its lines and the two curves squeezed
+    /// into a space too small to compare. A charge and a drive are the same kind
+    /// of thing in this app, and a list of them should not be laid out two ways.
     var body: some View {
         SurfaceCard(tint: TessalyticsTheme.positive) {
-            HStack(alignment: .top, spacing: 12) {
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 8) {
-                        Text(ValueFormatting.date(record.startDate))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        if record.endDate == nil {
-                            StatusBadge(text: "Charging", color: TessalyticsTheme.positive)
-                        }
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    Text(ValueFormatting.date(record.startDate))
+                        .font(.subheadline.weight(.semibold))
+                    Spacer(minLength: 4)
+                    if record.endDate == nil {
+                        StatusBadge(text: "Charging", color: TessalyticsTheme.positive)
                     }
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.tertiary)
+                        .accessibilityHidden(true)
+                }
 
+                // Fetched per row the way a drive row fetches its route, and
+                // cached the same way, so scrolling does not re-request. The
+                // height is held whether or not the samples have arrived, so a
+                // list does not jump under a finger as rows fill in.
+                curveArea
+
+                Label(record.address ?? "Location not reported", systemImage: "mappin.and.ellipse")
+                    .font(.subheadline)
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(.primary, TessalyticsTheme.positive)
+                    .lineLimit(2)
+
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(ValueFormatting.number(record.energyAdded, unit: "kWh"))
                         .font(.title3.weight(.semibold))
                         .monospacedDigit()
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
-
-                    Label(record.address ?? "Location not reported", systemImage: "mappin.and.ellipse")
-                        .font(.subheadline)
-                        .symbolRenderingMode(.hierarchical)
-                        .foregroundStyle(.primary, TessalyticsTheme.positive)
-                        .lineLimit(2)
-
+                    Spacer(minLength: 4)
                     if !facts.isEmpty {
                         Text(facts.joined(separator: " · "))
                             .font(.caption)
@@ -197,22 +214,6 @@ private struct ChargeRow: View {
                             .minimumScaleFactor(0.8)
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-                // Fetched per row the way a drive row fetches its route, and
-                // cached the same way, so scrolling does not re-request.
-                if curve.count > 2 {
-                    // Wider than it was: the axis ticks that say what the two
-                    // lines measure need somewhere to sit.
-                    ChargeCurveChart(points: curve, height: 60, isCompact: true)
-                        .frame(width: 138)
-                        .accessibilityHidden(true)
-                }
-
-                Image(systemName: "chevron.right")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(.tertiary)
-                    .accessibilityHidden(true)
             }
         }
         .task(id: record.chargeID) { await loadCurve() }
@@ -228,6 +229,28 @@ private struct ChargeRow: View {
             ).joined(separator: ", ")
         )
     }
+
+    /// The chart, or the space it will occupy.
+    @ViewBuilder private var curveArea: some View {
+        if curve.count > 2 {
+            ChargeCurveChart(points: curve, height: Self.curveHeight, isCompact: true)
+                .accessibilityHidden(true)
+        } else {
+            RoundedRectangle(cornerRadius: TessalyticsTheme.compactRadius, style: .continuous)
+                .fill(TessalyticsTheme.positive.opacity(0.06))
+                .frame(height: Self.curveHeight)
+                .overlay {
+                    Image(systemName: "chart.xyaxis.line")
+                        .font(.title3)
+                        .foregroundStyle(TessalyticsTheme.positive.opacity(0.35))
+                }
+                .accessibilityHidden(true)
+        }
+    }
+
+    /// Tall enough to read a taper on, short enough that four sessions still fit
+    /// on a screen.
+    static let curveHeight: CGFloat = 116
 
     /// Cached by session, for the same reason the drive rows cache their routes:
     /// a recycled row runs its task again, and the shape of a finished charge does
@@ -246,8 +269,10 @@ private struct ChargeRow: View {
             carID: vehicle.id,
             chargeID: record.chargeID
         ) else { return }
-        // Coarse for a thumbnail: the shape survives, the work does not.
-        let points = detail.curvePoints(limit: 40)
+        // Coarse, but less so than when this was a 138-point thumbnail: the row
+        // now draws it across the full width of the card, and forty samples over
+        // that distance shows the taper as a set of straight segments.
+        let points = detail.curvePoints(limit: 90)
         guard !Task.isCancelled else { return }
         HistoryPreviews.shared.store(curve: points, chargeID: record.chargeID)
         curve = points
