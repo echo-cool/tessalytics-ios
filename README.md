@@ -117,7 +117,7 @@ services:
       TIMEZONE: "${TIME_ZONE}"
 ```
 
-`expose` keeps the service on the Compose network instead of publishing it on every host interface.
+`ports: 3022:8080` publishes the service on port 3022 of **every** host interface, which is convenient on a home LAN and is the reason the next step is not optional. If the host is reachable from the internet, either bind it to one interface (`127.0.0.1:3022:8080`) and put a reverse proxy in front, or drop the `ports` block for `expose: ["8080"]` and reach the service only from inside the Compose network. The API answers with a complete location history; a bearer token is the only thing between it and whoever finds the port.
 
 ### 2. Protect every route
 
