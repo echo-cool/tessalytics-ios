@@ -2,9 +2,9 @@
   <img src="Tessalytics/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon.png" width="168" alt="Tessalytics app icon">
 </p>
 
-<h1 align="center">Tessalytics: TeslaMate Client</h1>
+<h1 align="center">Tessalytics: Live Vehicle Data</h1>
 
-<p align="center"><strong>Understand every drive.</strong></p>
+<p align="center"><strong>A Open Source TeslaMate Client</strong></p>
 
 <p align="center">
   <img alt="Swift 6" src="https://img.shields.io/badge/Swift-6.0-F05138?logo=swift&logoColor=white">
@@ -38,65 +38,46 @@ MQTT push straight to the phone over server-sent events, so the speed, the power
 route and the charts move with the car rather than with a poll timer.
 
 <p align="center">
-  <img src="docs/images/live-driving.gif" width="270" alt="The home screen updating live while driving">
-  &nbsp;&nbsp;
-  <img src="docs/images/live-map.png" width="270" alt="Full-screen live map with the route driven so far">
+  <img src="docs/images/live-driving.gif" width="200" alt="The home screen updating live while driving">
+  <img src="docs/images/live-map.png" width="200" alt="Full-screen live map with the route driven so far">
+  <img src="docs/images/night-mode.png" width="200" alt="Night driving, where the screen goes darker rather than brighter">
+  <img src="docs/images/live-charts.png" width="200" alt="Speed and power over the last fifteen minutes">
 </p>
 
 Same drive, from the car's own cameras beside the app:
 
 <p align="center">
-  <img src="docs/images/dashcam.gif" width="720" alt="The app's live map beside Tesla dashcam footage of the same drive">
-</p>
-
-At night the screen goes darker rather than brighter — a phone on a windscreen mount
-is a light source in a dark cabin.
-
-<p align="center">
-  <img src="docs/images/night-mode.png" width="250" alt="Night driving">
-  &nbsp;
-  <img src="docs/images/live-charts.png" width="250" alt="Speed and power over the last fifteen minutes">
+  <img src="docs/images/dashcam.gif" width="480" alt="The app's live map beside Tesla dashcam footage of the same drive">
 </p>
 
 ## History and analysis
 
 <p align="center">
-  <img src="docs/images/drives.png" width="250" alt="Drive history with route previews">
-  &nbsp;
-  <img src="docs/images/charging.png" width="250" alt="Charging history with the charge curve on each row">
-  &nbsp;
-  <img src="docs/images/demo/03-battery.png" width="250" alt="Battery health">
+  <img src="docs/images/drives.png" width="200" alt="Drive history with route previews">
+  <img src="docs/images/charging.png" width="200" alt="Charging history with the charge curve on each row">
+  <img src="docs/images/demo/03-battery.png" width="200" alt="Battery health">
+  <img src="docs/images/demo/04-analysis.png" width="200" alt="Analysis">
 </p>
 
 <p align="center">
-  <img src="docs/images/demo/04-analysis.png" width="250" alt="Analysis">
-  &nbsp;
-  <img src="docs/images/demo/02-places.png" width="250" alt="Places visited">
-  &nbsp;
-  <img src="docs/images/demo/08-software-timeline.png" width="250" alt="Software version timeline">
+  <img src="docs/images/demo/02-places.png" width="200" alt="Places visited">
+  <img src="docs/images/demo/08-software-timeline.png" width="200" alt="Software version timeline">
+  <img src="docs/images/demo/09-tyres.png" width="200" alt="Tyre pressures with the car's own warnings">
+  <img src="docs/images/demo/10-achievements.png" width="200" alt="Achievements">
 </p>
 
 ## The car itself
 
 Tap the name on the home screen for the car's own settings. Its VIN names the model,
 the factory and the model year, and a shipped table turns those into the pack it was
-built with — which is the figure every health estimate divides by.
+built with — the figure every health estimate divides by. Twelve achievements sit
+alongside, computed on the device and reported to Game Center when you are signed in.
 
 <p align="center">
-  <img src="docs/images/demo/06-vehicle-settings.png" width="250" alt="Vehicle settings">
-  &nbsp;
-  <img src="docs/images/demo/07-vehicle-rating-vin.png" width="250" alt="Pack capacity identified from the VIN">
-  &nbsp;
-  <img src="docs/images/demo/09-tyres.png" width="250" alt="Tyre pressures with the car's own warnings">
-</p>
-
-## Achievements
-
-Twelve, all facts about the car and all computed on the device from synced history.
-Reported to Game Center when you are signed in; the list works when you are not.
-
-<p align="center">
-  <img src="docs/images/demo/10-achievements.png" width="250" alt="Achievements">
+  <img src="docs/images/demo/06-vehicle-settings.png" width="200" alt="Vehicle settings">
+  <img src="docs/images/demo/07-vehicle-rating-vin.png" width="200" alt="Pack capacity identified from the VIN">
+  <img src="docs/images/demo/01-status.png" width="200" alt="Vehicle status dashboard">
+  <img src="docs/images/demo/05-activity.png" width="200" alt="Activity">
 </p>
 
 > The live-driving captures are from a real car and show real routes and addresses.

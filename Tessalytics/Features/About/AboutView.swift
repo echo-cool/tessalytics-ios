@@ -14,8 +14,8 @@ struct AboutView: View {
                             .background(TessalyticsTheme.accent.opacity(0.10), in: .circle)
                             .accessibilityHidden(true)
                         Text("Tessalytics").font(.title.bold())
-                        Text("TeslaMate Client").foregroundStyle(.secondary)
-                        Text("Understand every drive.").font(.headline)
+                        Text("Live Vehicle Data").foregroundStyle(.secondary)
+                        Text("A Open Source TeslaMate Client").font(.headline)
                     }
                     .frame(maxWidth: .infinity)
                     .padding()
