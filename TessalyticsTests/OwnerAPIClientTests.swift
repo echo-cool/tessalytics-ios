@@ -149,8 +149,135 @@ private final class MemoryOwnerCredentialStore: OwnerCredentialStore, @unchecked
     func delete() throws { value = nil }
 }
 
+/// Connecting used to fail at the very first request.
+///
+/// `GET /api/1/vehicles` has answered 412 Precondition Failed since Tesla changed
+/// the Owner API in January 2023, and the app reported that as merely "an
+/// unexpected response" — which is exactly how a permanent, well-known breakage
+/// reads as a mysterious one.
+final class OwnerAPIConnectionTests: XCTestCase {
+    func testTheVehicleListComesFromProductsRatherThanVehicles() async throws {
+        let store = MemoryOwnerCredentialStore(OwnerAPICredentials(
+            accessToken: "current-access",
+            refreshToken: "current-refresh",
+            expiresAt: .now.addingTimeInterval(3_600),
+            region: .global
+        ))
+        let transport = OwnerMockTransport(scenario: .vehicles)
+        _ = try await OwnerAPISession(store: store, transport: transport).vehicles()
+
+        let path = await transport.requests.first?.url?.path
+        XCTAssertEqual(path, "/api/1/products", "/api/1/vehicles has answered 412 since 2023")
+    }
+
+    func testEnergyHardwareIsNotOfferedAsACarToDrive() async throws {
+        // Products is a mixed list. An owner with a Powerwall must not have it
+        // appear in a picker whose next action is "unlock".
+        let store = MemoryOwnerCredentialStore(OwnerAPICredentials(
+            accessToken: "current-access",
+            refreshToken: "current-refresh",
+            expiresAt: .now.addingTimeInterval(3_600),
+            region: .global
+        ))
+        let session = OwnerAPISession(store: store, transport: OwnerMockTransport(scenario: .mixedProducts))
+        let vehicles = try await session.vehicles()
+
+        XCTAssertEqual(vehicles.count, 1, "One car, one Powerwall and one solar site")
+        XCTAssertEqual(vehicles.first?.vin, "5YJTEST")
+        XCTAssertEqual(vehicles.first?.id, 42)
+    }
+
+    func testA412IsReportedAsItselfRatherThanAsASurprise() async throws {
+        let store = MemoryOwnerCredentialStore(OwnerAPICredentials(
+            accessToken: "current-access",
+            refreshToken: "current-refresh",
+            expiresAt: .now.addingTimeInterval(3_600),
+            region: .global
+        ))
+        let session = OwnerAPISession(store: store, transport: OwnerMockTransport(scenario: .preconditionFailed))
+        do {
+            _ = try await session.vehicles()
+            XCTFail("A 412 should not read as success")
+        } catch let error as OwnerAPIError {
+            XCTAssertEqual(error, .preconditionFailed)
+            let message = try XCTUnwrap(error.errorDescription)
+            XCTAssertTrue(message.contains("412"), "The status is the one useful fact to report")
+            XCTAssertFalse(message.contains("unexpected"), "412 from this API is not unexpected")
+        }
+    }
+
+    func testConnectingNeedsOnlyARefreshToken() async throws {
+        let store = MemoryOwnerCredentialStore(nil)
+        let transport = OwnerMockTransport(scenario: .vehicles)
+        let session = OwnerAPISession(store: store, transport: transport)
+
+        let vehicles = try await session.configure(refreshToken: "  pasted-refresh  ", region: .global)
+
+        XCTAssertEqual(vehicles.first?.displayName, "Roadrunner")
+        let requests = await transport.requests
+        XCTAssertEqual(requests.first?.url?.absoluteString, "https://auth.tesla.com/oauth2/v3/token")
+        let body = try XCTUnwrap(requests.first?.httpBody)
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: String])
+        XCTAssertEqual(json["refresh_token"], "pasted-refresh", "Whitespace from a paste is trimmed")
+
+        // The access token was minted, not pasted, and both halves are stored.
+        let stored = try XCTUnwrap(store.credentials())
+        XCTAssertEqual(stored.accessToken, "rotated-access")
+        XCTAssertEqual(stored.refreshToken, "rotated-refresh")
+        XCTAssertEqual(requests.last?.value(forHTTPHeaderField: "Authorization"), "Bearer rotated-access")
+    }
+
+    func testAnEmptyRefreshTokenIsRefusedBeforeAnyRequest() async throws {
+        let transport = OwnerMockTransport(scenario: .vehicles)
+        let session = OwnerAPISession(store: MemoryOwnerCredentialStore(nil), transport: transport)
+        do {
+            _ = try await session.configure(refreshToken: "   ", region: .global)
+            XCTFail("Nothing to connect with")
+        } catch let error as OwnerAPIError {
+            XCTAssertEqual(error, .credentialsMissing)
+        }
+        let requests = await transport.requests
+        XCTAssertTrue(requests.isEmpty, "Tesla is not asked about an empty box")
+    }
+
+    func testARejectedRefreshTokenLeavesNothingStored() async throws {
+        let store = MemoryOwnerCredentialStore(nil)
+        let session = OwnerAPISession(store: store, transport: OwnerMockTransport(scenario: .refreshRejected))
+        do {
+            _ = try await session.configure(refreshToken: "stale-refresh", region: .global)
+            XCTFail("A rejected token should not connect")
+        } catch let error as OwnerAPIError {
+            XCTAssertEqual(error, .refreshRejected)
+        }
+        XCTAssertNil(try store.credentials(), "A credential the owner cannot use is worse than none")
+    }
+
+    func testAConnectionThatMintsATokenButCannotListCarsKeepsNothing() async throws {
+        // The token is good and Tesla still will not answer for the account.
+        // Keeping the pair would leave the app looking connected and doing
+        // nothing.
+        let store = MemoryOwnerCredentialStore(nil)
+        let session = OwnerAPISession(store: store, transport: OwnerMockTransport(scenario: .preconditionFailed))
+        do {
+            _ = try await session.configure(refreshToken: "good-refresh", region: .global)
+            XCTFail("The vehicle list failed")
+        } catch let error as OwnerAPIError {
+            XCTAssertEqual(error, .preconditionFailed)
+        }
+        XCTAssertNil(try store.credentials())
+    }
+}
+
 private actor OwnerMockTransport: HTTPTransport {
-    enum Scenario: Equatable, Sendable { case vehicles, refreshThenVehicles, unauthorizedThenRefresh, concurrentRefresh, command }
+    enum Scenario: Equatable, Sendable {
+        case vehicles, refreshThenVehicles, unauthorizedThenRefresh, concurrentRefresh, command
+        /// What Tesla has answered on `/api/1/vehicles` since January 2023.
+        case preconditionFailed
+        /// A mixed product list: one car, one Powerwall, one solar site.
+        case mixedProducts
+        /// The refresh token itself is rejected.
+        case refreshRejected
+    }
     let scenario: Scenario
     private(set) var requests: [URLRequest] = []
     private var ownerRequestCount = 0
@@ -161,12 +288,25 @@ private actor OwnerMockTransport: HTTPTransport {
         requests.append(request)
         let isAuthentication = request.url?.host?.hasPrefix("auth.tesla") == true
         if isAuthentication {
+            if scenario == .refreshRejected { return response(request, 401, "{}") }
             if scenario == .concurrentRefresh { try await Task.sleep(for: .milliseconds(100)) }
             return response(request, 200, #"{"access_token":"rotated-access","refresh_token":"rotated-refresh","expires_in":28800,"token_type":"bearer"}"#)
         }
         ownerRequestCount += 1
         if scenario == .unauthorizedThenRefresh && ownerRequestCount == 1 {
             return response(request, 401, "{}")
+        }
+        if scenario == .preconditionFailed {
+            return response(request, 412, #"{"error":"precondition_failed"}"#)
+        }
+        if scenario == .mixedProducts {
+            // A Powerwall and a solar site have no VIN; the car does.
+            return response(request, 200, """
+            {"response":[\
+            {"energy_site_id":1234,"resource_type":"battery","battery_type":"ac_powerwall"},\
+            {"id":42,"vehicle_id":84,"vin":"5YJTEST","display_name":"Roadrunner","state":"online"},\
+            {"energy_site_id":5678,"resource_type":"solar","solar_type":"pv_panel"}],"count":3}
+            """)
         }
         if scenario == .command {
             return response(request, 200, #"{"response":{"result":true,"reason":""}}"#)

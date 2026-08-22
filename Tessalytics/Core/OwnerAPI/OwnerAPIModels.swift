@@ -12,6 +12,29 @@ struct OwnerVehicle: Decodable, Hashable, Identifiable, Sendable {
     let state: String?
 }
 
+/// One entry from `/api/1/products`, which is a mixed list.
+///
+/// The account's cars come back alongside its Powerwalls, solar and energy
+/// sites, and none of those carry a VIN or a vehicle id. Every field is optional
+/// because the list is heterogeneous by design: decoding it into a type that
+/// demanded a VIN would fail the whole request for an owner who also has a
+/// battery on the wall.
+struct OwnerProduct: Decodable, Sendable {
+    let id: Int64?
+    let vehicleId: Int64?
+    let vin: String?
+    let displayName: String?
+    let state: String?
+
+    /// The same product as a controllable car, or nil if it is not one.
+    var vehicle: OwnerVehicle? {
+        guard let id, let vin = vin?.trimmingCharacters(in: .whitespacesAndNewlines), !vin.isEmpty else {
+            return nil
+        }
+        return OwnerVehicle(id: id, vehicleId: vehicleId, vin: vin, displayName: displayName, state: state)
+    }
+}
+
 struct OwnerVehicleData: Decodable, Sendable {
     let id: Int64?
     let vin: String?

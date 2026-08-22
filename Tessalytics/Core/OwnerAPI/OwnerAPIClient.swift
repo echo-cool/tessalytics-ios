@@ -6,6 +6,8 @@ enum OwnerAPIError: Error, Equatable, LocalizedError, Sendable {
     case refreshRejected
     case vehicleUnavailable
     case rateLimited
+    /// Tesla refused the request outright rather than refusing the credential.
+    case preconditionFailed
     case commandRejected(String)
     case unexpectedStatus(Int)
     case invalidResponse
@@ -18,6 +20,8 @@ enum OwnerAPIError: Error, Equatable, LocalizedError, Sendable {
         case .refreshRejected: "Tesla rejected the refresh token. Generate a new Owner API token pair."
         case .vehicleUnavailable: "The vehicle is asleep or temporarily unavailable. Tessalytics did not wake it."
         case .rateLimited: "Tesla is receiving too many requests. Try again shortly."
+        case .preconditionFailed:
+            "Tesla refused this request (HTTP 412). The Owner API is unofficial and Tesla changes it without notice; this usually means the account or the endpoint is no longer served."
         case .commandRejected(let reason): reason.isEmpty ? "The vehicle rejected the command." : reason
         case .unexpectedStatus(let status): "Tesla returned an unexpected response (HTTP \(status))."
         case .invalidResponse: "Tesla returned data this version of Tessalytics could not read."
@@ -100,12 +104,44 @@ actor OwnerAPISession {
         (try? credentials())?.isUsable == true
     }
 
-    func configure(accessToken: String, refreshToken: String, region: OwnerAPIRegion) async throws -> [OwnerVehicle] {
-        let credentials = OwnerAPICredentials(accessToken: accessToken, refreshToken: refreshToken, region: region)
-        guard credentials.isUsable else { throw OwnerAPIError.credentialsMissing }
-        try store.save(credentials)
-        cachedCredentials = credentials
-        return try await vehicles()
+    /// Connects with a refresh token, and nothing else.
+    ///
+    /// The access token is minted here rather than asked for. It is derived from
+    /// the refresh token by definition, it expires in hours where the refresh
+    /// token lasts months, and asking for both meant a pair that had drifted
+    /// apart — a stale access token beside a good refresh token — failed at the
+    /// first request instead of simply being replaced. One field, one paste, and
+    /// the app holds a token it minted itself.
+    func configure(refreshToken: String, region: OwnerAPIRegion) async throws -> [OwnerVehicle] {
+        let trimmed = refreshToken.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { throw OwnerAPIError.credentialsMissing }
+
+        // Deliberately expired: this seed exists only to carry the refresh token
+        // and the region into the exchange below, and must never be used to
+        // authenticate a request.
+        let seed = OwnerAPICredentials(
+            accessToken: "",
+            refreshToken: trimmed,
+            expiresAt: .distantPast,
+            region: region
+        )
+        // Saves the minted pair itself, so a failure here leaves nothing behind.
+        let minted = try await Self.requestRefreshedCredentials(
+            from: seed,
+            store: store,
+            transport: transport
+        )
+        cachedCredentials = minted
+        do {
+            return try await vehicles()
+        } catch {
+            // The token is good — Tesla just would not answer for the account.
+            // Keeping a credential the owner cannot use is worse than making
+            // them paste it again.
+            try? store.delete()
+            cachedCredentials = nil
+            throw error
+        }
     }
 
     func disconnect() throws {
@@ -113,9 +149,18 @@ actor OwnerAPISession {
         cachedCredentials = nil
     }
 
+    /// The cars on the account.
+    ///
+    /// Read from `/api/1/products` rather than `/api/1/vehicles`. Tesla made the
+    /// vehicles endpoint answer **412 Precondition Failed** in January 2023 and
+    /// never brought it back, so every attempt to connect failed at the first
+    /// request with a status the app reported as merely "unexpected". Products
+    /// returns the same fields for a car — `id`, `vehicle_id`, `vin`,
+    /// `display_name`, `state` — alongside the account's energy hardware, which
+    /// is filtered out by the one thing only a car has: a VIN.
     func vehicles() async throws -> [OwnerVehicle] {
-        let envelope: OwnerAPIEnvelope<[OwnerVehicle]> = try await authenticatedRequest(path: "api/1/vehicles")
-        return envelope.response
+        let envelope: OwnerAPIEnvelope<[OwnerProduct]> = try await authenticatedRequest(path: "api/1/products")
+        return envelope.response.compactMap(\.vehicle)
     }
 
     func vehicleData(vehicleID: Int64) async throws -> OwnerVehicleData {
@@ -263,6 +308,9 @@ actor OwnerAPISession {
         case 200...299: return
         case 401, 403: throw OwnerAPIError.invalidCredentials
         case 408, 423: throw OwnerAPIError.vehicleUnavailable
+        // Not "unexpected": 412 is a specific and now-common answer from this
+        // API, and reporting it as a surprise tells the owner nothing.
+        case 412: throw OwnerAPIError.preconditionFailed
         case 429: throw OwnerAPIError.rateLimited
         default: throw OwnerAPIError.unexpectedStatus(status)
         }

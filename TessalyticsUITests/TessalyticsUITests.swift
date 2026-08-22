@@ -100,8 +100,15 @@ final class TessalyticsUITests: XCTestCase {
         XCTAssertTrue(ownerSettings.waitForExistence(timeout: 3))
         ownerSettings.tap()
         XCTAssertTrue(app.otherElements["owner-api-connection-screen"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.secureTextFields["owner-access-token"].exists)
         XCTAssertTrue(app.secureTextFields["owner-refresh-token"].exists)
+        // One field. The access token is derived from the refresh token and
+        // minted by the app, so asking for it only gave the pair a way to
+        // disagree — a stale access token beside a good refresh token failed at
+        // the first request instead of being replaced.
+        XCTAssertFalse(
+            app.secureTextFields["owner-access-token"].exists,
+            "The access token is no longer something to paste"
+        )
         XCTAssertTrue(app.buttons["connect-owner-api"].exists)
     }
 

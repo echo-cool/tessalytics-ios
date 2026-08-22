@@ -48,7 +48,7 @@ The screenshots use generated demo data. No real vehicle, location, route, serve
 - Supports multiple TeslaMate servers and multiple vehicles
 - Supports Bearer token, HTTP Basic, and explicitly private/VPN-only connections
 - Includes an on-device demo with generated status, routes, charging sessions, analytics, battery trends, and forecasts
-- Optionally connects to the unofficial Owner API using an access/refresh-token pair for live state and confirmed controls
+- Optionally connects to the unofficial Owner API with a refresh token for live state and confirmed controls
 - Protects every direct command with confirmation and Face ID or the device passcode
 
 ## Explore without a Tesla
@@ -216,9 +216,11 @@ Tapping the version number five times turns on **debug mode**: a screen showing 
 
 ### Optional direct live data and controls
 
-Tessalytics can accept an Owner API access token and refresh token generated outside the app. It never asks for a Tesla password. Tokens are stored in device-only Keychain protection, refresh rotation is persisted securely, and commands require a second confirmation plus device-owner authentication.
+Tessalytics accepts an Owner API **refresh token** generated outside the app and exchanges it for an access token itself — there is nothing else to paste. It never asks for a Tesla password. Both tokens are stored in device-only Keychain protection, refresh rotation is persisted securely, and commands require a second confirmation plus device-owner authentication.
 
-The Owner API is unofficial and may change or stop working. Connecting it is optional; TeslaMate analytics work without it. When no valid token pair and live connection are present, direct-control actions are not shown. Direct commands may wake the vehicle and should be used deliberately.
+The Owner API is unofficial and may change or stop working. Connecting it is optional; TeslaMate analytics work without it. When no valid token and live connection are present, direct-control actions are not shown. Direct commands may wake the vehicle and should be used deliberately.
+
+Tesla changes this API without notice, and the app is written to say so plainly when it does. The account's cars are read from `/api/1/products` rather than `/api/1/vehicles`, which has answered `412 Precondition Failed` since January 2023; a `412` from anywhere else is reported as itself rather than as an unexpected status, because there is nothing an owner can do about it and a clear message is worth more than a retry.
 
 ## Privacy and security
 

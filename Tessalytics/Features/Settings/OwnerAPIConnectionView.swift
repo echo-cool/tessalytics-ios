@@ -3,7 +3,6 @@ import SwiftUI
 struct OwnerAPIConnectionView: View {
     @Environment(AppEnvironment.self) private var environment
     @Environment(\.dismiss) private var dismiss
-    @State private var accessToken = ""
     @State private var refreshToken = ""
     @State private var region = OwnerAPIRegion.global
     @State private var isConnecting = false
@@ -96,20 +95,9 @@ struct OwnerAPIConnectionView: View {
                 Label("Owner API", systemImage: "globe")
             }
 
-            Section {
-                SecureField("Access token", text: $accessToken)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .privacySensitive()
-                    .accessibilityIdentifier("owner-access-token")
-                PasteButton(payloadType: String.self) { values in
-                    accessToken = values.first?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-                }
-                .accessibilityLabel("Paste access token")
-            } header: {
-                Text("Access token")
-            }
-
+            // One field. The access token is derived from this one, expires in
+            // hours where this lasts months, and the app can mint it itself —
+            // asking for both only created a way for the pair to disagree.
             Section {
                 SecureField("Refresh token", text: $refreshToken)
                     .textInputAutocapitalization(.never)
@@ -123,7 +111,7 @@ struct OwnerAPIConnectionView: View {
             } header: {
                 Text("Refresh token")
             } footer: {
-                Text("Generate the Owners API pair in Auth for Tesla. Never enter your Tesla password here. Tokens stay in this iPhone's Keychain.")
+                Text("Generate an Owner API refresh token in Auth for Tesla, or another token generator you trust, and paste it here. Tessalytics exchanges it for an access token itself — you do not need to paste one. Never enter your Tesla password here. Both tokens stay in this iPhone's Keychain.")
             }
 
             Section {
@@ -135,7 +123,7 @@ struct OwnerAPIConnectionView: View {
                         Label(isConnecting ? "Connecting…" : "Connect", systemImage: "key.horizontal.fill")
                     }
                 }
-                .disabled(isConnecting || accessToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || refreshToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .disabled(isConnecting || refreshToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 .accessibilityIdentifier("connect-owner-api")
 
                 if let message {
@@ -154,8 +142,7 @@ struct OwnerAPIConnectionView: View {
         message = nil
         defer { isConnecting = false }
         do {
-            try await environment.connectOwnerAPI(accessToken: accessToken, refreshToken: refreshToken, region: region)
-            accessToken = ""
+            try await environment.connectOwnerAPI(refreshToken: refreshToken, region: region)
             refreshToken = ""
         } catch {
             message = error.localizedDescription

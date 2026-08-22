@@ -1343,13 +1343,12 @@ final class AppEnvironment {
         }
     }
 
-    func connectOwnerAPI(accessToken: String, refreshToken: String, region: OwnerAPIRegion) async throws {
+    func connectOwnerAPI(refreshToken: String, region: OwnerAPIRegion) async throws {
         ownerConnectionState = .connecting
-        hasOwnerCredentials = !accessToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            && !refreshToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        hasOwnerCredentials = !refreshToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         ownerLastError = nil
         do {
-            ownerVehicles = try await ownerAPI.configure(accessToken: accessToken, refreshToken: refreshToken, region: region)
+            ownerVehicles = try await ownerAPI.configure(refreshToken: refreshToken, region: region)
             selectedOwnerVehicle = matchingOwnerVehicle() ?? ownerVehicles.first
             ownerConnectionState = .connected
             await refreshOwnerStatus()
