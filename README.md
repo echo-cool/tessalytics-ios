@@ -17,6 +17,7 @@
   <a href="https://testflight.apple.com/join/41U7UpWr"><strong>Join the TestFlight beta →</strong></a>
 </p>
 
+
 Tessalytics is a privacy-focused native iPhone companion for a self-hosted [TeslaMate](https://github.com/teslamate-org/teslamate) installation. It turns data from [Tessalytics Backend](https://github.com/echo-cool/tessalytics-backend) into a compact vehicle dashboard, searchable history, native charts, battery-health estimates, predictions, and local notifications.
 
 Your iPhone connects directly to infrastructure you control. Tessalytics has no developer-operated cloud, advertising, analytics SDK, or tracking.
@@ -31,6 +32,11 @@ Your iPhone connects directly to infrastructure you control. Tessalytics has no 
 > [!IMPORTANT]
 > **A standalone TeslaMate installation will not work with this app.** Tessalytics talks to [Tessalytics Backend](https://github.com/echo-cool/tessalytics-backend), a read-only API service you deploy beside TeslaMate — the same Docker Compose file is fine. The server address you enter in the app is the backend's, not TeslaMate's or Grafana's.
 
+<p align="center">
+  <img src="docs/images/dashcam.gif" width="480" alt="The app's live map beside Tesla dashcam footage of the same drive">
+</p>
+
+
 ## Live driving
 
 The reason the app exists. While the car is moving, the backend forwards TeslaMate's
@@ -42,12 +48,6 @@ route and the charts move with the car rather than with a poll timer.
   <img src="docs/images/live-map.png" width="200" alt="Full-screen live map with the route driven so far">
   <img src="docs/images/night-mode.png" width="200" alt="Night driving, where the screen goes darker rather than brighter">
   <img src="docs/images/live-charts.png" width="200" alt="Speed and power over the last fifteen minutes">
-</p>
-
-Same drive, from the car's own cameras beside the app:
-
-<p align="center">
-  <img src="docs/images/dashcam.gif" width="480" alt="The app's live map beside Tesla dashcam footage of the same drive">
 </p>
 
 ## History and analysis
