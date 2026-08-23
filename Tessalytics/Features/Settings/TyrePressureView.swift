@@ -26,17 +26,7 @@ struct TyrePressureView: View {
         TessalyticsScreen {
             ScrollView {
                 VStack(spacing: TessalyticsLayout.stackSpacing) {
-                    if pressures?.hasAnyReading == true {
-                        diagram
-                        corners
-                        freshness
-                    } else {
-                        EmptyState(
-                            title: "No tyre readings",
-                            message: "This vehicle has not reported a tyre pressure. TeslaMate reads these from the car while it is awake.",
-                            symbol: "gauge.with.dots.needle.bottom.50percent"
-                        )
-                    }
+                    pageContent
                 }
                 .tessalyticsScreenPadding()
                 .tessalyticsReadableWidth()
@@ -45,6 +35,49 @@ struct TyrePressureView: View {
         .navigationTitle("Tyres")
         .navigationBarTitleDisplayMode(.inline)
         .accessibilityIdentifier("tyre-pressure-screen")
+        .shareablePage(sharePage) {
+            VStack(spacing: TessalyticsLayout.stackSpacing) { pageContent }
+        }
+    }
+
+    @ViewBuilder private var pageContent: some View {
+        if pressures?.hasAnyReading == true {
+            diagram
+            corners
+            freshness
+        } else {
+            EmptyState(
+                title: "No tyre readings",
+                message: "This vehicle has not reported a tyre pressure. TeslaMate reads these from the car while it is awake.",
+                symbol: "gauge.with.dots.needle.bottom.50percent"
+            )
+        }
+    }
+
+    private func sharePage() -> SharePage {
+        let readings: [(String, Double?)] = [
+            ("front left", pressures?.tpmsPressureFl),
+            ("front right", pressures?.tpmsPressureFr),
+            ("rear left", pressures?.tpmsPressureRl),
+            ("rear right", pressures?.tpmsPressureRr)
+        ]
+        let highlights = readings.compactMap { label, value -> ShareHighlight? in
+            guard let value else { return nil }
+            return ShareHighlight(label: label, value: ValueFormatting.pressure(value, units: units, digits: 1))
+        }
+
+        var sentences = ["Tyre pressures for \(environment.selectedVehicle?.name?.nilIfEmpty ?? "my Tesla")."]
+        if let readAt {
+            // A tyre pressure is only as good as the moment it was read: the car
+            // stops reporting the moment it sleeps.
+            sentences.append("Read \(ValueFormatting.readingTime(readAt)).")
+        }
+        return SharePage(
+            title: "Tyres",
+            subtitle: SharePage.subtitle(car: environment.selectedVehicle?.name),
+            highlights: highlights,
+            summary: sentences.joined(separator: " ")
+        )
     }
 
     private var diagram: some View {

@@ -12,7 +12,7 @@ Include the affected version, reproducible impact, and a redacted proof of conce
 
 ## Deployment responsibilities
 
-Treat a TeslaMateApi credential as a sensitive location-tracking credential. Protect every read route with a VPN or authenticated HTTPS reverse proxy. TeslaMateApi’s built-in `API_TOKEN` does not protect all read-only endpoints. Never expose PostgreSQL, MQTT, Owner API tokens, or an unauthenticated TeslaMateApi instance.
+Treat every backend credential as a sensitive location-tracking credential. Tessalytics Backend public mode combines bearer authentication with required HTTPS, host validation, no-store responses, and rate limiting; a VPN or additional proxy login is optional defense in depth. Its explicitly enabled public-HTTP compatibility mode is not confidential and must be treated as insecure. TeslaMateApi is different: its built-in `API_TOKEN` does not protect all read-only endpoints, so protect it with a VPN or authenticated HTTPS reverse proxy. Never expose PostgreSQL, MQTT, Owner API tokens, or an unauthenticated API instance.
 
 Owner API access and refresh tokens can expose live vehicle state and permit vehicle commands. Tessalytics stores them with `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`, never logs them, and requires device-owner authentication before each command. Do not paste real tokens into issues, logs, test fixtures, or support messages.
 

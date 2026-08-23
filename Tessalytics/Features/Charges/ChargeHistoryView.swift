@@ -37,6 +37,7 @@ struct ChargeHistoryView: View {
             }
         }
         .navigationTitle(title ?? (embedded ? "Activity" : "Charging"))
+        .shareablePage(sharePage) { posterRows }
         .safeAreaInset(edge: .top) { if environment.isOffline { OfflineBanner() } }
         .navigationDestination(item: $selectedCharge) { selection in
             ChargeDetailView(chargeID: selection.id)
@@ -49,6 +50,44 @@ struct ChargeHistoryView: View {
             }
         }
         .accessibilityIdentifier("charge-history-screen")
+    }
+
+
+    /// The rows again, as a plain stack — see `DriveHistoryView.posterRows` for
+    /// why a `List` cannot be drawn into an image.
+    @ViewBuilder private var posterRows: some View {
+        VStack(spacing: 8) {
+            ForEach(records.prefix(20), id: \.chargeID) { ChargeRow(record: $0) }
+            if records.count > 20 {
+                Text("and \(records.count - 20) more")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+
+    private func sharePage() -> SharePage {
+        let energy = records.compactMap(\.energyAdded).reduce(0, +)
+        let cost = records.compactMap(\.cost).reduce(0, +)
+        var highlights: [ShareHighlight] = [
+            .init(label: "sessions", value: "\(records.count)"),
+            .init(label: "energy", value: ValueFormatting.number(energy, unit: "kWh", digits: 0))
+        ]
+        if cost > 0 {
+            highlights.append(.init(label: "cost", value: ValueFormatting.chargeCost(cost)))
+        }
+
+        let car = environment.selectedVehicle?.name?.nilIfEmpty ?? "My Tesla"
+        var sentence = "\(car): \(records.count) charging session\(records.count == 1 ? "" : "s"), "
+            + "\(ValueFormatting.number(energy, unit: "kWh", digits: 0)) added"
+        if cost > 0 { sentence += " for \(ValueFormatting.chargeCost(cost))" }
+        return SharePage(
+            title: "Charging",
+            subtitle: SharePage.subtitle(car: environment.selectedVehicle?.name),
+            highlights: highlights,
+            summary: sentence + ". Recorded by Tessalytics."
+        )
     }
 
     private var list: some View {

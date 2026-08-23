@@ -22,44 +22,87 @@ struct BatteryHealthView: View {
     private var maxRangeNew: Double? { effective?.maxRangeNew ?? observation?.maxRange }
     private var healthPercent: Double? { effective?.healthPercent ?? observation?.healthPercent }
 
+    /// The page itself, without the scroll view around it.
+    ///
+    /// Factored out so the shared image is the same content the screen shows
+    /// rather than a second rendering of it that can drift.
+    @ViewBuilder private var pageContent: some View {
+        if let observation {
+            BatteryHealthHero(health: healthPercent)
+            BatteryMetricGrid(
+                observation: observation,
+                units: environment.statusUnits,
+                capacityNew: capacityNew,
+                maxRangeNew: maxRangeNew,
+                isOwnerRated: effective?.isSpecificationOverridden == true
+            )
+            CapacityByMileageChart(
+                observations: capacityObservations,
+                medians: capacityMedians,
+                capacityNew: capacityNew,
+                units: environment.statusUnits
+            )
+            ProjectedRangeChart(
+                points: projectedRange,
+                units: environment.statusUnits,
+                maxRangeNew: maxRangeNew
+            )
+            BatteryCapacityChart(observation: observation, capacityNew: capacityNew)
+            BatteryRangeChart(observation: observation, units: environment.statusUnits, maxRangeNew: maxRangeNew)
+            if observations.count > 1 {
+                BatteryHealthTrendChart(observations: observations)
+            }
+            if !embedded {
+                BatteryEstimateNote(observedAt: observation.observedAt)
+            }
+        }
+    }
+
+    /// What the share carries in words, for the places a picture is not enough.
+    private func sharePage() -> SharePage {
+        let units = environment.statusUnits
+        var highlights: [ShareHighlight] = []
+        if let healthPercent {
+            highlights.append(.init(label: "health", value: ValueFormatting.percentage(healthPercent / 100, digits: 1)))
+        }
+        if let capacityNew {
+            highlights.append(.init(label: "capacity when new", value: ValueFormatting.number(capacityNew, unit: "kWh", digits: 1)))
+        }
+        if let now = observation?.currentCapacity {
+            highlights.append(.init(label: "capacity now", value: ValueFormatting.number(now, unit: "kWh", digits: 1)))
+        }
+        if let maxRangeNow = observation?.currentRange {
+            highlights.append(.init(label: "range at 100%", value: ValueFormatting.distance(maxRangeNow, units: units, digits: 0)))
+        }
+
+        var sentences = ["Battery health for \(environment.selectedVehicle?.name?.nilIfEmpty ?? "my Tesla")."]
+        if let healthPercent, let capacityNew, let now = observation?.currentCapacity {
+            sentences.append(
+                "The pack holds \(ValueFormatting.number(now, unit: "kWh", digits: 1)) of the "
+                + "\(ValueFormatting.number(capacityNew, unit: "kWh", digits: 1)) it had when new — "
+                + "\(ValueFormatting.percentage(healthPercent / 100, digits: 1)) retained."
+            )
+        }
+        sentences.append("Measured from charging history by Tessalytics.")
+        return SharePage(
+            title: "Battery health",
+            subtitle: SharePage.subtitle(car: environment.selectedVehicle?.name),
+            highlights: highlights,
+            summary: sentences.joined(separator: " ")
+        )
+    }
+
+
     var body: some View {
         TessalyticsScreen(showsTopAccent: !embedded) {
             ScrollView {
                 if loading {
                     LoadingPanel(title: "Estimating battery health", symbol: "battery.75percent")
                         .padding()
-                } else if let observation {
-                    LazyVStack(spacing: 12) {
-                        BatteryHealthHero(health: healthPercent)
-                        BatteryMetricGrid(
-                            observation: observation,
-                            units: environment.statusUnits,
-                            capacityNew: capacityNew,
-                            maxRangeNew: maxRangeNew,
-                            isOwnerRated: effective?.isSpecificationOverridden == true
-                        )
-                        CapacityByMileageChart(
-                            observations: capacityObservations,
-                            medians: capacityMedians,
-                            capacityNew: capacityNew,
-                            units: environment.statusUnits
-                        )
-                        ProjectedRangeChart(
-                            points: projectedRange,
-                            units: environment.statusUnits,
-                            maxRangeNew: maxRangeNew
-                        )
-                        BatteryCapacityChart(observation: observation, capacityNew: capacityNew)
-                        BatteryRangeChart(observation: observation, units: environment.statusUnits, maxRangeNew: maxRangeNew)
-                        if observations.count > 1 {
-                            BatteryHealthTrendChart(observations: observations)
-                        }
-                        if !embedded {
-                            BatteryEstimateNote(observedAt: observation.observedAt)
-                        }
-                    }
-                    .tessalyticsScreenPadding()
-                    .tessalyticsReadableWidth()
+                } else if observation != nil {
+                    LazyVStack(spacing: 12) { pageContent }
+                        .tessalyticsScreenPadding()
+                        .tessalyticsReadableWidth()
                 } else {
                     EmptyState(
                         title: "Battery health unavailable",
@@ -70,6 +113,7 @@ struct BatteryHealthView: View {
             }
         }
         .navigationTitle(embedded ? "Analysis" : "Battery health")
+        .shareablePage(sharePage) { VStack(spacing: 12) { pageContent } }
         .task { await load() }
         // Recompute whenever a history sync lands new charges.
         .task(id: environment.historyRevision) { rebuildSeries() }

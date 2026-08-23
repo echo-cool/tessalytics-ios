@@ -5,6 +5,7 @@ import SwiftUI
 struct SoftwareUpdatesView: View {
     @Environment(AppEnvironment.self) private var environment
     @Environment(\.modelContext) private var context
+    @Environment(\.isRenderingSharePoster) private var isRenderingPoster
     @State private var updates: [FirmwareUpdateDTO] = []
     @State private var loading = true
     @State private var message: String?
@@ -33,27 +34,68 @@ struct SoftwareUpdatesView: View {
         .tessalyticsReadableWidth()
         .task { await load() }
         .refreshable { await load() }
+        .shareablePage(sharePage) {
+            VStack(spacing: TessalyticsLayout.stackSpacing) { pageContent }
+        }
     }
 
     private var content: some View {
         ScrollView {
             LazyVStack(spacing: TessalyticsLayout.stackSpacing) {
-                SectionCard(
-                    "Version timeline",
-                    subtitle: timelineSubtitle,
-                    symbol: "chart.bar.xaxis",
-                    tint: TessalyticsTheme.accent
-                ) {
-                    SoftwareVersionTimelineChart(periods: periods)
-                }
-
-                ForEach(periods) { period in
-                    SoftwareVersionRow(period: period)
-                }
+                pageContent
             }
             .tessalyticsScreenPadding()
             .tessalyticsReadableWidth()
         }
+    }
+
+    @ViewBuilder private var pageContent: some View {
+        SectionCard(
+            "Version timeline",
+            subtitle: timelineSubtitle,
+            symbol: "chart.bar.xaxis",
+            tint: TessalyticsTheme.accent
+        ) {
+            SoftwareVersionTimelineChart(periods: periods)
+        }
+
+        // A car three years into its life has fifty of these, and a poster of
+        // fifty rows is a picture nobody scrolls. The chart above already carries
+        // the shape of the whole history.
+        ForEach(isRenderingPoster ? Array(periods.prefix(12)) : periods) { period in
+            SoftwareVersionRow(period: period)
+        }
+        if isRenderingPoster, periods.count > 12 {
+            Text("and \(periods.count - 12) earlier version\(periods.count - 12 == 1 ? "" : "s")")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private func sharePage() -> SharePage {
+        let current = periods.first
+        var highlights: [ShareHighlight] = []
+        if let current {
+            highlights.append(.init(label: "running", value: current.version))
+            highlights.append(.init(label: "days on it", value: "\(current.days())"))
+        }
+        highlights.append(.init(label: "versions", value: "\(periods.count)"))
+
+        var sentences: [String] = []
+        if let current {
+            sentences.append(
+                "\(environment.selectedVehicle?.name?.nilIfEmpty ?? "My Tesla") is on \(current.version), "
+                + "\(current.days()) day\(current.days() == 1 ? "" : "s") in."
+            )
+        }
+        sentences.append("\(periods.count) version\(periods.count == 1 ? "" : "s") recorded by Tessalytics.")
+        return SharePage(
+            title: "Software updates",
+            subtitle: SharePage.subtitle(car: environment.selectedVehicle?.name),
+            highlights: highlights,
+            summary: sentences.joined(separator: " ")
+        )
     }
 
     private var timelineSubtitle: String {

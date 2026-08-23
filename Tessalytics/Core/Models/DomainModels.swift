@@ -51,7 +51,7 @@ struct ProfileDraft: Sendable {
         let normalized = serverURL.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         guard let components = URLComponents(string: normalized), let scheme = components.scheme?.lowercased(),
               let host = components.host, !host.isEmpty, let url = components.url,
-              scheme == "https" || (scheme == "http" && allowsLocalHTTP && Self.isLocal(host))
+              scheme == "https" || (scheme == "http" && allowsLocalHTTP)
         else { throw ClientError.invalidConfiguration }
         return ServerProfile(id: id, name: name.isEmpty ? host : name, baseURL: url,
                              authenticationMethod: authenticationMethod, allowsLocalHTTP: allowsLocalHTTP)
@@ -65,8 +65,8 @@ struct ProfileDraft: Sendable {
         }
     }
 
-    /// Whether a host is on the local network, and so may be reached over plain
-    /// HTTP when the owner has asked for it.
+    /// Whether a host is on the local network. Public HTTP can also be enabled
+    /// explicitly for compatibility, but is presented as the less-safe case.
     ///
     /// Matched as an address rather than as a prefix of a name. `hasPrefix("10.")`
     /// is true of `10.example.com`, which is a public host an attacker can
@@ -92,6 +92,7 @@ struct ProfileDraft: Sendable {
         case 169: return second == 254            // link-local
         case 172: return (16...31).contains(second)
         case 192: return second == 168
+        case 100: return (64...127).contains(second) // CGNAT/overlay networks such as Tailscale
         default: return false
         }
     }

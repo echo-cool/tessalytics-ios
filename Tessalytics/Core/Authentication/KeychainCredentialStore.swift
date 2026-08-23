@@ -21,7 +21,7 @@ struct KeychainCredentialStore: CredentialStore, Sendable {
         SecItemDelete(base as CFDictionary)
         var query = base
         query[kSecValueData as String] = data
-        query[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
+        query[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
         let status = SecItemAdd(query as CFDictionary, nil)
         guard status == errSecSuccess else { throw KeychainError.unhandled(status) }
     }
@@ -36,6 +36,15 @@ struct KeychainCredentialStore: CredentialStore, Sendable {
         let status = SecItemCopyMatching(query as CFDictionary, &result)
         if status == errSecItemNotFound { return nil }
         guard status == errSecSuccess, let data = result as? Data else { throw KeychainError.unhandled(status) }
+        // Strengthen entries written by older releases. The app does no
+        // background networking, so credentials need not be readable while the
+        // device is locked or migrate through a device backup.
+        let updateQuery: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
+                                          kSecAttrService as String: service,
+                                          kSecAttrAccount as String: profileID.uuidString]
+        let attributes = [kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly]
+        let updateStatus = SecItemUpdate(updateQuery as CFDictionary, attributes as CFDictionary)
+        guard updateStatus == errSecSuccess else { throw KeychainError.unhandled(updateStatus) }
         return try JSONDecoder().decode(StoredCredentials.self, from: data)
     }
 

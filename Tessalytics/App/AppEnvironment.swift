@@ -208,7 +208,12 @@ final class AppEnvironment {
         if ProcessInfo.processInfo.arguments.contains("-ui-demo") {
             let arguments = ProcessInfo.processInfo.arguments
             activateDemo(
-                showDirectControls: !arguments.contains("-ui-owner-disconnected"),
+                // The Owner API is developer-only now, so the demo simulates a
+                // connected Tesla account only where a developer could actually
+                // reach one. Otherwise the demo claimed "Direct live" on a screen
+                // with no direct controls anywhere on it.
+                showDirectControls: diagnostics.isUnlocked
+                    && !arguments.contains("-ui-owner-disconnected"),
                 offline: arguments.contains("-ui-demo-offline"),
                 driving: arguments.contains("-ui-demo-driving"),
                 // A drive that actually moves. Off by default: the screenshot
@@ -1507,6 +1512,29 @@ final class AppEnvironment {
             try await ownerAPI.send(command, vehicleID: vehicle.id)
             ownerLastError = nil
             await refreshOwnerStatus()
+        } catch {
+            ownerLastError = error.localizedDescription
+            throw error
+        }
+    }
+
+    /// Sends a destination to the car's navigation, if this app can talk to the
+    /// car at all.
+    ///
+    /// Returns `false` when there is no connected Tesla account — not an error,
+    /// just the answer that the caller should hand the destination to the share
+    /// sheet instead and let the owner pass it to the Tesla app. Throws only when
+    /// there *is* a connection and Tesla refused, which is a fact worth showing.
+    @discardableResult
+    func sendDestinationToCar(_ destination: CarDestination) async throws -> Bool {
+        guard isOwnerConnected, let vehicle = selectedOwnerVehicle else { return false }
+        guard !isDemoMode else { return true }
+        isOwnerCommandRunning = true
+        defer { isOwnerCommandRunning = false }
+        do {
+            try await ownerAPI.sendDestination(destination.shareText, vehicleID: vehicle.id)
+            ownerLastError = nil
+            return true
         } catch {
             ownerLastError = error.localizedDescription
             throw error

@@ -16,7 +16,7 @@ final class TessalyticsUITests: XCTestCase {
         explore.tap()
         XCTAssertTrue(app.otherElements["dashboard-screen"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["demo-mode-banner"].exists)
-        XCTAssertTrue(app.descendants(matching: .any)["home-driving-chart"].exists)
+        assertScrollingReveals(app, identifiers: ["home-driving-chart"])
         XCTAssertFalse(app.descendants(matching: .any)["direct-tesla-controls"].exists)
     }
 
@@ -32,11 +32,16 @@ final class TessalyticsUITests: XCTestCase {
             app.staticTexts["1350 El Camino Real, Mountain View"].waitForExistence(timeout: 5),
             "A parked car shows where it is, not a state word"
         )
-        XCTAssertFalse(app.staticTexts["Home"].exists, "The geofence is not the source for this")
+        // Scoped to the hero card. "Home" is a perfectly good place name elsewhere
+        // on this screen — the destinations list is full of them — and what this
+        // is about is the hero not naming the car's position from a geofence.
+        XCTAssertFalse(
+            app.otherElements["vehicle-snapshot-card"].staticTexts["Home"].exists,
+            "The geofence is not the source for this"
+        )
         // Two decimals: rounding the range to a whole unit made a figure that was
         // visibly falling look like one that was stuck.
         XCTAssertTrue(app.staticTexts["238.00"].exists)
-        XCTAssertTrue(app.descendants(matching: .any)["home-driving-chart"].exists)
 
         // The hero carries the battery ring, the odometer, the tyres and a week of
         // battery level. Lock state and cabin temperature moved out of it: the
@@ -51,6 +56,7 @@ final class TessalyticsUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["18,642.0"].exists, "Odometer sits beside the range, to a tenth")
         XCTAssertTrue(app.staticTexts["42.1"].exists, "A tyre pressure is shown at its corner")
         XCTAssertTrue(app.staticTexts["Battery level · 7 days"].exists)
+        assertScrollingReveals(app, identifiers: ["home-driving-chart"])
 
         // Every telemetry tile lives in a lazy grid below the fold, so none of
         // them is guaranteed to exist until scrolled into range.
@@ -64,6 +70,28 @@ final class TessalyticsUITests: XCTestCase {
     }
 
     /// Scrolls the current screen until every expected string has been seen.
+    /// The same, for elements found by identifier rather than by their text.
+    private func assertScrollingReveals(
+        _ app: XCUIApplication,
+        identifiers: [String],
+        maximumSwipes: Int = 14,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        var remaining = Set(identifiers)
+        for _ in 0...maximumSwipes {
+            remaining = remaining.filter { !app.descendants(matching: .any)[$0].exists }
+            if remaining.isEmpty { return }
+            app.swipeUp()
+        }
+        XCTAssertTrue(
+            remaining.isEmpty,
+            "Never found \(remaining.sorted().joined(separator: ", ")) while scrolling",
+            file: file,
+            line: line
+        )
+    }
+
     private func assertScrollingReveals(
         _ app: XCUIApplication,
         texts: [String],
@@ -86,14 +114,30 @@ final class TessalyticsUITests: XCTestCase {
     }
 
     func testDashboardHidesDirectControlsWithoutTokens() {
-        let app = launch("-ui-demo", "-ui-owner-disconnected")
+        let app = launch("-ui-demo", "-ui-owner-disconnected", "-diagnosticsUnlocked", "YES")
         XCTAssertTrue(app.otherElements["dashboard-screen"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.descendants(matching: .any)["direct-tesla-controls"].exists)
         XCTAssertFalse(app.buttons["owner-command-unlock"].exists)
     }
 
+    /// The Owner API is unofficial and Tesla retires parts of it without notice,
+    /// so it is not offered to owners as a feature. It lives behind the same
+    /// unlock as the rest of the debug tools.
+    func testDirectTeslaIsHiddenUntilDebugModeIsUnlocked() {
+        let app = launch("-ui-demo", "-diagnosticsUnlocked", "NO")
+        XCTAssertTrue(app.otherElements["dashboard-screen"].waitForExistence(timeout: 5))
+        for _ in 0..<14 { app.swipeUp() }
+        XCTAssertFalse(app.descendants(matching: .any)["direct-tesla-controls"].exists)
+
+        app.tabBars.buttons["Settings"].tap()
+        XCTAssertFalse(
+            app.buttons["owner-api-settings"].waitForExistence(timeout: 2),
+            "Settings does not offer a connection an owner should not be relying on"
+        )
+    }
+
     func testDirectTeslaControlsRequireConfirmation() {
-        let app = launch("-ui-demo")
+        let app = launch("-ui-demo", "-diagnosticsUnlocked", "YES")
         let controls = app.descendants(matching: .any)["direct-tesla-controls"]
         scrollTo(controls, in: app)
         let unlock = app.buttons["owner-command-unlock"]
@@ -104,7 +148,7 @@ final class TessalyticsUITests: XCTestCase {
     }
 
     func testOwnerTokenConnectionScreen() {
-        let app = launch("-ui-demo", "-ui-owner-disconnected")
+        let app = launch("-ui-demo", "-ui-owner-disconnected", "-diagnosticsUnlocked", "YES")
         app.tabBars.buttons["Settings"].tap()
         let ownerSettings = app.buttons["owner-api-settings"]
         XCTAssertTrue(ownerSettings.waitForExistence(timeout: 3))

@@ -133,11 +133,11 @@ struct OnboardingView: View {
                         .foregroundStyle(TessalyticsTheme.accent)
                 }
 
-                Toggle("Allow local HTTP development server", isOn: $draft.allowsLocalHTTP)
+                Toggle("Allow insecure HTTP", isOn: $draft.allowsLocalHTTP)
             } header: {
                 Text("Tessalytics Backend")
             } footer: {
-                Text("Enter the address of Tessalytics Backend, not of TeslaMate or Grafana. TeslaMate does not serve this API on its own. HTTP is accepted only for localhost or common private-network addresses. TLS validation is never disabled.")
+                Text("Enter the address of Tessalytics Backend, not of TeslaMate or Grafana. HTTPS is strongly recommended. Insecure HTTP can be enabled for compatibility, including a public IP and port, but bearer tokens and vehicle data then travel without encryption. TLS validation is never disabled.")
             }
 
             Section("Authentication") {

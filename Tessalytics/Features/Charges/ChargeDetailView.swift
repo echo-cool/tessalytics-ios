@@ -23,90 +23,7 @@ struct ChargeDetailView: View {
                         .padding()
                 } else if let detail {
                     VStack(spacing: TessalyticsLayout.stackSpacing) {
-                    SurfaceCard(tint: TessalyticsTheme.positive) {
-                        HStack(spacing: 10) {
-                            Label(detail.address ?? "Location not reported", systemImage: "mappin.and.ellipse")
-                                .font(.subheadline.weight(.medium))
-                                .lineLimit(2)
-                            Spacer(minLength: 8)
-                            if detail.endDate == nil {
-                                StatusBadge(text: "In progress", color: TessalyticsTheme.positive)
-                            }
-                        }
-                    }
-                    MetricGrid {
-                        MetricCard(
-                            title: "Energy added",
-                            value: ValueFormatting.number(detail.chargeEnergyAdded, unit: "kWh"),
-                            symbol: "bolt.fill",
-                            detail: batteryGainDetail(detail),
-                            tint: TessalyticsTheme.positive
-                        )
-                        MetricCard(
-                            title: "Energy drawn",
-                            value: ValueFormatting.number(detail.chargeEnergyUsed, unit: "kWh"),
-                            symbol: "powerplug.fill",
-                            detail: efficiency(detail),
-                            tint: TessalyticsTheme.positive
-                        )
-                        MetricCard(
-                            title: "Duration",
-                            value: ValueFormatting.duration(minutes: detail.durationMin),
-                            symbol: "clock",
-                            detail: averagePowerDetail(detail),
-                            tint: TessalyticsTheme.neutral
-                        )
-                        MetricCard(
-                            title: "Peak power",
-                            value: peakPower(detail),
-                            symbol: "gauge.with.dots.needle.67percent",
-                            detail: chargerKindDetail(detail),
-                            tint: TessalyticsTheme.warning
-                        )
-                        MetricCard(
-                            title: "Cost",
-                            value: ValueFormatting.chargeCost(detail.cost),
-                            symbol: "creditcard",
-                            detail: price(detail),
-                            tint: TessalyticsTheme.steel
-                        )
-                        MetricCard(
-                            title: "Started",
-                            value: startTime(detail),
-                            symbol: "calendar",
-                            detail: ValueFormatting.date(detail.startDate?.value),
-                            tint: TessalyticsTheme.neutral
-                        )
-                    }
-                    // Level and power together: the moment the taper starts lines
-                    // up with the level it started at, which is the thing worth
-                    // knowing. They were two charts, read one at a time.
-                    SectionCard(
-                        "Charging curve",
-                        subtitle: "Level against power",
-                        symbol: "chart.xyaxis.line",
-                        tint: TessalyticsTheme.positive
-                    ) {
-                        ChargeCurveChart(
-                            points: detail.curvePoints(),
-                            peakPower: detail.chargeDetails.compactMap { $0.chargerDetails?.chargerPower }.max(),
-                            height: 220
-                        )
-                    }
-                    sampleChart(
-                        "Voltage",
-                        unit: "V",
-                        tint: TessalyticsTheme.chartNeutral,
-                        baseline: .focused,
-                        values: series(detail, whileCharging: true) { $0.chargerDetails?.chargerVoltage }
-                    )
-                    sampleChart(
-                        "Current",
-                        unit: "A",
-                        tint: TessalyticsTheme.steel,
-                        values: series(detail, whileCharging: true) { $0.chargerDetails?.chargerActualCurrent }
-                    )
-                    chargerDetails(detail)
+                    pageContent(detail)
                     }
                     .tessalyticsScreenPadding()
                     .tessalyticsReadableWidth(TessalyticsLayout.wideReadableWidth)
@@ -119,7 +36,138 @@ struct ChargeDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
             .task { await load() }
             .task(id: pollingKey) { await pollWhileVisible() }
+            .shareablePage(sharePage) {
+                VStack(spacing: TessalyticsLayout.stackSpacing) {
+                    if let detail { pageContent(detail) }
+                }
+            }
     }
+
+    @ViewBuilder private func pageContent(_ detail: ChargeDetailDTO) -> some View {
+        SurfaceCard(tint: TessalyticsTheme.positive) {
+            HStack(spacing: 10) {
+                Label(detail.address ?? "Location not reported", systemImage: "mappin.and.ellipse")
+                    .font(.subheadline.weight(.medium))
+                    .lineLimit(2)
+                Spacer(minLength: 8)
+                if detail.endDate == nil {
+                    StatusBadge(text: "In progress", color: TessalyticsTheme.positive)
+                }
+            }
+        }
+        MetricGrid {
+            MetricCard(
+                title: "Energy added",
+                value: ValueFormatting.number(detail.chargeEnergyAdded, unit: "kWh"),
+                symbol: "bolt.fill",
+                detail: batteryGainDetail(detail),
+                tint: TessalyticsTheme.positive
+            )
+            MetricCard(
+                title: "Energy drawn",
+                value: ValueFormatting.number(detail.chargeEnergyUsed, unit: "kWh"),
+                symbol: "powerplug.fill",
+                detail: efficiency(detail),
+                tint: TessalyticsTheme.positive
+            )
+            MetricCard(
+                title: "Duration",
+                value: ValueFormatting.duration(minutes: detail.durationMin),
+                symbol: "clock",
+                detail: averagePowerDetail(detail),
+                tint: TessalyticsTheme.neutral
+            )
+            MetricCard(
+                title: "Peak power",
+                value: peakPower(detail),
+                symbol: "gauge.with.dots.needle.67percent",
+                detail: chargerKindDetail(detail),
+                tint: TessalyticsTheme.warning
+            )
+            MetricCard(
+                title: "Cost",
+                value: ValueFormatting.chargeCost(detail.cost),
+                symbol: "creditcard",
+                detail: price(detail),
+                tint: TessalyticsTheme.steel
+            )
+            MetricCard(
+                title: "Started",
+                value: startTime(detail),
+                symbol: "calendar",
+                detail: ValueFormatting.date(detail.startDate?.value),
+                tint: TessalyticsTheme.neutral
+            )
+        }
+        // Level and power together: the moment the taper starts lines
+        // up with the level it started at, which is the thing worth
+        // knowing. They were two charts, read one at a time.
+        SectionCard(
+            "Charging curve",
+            subtitle: "Level against power",
+            symbol: "chart.xyaxis.line",
+            tint: TessalyticsTheme.positive
+        ) {
+            ChargeCurveChart(
+                points: detail.curvePoints(),
+                peakPower: detail.chargeDetails.compactMap { $0.chargerDetails?.chargerPower }.max(),
+                height: 220
+            )
+        }
+        sampleChart(
+            "Voltage",
+            unit: "V",
+            tint: TessalyticsTheme.chartNeutral,
+            baseline: .focused,
+            values: series(detail, whileCharging: true) { $0.chargerDetails?.chargerVoltage }
+        )
+        sampleChart(
+            "Current",
+            unit: "A",
+            tint: TessalyticsTheme.steel,
+            values: series(detail, whileCharging: true) { $0.chargerDetails?.chargerActualCurrent }
+        )
+        chargerDetails(detail)
+    }
+
+    private func sharePage() -> SharePage {
+        guard let detail else {
+            return SharePage(title: "Charge", subtitle: SharePage.subtitle(car: environment.selectedVehicle?.name))
+        }
+        var highlights: [ShareHighlight] = [
+            .init(label: "energy added", value: ValueFormatting.number(detail.chargeEnergyAdded, unit: "kWh"))
+        ]
+        if detail.durationMin != nil {
+            highlights.append(.init(label: "duration", value: ValueFormatting.duration(minutes: detail.durationMin)))
+        }
+        if let start = detail.batteryDetails?.resolvedStartLevel, let end = detail.batteryDetails?.resolvedEndLevel {
+            highlights.append(.init(label: "battery", value: "\(start)% → \(end)%"))
+        }
+        if detail.cost != nil {
+            highlights.append(.init(label: "cost", value: ValueFormatting.chargeCost(detail.cost)))
+        }
+
+        var sentences: [String] = []
+        if let address = detail.address?.nilIfEmpty {
+            sentences.append("Charged at \(address).")
+        }
+        var line = "\(ValueFormatting.number(detail.chargeEnergyAdded, unit: "kWh")) added"
+        if let start = detail.batteryDetails?.resolvedStartLevel, let end = detail.batteryDetails?.resolvedEndLevel {
+            line += ", \(start)% to \(end)%"
+        }
+        if detail.durationMin != nil {
+            line += " over \(ValueFormatting.duration(minutes: detail.durationMin))"
+        }
+        sentences.append(line + ".")
+        sentences.append("Recorded by Tessalytics.")
+        return SharePage(
+            title: "Charge",
+            subtitle: SharePage.subtitle(car: environment.selectedVehicle?.name, date: detail.startDate?.value ?? .now),
+            highlights: highlights,
+            summary: sentences.joined(separator: " ")
+        )
+    }
+
     /// Samples paired with their recording time, so the x-axis means something.
     /// Samples paired with their recording time.
     ///

@@ -172,17 +172,43 @@ actor OwnerAPISession {
         let envelope: OwnerAPIEnvelope<OwnerCommandResponse> = try await authenticatedRequest(
             path: "api/1/vehicles/\(vehicleID)/command/\(command.endpoint)",
             method: "POST",
-            body: command.body
+            body: try JSONSerialization.data(withJSONObject: command.body)
         )
         guard envelope.response.result else {
             throw OwnerAPIError.commandRejected(envelope.response.reason ?? "The vehicle rejected the command.")
         }
     }
 
+    /// Sends a destination to the car's navigation.
+    ///
+    /// This is the same call the Tesla app makes when someone shares a map link to
+    /// it from another app: `share_ext_content_raw` is literally an Android share
+    /// intent, forwarded, and the car's own navigation resolves whatever text is
+    /// inside it. Passing a `maps.google.com` link rather than a bare address is
+    /// what that intent normally carries, and it is the form the car parses most
+    /// reliably — an address string is re-geocoded and can land on the wrong side
+    /// of a city.
+    func sendDestination(_ destination: String, vehicleID: Int64) async throws {
+        let body: [String: Any] = [
+            "type": "share_ext_content_raw",
+            "value": ["android.intent.extra.TEXT": destination],
+            "locale": Locale.current.identifier.replacingOccurrences(of: "_", with: "-"),
+            "timestamp_ms": String(Int(Date.now.timeIntervalSince1970 * 1000))
+        ]
+        let envelope: OwnerAPIEnvelope<OwnerCommandResponse> = try await authenticatedRequest(
+            path: "api/1/vehicles/\(vehicleID)/command/share",
+            method: "POST",
+            body: try JSONSerialization.data(withJSONObject: body)
+        )
+        guard envelope.response.result else {
+            throw OwnerAPIError.commandRejected(envelope.response.reason ?? "The car would not take that destination.")
+        }
+    }
+
     private func authenticatedRequest<Response: Decodable & Sendable>(
         path: String,
         method: String = "GET",
-        body: [String: String]? = nil
+        body: Data? = nil
     ) async throws -> Response {
         var current = try credentials()
         if current.needsRefresh() { current = try await refresh(current) }
@@ -282,7 +308,7 @@ actor OwnerAPISession {
     private func perform(
         path: String,
         method: String,
-        body: [String: String]?,
+        body: Data?,
         credentials: OwnerAPICredentials
     ) async throws -> (data: Data, statusCode: Int) {
         let url = credentials.region.ownerAPIURL.appending(path: path)
@@ -293,7 +319,7 @@ actor OwnerAPISession {
         request.setValue("Bearer \(credentials.accessToken)", forHTTPHeaderField: "Authorization")
         request.setValue(Self.userAgent, forHTTPHeaderField: "User-Agent")
         request.setValue(Self.teslaUserAgent, forHTTPHeaderField: "X-Tesla-User-Agent")
-        if let body { request.httpBody = try JSONSerialization.data(withJSONObject: body) }
+        request.httpBody = body
         do {
             let (data, response) = try await transport.data(for: request)
             guard let http = response as? HTTPURLResponse else { throw OwnerAPIError.transport }

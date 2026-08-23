@@ -4,7 +4,7 @@ Tessalytics requires [TeslaMate](https://github.com/teslamate-org/teslamate), [T
 
 Tessalytics Backend is not optional. TeslaMate does not serve the API this app reads, so a standalone TeslaMate installation will not work. Deploy the backend beside TeslaMate — adding it to the existing TeslaMate Docker Compose file is the simplest way — and give the app the backend's address.
 
-> **Important:** Tessalytics Backend requires a bearer token on every route, but a token alone is not a security boundary. If the service is exposed outside a trusted private network, place a VPN or an authenticating reverse proxy in front of it as well.
+> **Important:** Public Tessalytics Backend deployments should use a strong bearer token over HTTPS. The backend's public mode enforces that boundary. A direct public HTTP IP-and-port deployment is supported only as an explicit compatibility mode and exposes credentials and vehicle history to interception.
 
 Do not expose PostgreSQL, Mosquitto/MQTT, Tesla account tokens, or the API directly without access control.
 
@@ -39,11 +39,17 @@ services:
 ## Secure access choices
 
 - Tailscale or another authenticated VPN, with no public API listener
-- Caddy, nginx, or Traefik terminating HTTPS and enforcing authentication on every route
+- Caddy, nginx, Traefik, or a cloud load balancer terminating HTTPS; Tessalytics Backend enforces bearer authentication on every data route
 - HTTP Basic Authentication at the reverse proxy
 - Bearer authentication at the reverse proxy, including all read routes
 
 Use a publicly trusted certificate for public hostnames. Tessalytics does not disable TLS verification. Do not put secrets in URL query parameters; URLs can be recorded by proxies and logs.
+
+For a direct address such as `http://203.0.113.10:1234`, set
+`PUBLIC_DEPLOYMENT=true`, `PUBLIC_BASE_URL` to the exact origin, and
+`ALLOW_INSECURE_PUBLIC_HTTP=true`, then enable **Allow insecure HTTP** in the
+app. This is interoperable, not secure: the token and location data are
+unencrypted. Prefer the Caddy public Compose stack in the backend repository.
 
 ## Verification
 

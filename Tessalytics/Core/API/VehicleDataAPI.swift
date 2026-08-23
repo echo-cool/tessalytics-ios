@@ -48,7 +48,7 @@ enum ClientError: Error, Equatable, LocalizedError, Sendable {
 
     var errorDescription: String? {
         switch self {
-        case .invalidConfiguration: "Enter a valid server URL. HTTPS is required unless local HTTP is explicitly enabled."
+        case .invalidConfiguration: "Enter a valid server URL. HTTPS is recommended; HTTP must be explicitly enabled."
         case .transport: "The server could not be reached. Check the address and network connection."
         case .badToken: "Authentication failed. Check the configured credentials."
         case .forbidden: "This operation is disabled or forbidden by the server."

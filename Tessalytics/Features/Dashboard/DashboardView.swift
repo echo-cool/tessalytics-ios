@@ -22,6 +22,10 @@ struct DashboardView: View {
     @State private var isShowingPairing = false
     /// Which of the hero card's destinations is open, if any.
     @State private var heroDestination: VehicleHeroDestination?
+    @State private var heroSnapshot = RoutePosterSnapshot()
+    @State private var placesSnapshot = RoutePosterSnapshot()
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.isRenderingSharePoster) private var isRenderingPoster
 
     var body: some View {
         NavigationStack {
@@ -49,6 +53,9 @@ struct DashboardView: View {
                 ToolbarItem(placement: .topBarTrailing) { vehicleMenu }
             }
             .safeAreaInset(edge: .top) { statusBanner }
+            .shareablePage(sharePage, prepare: prepareMapSnapshots) {
+                VStack(spacing: TessalyticsLayout.stackSpacing) { dashboardPoster }
+            }
             .fullScreenCover(isPresented: $isShowingLiveMap) { LiveMapScreen() }
             .sheet(isPresented: $isShowingPairing) { WebPairingSheet() }
             // Keyed on the vehicle so this also fires the first time a vehicle
@@ -136,10 +143,104 @@ struct DashboardView: View {
         return ChargeRepository(context: context).cached(serverID: profile.id, carID: vehicle.id)
     }
 
+
+    /// What goes in a shared picture of the home screen.
+    ///
+    /// Not the whole screen: the quick links are buttons, the pairing notice is a
+    /// prompt to this phone's owner, and the Tesla controls card is a set of
+    /// switches. None of them mean anything as a picture.
+    @ViewBuilder private var dashboardPoster: some View {
+        VehicleHeroCard(
+            posterMap: heroSnapshot.image,
+            vehicle: environment.selectedVehicle,
+            status: environment.status,
+            units: environment.statusUnits,
+            freshnessLabel: freshnessLabel,
+            freshnessColor: freshnessColor,
+            updatedAt: environment.statusFetchedAt,
+            battery: environment.fleet.battery,
+            activity: recentDrivePoints,
+            efficiency: recentEfficiency,
+            batteryLevels: batteryLevels,
+            tyres: environment.status?.tpmsDetails?.hasAnyReading == true
+                ? environment.status?.tpmsDetails
+                : environment.lastLiveStatus?.tpmsDetails,
+            route: environment.liveMapRoute,
+            liveTotals: environment.liveDriveTotals,
+            isStreaming: environment.isStreamingLive,
+            isDriving: environment.isLiveDriving,
+            coordinate: environment.liveCoordinate ?? environment.status?.carGeodata?.location,
+            placeName: environment.livePlace.name,
+            onOpen: { _ in }
+        )
+        if !visitedPlaces.isEmpty {
+            SectionCard("Places", subtitle: placesSubtitle, symbol: "map.fill", tint: TessalyticsTheme.neutral) {
+                RoutePosterMap(height: 190, snapshot: placesSnapshot.image)
+            }
+        }
+    }
+
+    private func prepareMapSnapshots() async {
+        let width = SharePoster<AnyView>.width - 64
+        if let coordinate = environment.liveCoordinate ?? environment.status?.carGeodata?.location {
+            let trail = environment.liveMapRoute.coordinates
+            await heroSnapshot.load(
+                segments: trail.count > 1 ? [trail] : [],
+                pins: [CoordinateDTO(latitude: coordinate.latitude, longitude: coordinate.longitude)],
+                size: CGSize(width: width, height: 128),
+                colorScheme: colorScheme
+            )
+        }
+        if !visitedPlaces.isEmpty {
+            await placesSnapshot.load(
+                segments: visitedSegments,
+                pins: visitedPlaces.map { CoordinateDTO(latitude: $0.latitude, longitude: $0.longitude) },
+                size: CGSize(width: width, height: 190),
+                colorScheme: colorScheme
+            )
+        }
+    }
+
+    private func sharePage() -> SharePage {
+        let units = environment.statusUnits
+        let status = environment.status
+        var highlights: [ShareHighlight] = []
+        if let level = status?.batteryDetails?.batteryLevel {
+            highlights.append(.init(label: "battery", value: "\(level)%"))
+        }
+        if let range = status?.batteryDetails?.ratedBatteryRange {
+            highlights.append(.init(label: "range", value: ValueFormatting.distance(range, units: units, digits: 2)))
+        }
+        if let odometer = status?.odometer {
+            highlights.append(.init(label: "odometer", value: ValueFormatting.distance(odometer, units: units, digits: 1)))
+        }
+
+        var sentences: [String] = []
+        let car = environment.selectedVehicle?.name?.nilIfEmpty ?? "My Tesla"
+        if let level = status?.batteryDetails?.batteryLevel {
+            var line = "\(car) is at \(level)%"
+            if let range = status?.batteryDetails?.ratedBatteryRange {
+                line += ", \(ValueFormatting.distance(range, units: units, digits: 2)) of rated range"
+            }
+            sentences.append(line + ".")
+        }
+        if let place = environment.livePlace.name?.nilIfEmpty {
+            sentences.append(environment.isLiveDriving ? "Near \(place)." : "Parked at \(place).")
+        }
+        sentences.append("From Tessalytics.")
+        return SharePage(
+            title: car,
+            subtitle: SharePage.subtitle(car: environment.selectedVehicle?.name),
+            highlights: highlights,
+            summary: sentences.joined(separator: " ")
+        )
+    }
+
     private var dashboardContent: some View {
         ScrollView {
             LazyVStack(spacing: TessalyticsLayout.stackSpacing) {
                 VehicleHeroCard(
+                    posterMap: heroSnapshot.image,
                     vehicle: environment.selectedVehicle,
                     status: environment.status,
                     units: environment.statusUnits,
@@ -179,8 +280,17 @@ struct DashboardView: View {
 
                 DashboardQuickLinks()
 
-                if environment.hasOwnerCredentials && environment.isOwnerConnected {
+                // Behind the debug unlock — see the note in SettingsView.
+                if environment.diagnostics.isUnlocked,
+                   environment.hasOwnerCredentials,
+                   environment.isOwnerConnected {
                     DirectTeslaControlsCard()
+                }
+
+                // Parked: somewhere to go. Driving: what the car is doing. The two
+                // are never both useful at once.
+                if !environment.isLiveDriving, !visitedPlaces.isEmpty {
+                    DestinationsCard(places: visitedPlaces)
                 }
 
                 if environment.isLiveDriving {
@@ -224,10 +334,14 @@ struct DashboardView: View {
                             symbol: "map"
                         )
                     } else {
-                        VisitedPlacesMap(places: visitedPlaces, segments: visitedSegments)
-                            .frame(height: 190)
-                            .clipShape(.rect(cornerRadius: TessalyticsTheme.compactRadius, style: .continuous))
-                            .allowsHitTesting(false)
+                        if isRenderingPoster {
+                            RoutePosterMap(height: 190, snapshot: placesSnapshot.image)
+                        } else {
+                            VisitedPlacesMap(places: visitedPlaces, segments: visitedSegments)
+                                .frame(height: 190)
+                                .clipShape(.rect(cornerRadius: TessalyticsTheme.compactRadius, style: .continuous))
+                                .allowsHitTesting(false)
+                        }
                     }
                 }
 
@@ -1099,6 +1213,10 @@ enum VehicleHeroDestination: Hashable, Sendable {
 }
 
 private struct VehicleHeroCard: View {
+    @Environment(\.isRenderingSharePoster) private var isRenderingPoster
+    /// Tiles for the location map, drawn ahead of a share.
+    var posterMap: UIImage?
+
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     let vehicle: Vehicle?
@@ -1226,7 +1344,18 @@ private struct VehicleHeroCard: View {
         .accessibilityIdentifier("vehicle-snapshot-card")
     }
 
-    private func mapButton(coordinate: CLLocationCoordinate2D) -> some View {
+    @ViewBuilder private func mapButton(coordinate: CLLocationCoordinate2D) -> some View {
+        if isRenderingPoster {
+            RoutePosterMap(
+                height: dynamicTypeSize.isAccessibilitySize ? 150 : 128,
+                snapshot: posterMap
+            )
+        } else {
+            liveMapButton(coordinate: coordinate)
+        }
+    }
+
+    private func liveMapButton(coordinate: CLLocationCoordinate2D) -> some View {
         Button { onOpen(.map) } label: {
             LiveLocationMap(
                 coordinate: coordinate,

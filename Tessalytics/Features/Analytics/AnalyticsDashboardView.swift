@@ -80,12 +80,91 @@ struct AnalyticsDashboardView: View {
             }
         }
         .navigationTitle(embedded ? "Analysis" : "Analytics")
+        .shareablePage(sharePage) {
+            VStack(spacing: 12) {
+                if let dashboard {
+                    // The controls are a segmented picker and a date range: a
+                    // widget, not a fact, and meaningless in a still image. The
+                    // window they select is named in the subtitle instead.
+                    switch section {
+                    case .overview:
+                        AnalyticsOverviewDashboard(
+                            snapshot: dashboard,
+                            periodLabel: window.label,
+                            comparisonLabel: window.comparisonLabel,
+                            distanceUnit: distanceUnit
+                        )
+                    case .driving:
+                        DrivingAnalyticsDashboard(
+                            snapshot: dashboard,
+                            periodLabel: window.label,
+                            comparisonLabel: window.comparisonLabel,
+                            distanceUnit: distanceUnit
+                        )
+                    case .charging:
+                        ChargingAnalyticsDashboard(
+                            snapshot: dashboard,
+                            periodLabel: window.label,
+                            comparisonLabel: window.comparisonLabel,
+                            sites: chargingSites
+                        )
+                    }
+                    AnalyticsSourceNote(coverage: dashboard.coverage)
+                }
+            }
+        }
         .task(id: environment.selectedVehicle?.id) { load() }
         .task(id: environment.historyRevision) { load() }
         .onChange(of: period) { rebuildDashboard() }
         .onChange(of: customStart) { rebuildDashboard() }
         .onChange(of: customEnd) { rebuildDashboard() }
         .accessibilityIdentifier("analytics-dashboard-screen")
+    }
+
+
+    private func sharePage() -> SharePage {
+        let units = environment.statusUnits
+        guard let summary = dashboard?.summary else {
+            return SharePage(
+                title: section.rawValue,
+                subtitle: SharePage.subtitle(car: environment.selectedVehicle?.name)
+            )
+        }
+
+        var highlights: [ShareHighlight] = [
+            .init(label: "distance", value: ValueFormatting.distance(summary.distance, units: units, digits: 0)),
+            .init(label: "drives", value: "\(summary.driveCount)")
+        ]
+        if summary.chargingEnergy != nil {
+            highlights.append(.init(label: "charged", value: ValueFormatting.number(summary.chargingEnergy, unit: "kWh", digits: 0)))
+        }
+        if summary.averageEfficiency != nil {
+            highlights.append(
+                .init(label: "efficiency", value: ValueFormatting.efficiency(summary.averageEfficiency, units: units, digits: 0))
+            )
+        }
+
+        var sentences = [
+            "\(environment.selectedVehicle?.name?.nilIfEmpty ?? "My Tesla"), \(window.label.lowercased()): "
+            + "\(ValueFormatting.distance(summary.distance, units: units, digits: 0)) over "
+            + "\(summary.driveCount) drive\(summary.driveCount == 1 ? "" : "s")."
+        ]
+        if summary.chargingEnergy != nil {
+            var line = "\(ValueFormatting.number(summary.chargingEnergy, unit: "kWh", digits: 0)) charged"
+            if summary.chargingCost != nil {
+                line += " for \(ValueFormatting.chargeCost(summary.chargingCost))"
+            }
+            sentences.append(line + ".")
+        }
+        sentences.append("Analysed by Tessalytics.")
+        return SharePage(
+            title: section.rawValue,
+            // The window is what makes these figures mean anything, and a picture
+            // of them without it is a picture of nothing in particular.
+            subtitle: "\(environment.selectedVehicle?.name?.nilIfEmpty ?? "Tesla") · \(window.label)",
+            highlights: highlights,
+            summary: sentences.joined(separator: " ")
+        )
     }
 
     private var window: AnalyticsTimeWindow {
@@ -340,6 +419,8 @@ private struct DrivingAnalyticsDashboard: View {
 }
 
 private struct ChargingAnalyticsDashboard: View {
+    @Environment(\.isRenderingSharePoster) private var isRenderingPoster
+
     let snapshot: AnalyticsDashboardSnapshot
     let periodLabel: String
     let comparisonLabel: String?
@@ -380,7 +461,7 @@ private struct ChargingAnalyticsDashboard: View {
                 )
             }
 
-            ChargingMapCard(sites: sites)
+            if !isRenderingPoster { ChargingMapCard(sites: sites) }
             ChargingEnergyChart(points: snapshot.dailyCharging, periodLabel: periodLabel)
             ChargingCostChart(points: snapshot.dailyCharging, periodLabel: periodLabel)
             ChargeCostRelationshipChart(points: snapshot.chargeRelationships)

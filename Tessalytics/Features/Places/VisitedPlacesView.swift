@@ -83,31 +83,15 @@ struct VisitedPlacesScreen: View {
 
     @State private var places: [VisitedPlace] = []
     @State private var segments: [[CoordinateDTO]] = []
+    @State private var mapSnapshot = RoutePosterSnapshot()
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.isRenderingSharePoster) private var isRenderingPoster
 
     var body: some View {
         TessalyticsScreen {
             ScrollView {
                 LazyVStack(spacing: TessalyticsLayout.stackSpacing) {
-                    if places.isEmpty {
-                        EmptyState(
-                            title: "No places yet",
-                            message: "Synchronized drives with coordinates appear here.",
-                            symbol: "map"
-                        )
-                    } else {
-                        VisitedPlacesMap(places: places, segments: segments, showsLabels: true, interactive: true)
-                            .frame(height: 340)
-                            .clipShape(.rect(cornerRadius: TessalyticsTheme.cardRadius, style: .continuous))
-
-                        SectionCard("Most visited", subtitle: "\(places.count) places", symbol: "mappin.circle.fill") {
-                            VStack(spacing: 0) {
-                                ForEach(Array(places.prefix(25).enumerated()), id: \.element.id) { index, place in
-                                    if index > 0 { Divider() }
-                                    PlaceRow(place: place)
-                                }
-                            }
-                        }
-                    }
+                    pageContent
                 }
                 .tessalyticsScreenPadding()
                 .tessalyticsReadableWidth(TessalyticsLayout.wideReadableWidth)
@@ -115,6 +99,75 @@ struct VisitedPlacesScreen: View {
         }
         .navigationTitle("Places")
         .task(id: environment.historyRevision) { rebuild() }
+        .shareablePage(sharePage, prepare: prepareMapSnapshot) {
+            VStack(spacing: TessalyticsLayout.stackSpacing) { pageContent }
+        }
+    }
+
+    @ViewBuilder private var pageContent: some View {
+        if places.isEmpty {
+            EmptyState(
+                title: "No places yet",
+                message: "Synchronized drives with coordinates appear here.",
+                symbol: "map"
+            )
+        } else {
+            map
+            SectionCard("Most visited", subtitle: "\(places.count) places", symbol: "mappin.circle.fill") {
+                VStack(spacing: 0) {
+                    ForEach(Array(places.prefix(isRenderingPoster ? 10 : 25).enumerated()), id: \.element.id) { index, place in
+                        if index > 0 { Divider() }
+                        PlaceRow(place: place)
+                    }
+                }
+            }
+        }
+    }
+
+    /// A live map on screen; drawn tiles in a poster, where `Map` renders blank.
+    @ViewBuilder private var map: some View {
+        if isRenderingPoster {
+            RoutePosterMap(height: 340, snapshot: mapSnapshot.image)
+        } else {
+            VisitedPlacesMap(places: places, segments: segments, showsLabels: true, interactive: true)
+                .frame(height: 340)
+                .clipShape(.rect(cornerRadius: TessalyticsTheme.cardRadius, style: .continuous))
+        }
+    }
+
+    private func prepareMapSnapshot() async {
+        await mapSnapshot.load(
+            segments: segments,
+            pins: places.map { CoordinateDTO(latitude: $0.latitude, longitude: $0.longitude) },
+            size: CGSize(width: SharePoster<AnyView>.width - 40, height: 340),
+            colorScheme: colorScheme
+        )
+    }
+
+    private func sharePage() -> SharePage {
+        let visits = places.map(\.visits).reduce(0, +)
+        var highlights: [ShareHighlight] = [
+            .init(label: "places", value: "\(places.count)"),
+            .init(label: "arrivals", value: "\(visits)")
+        ]
+        if let top = places.first {
+            highlights.append(.init(label: "most visited", value: top.name))
+        }
+
+        var sentences = [
+            "\(places.count) place\(places.count == 1 ? "" : "s") "
+            + "\(environment.selectedVehicle?.name?.nilIfEmpty ?? "my Tesla") has been to."
+        ]
+        if let top = places.first {
+            sentences.append("Most often: \(top.name), \(top.visits) time\(top.visits == 1 ? "" : "s").")
+        }
+        sentences.append("Mapped by Tessalytics.")
+        return SharePage(
+            title: "Places",
+            subtitle: SharePage.subtitle(car: environment.selectedVehicle?.name),
+            highlights: highlights,
+            summary: sentences.joined(separator: " ")
+        )
     }
 
     private func rebuild() {

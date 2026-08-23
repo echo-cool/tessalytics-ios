@@ -1,0 +1,61 @@
+Tessalytics 1.8.5 — send a place to the car, and share any page as one picture.
+
+WHAT TO TEST FIRST
+
+1. SEND TO CAR (home screen, while the car is parked)
+
+There is a new "Send to car" section under the direct controls. It lists places the
+car has actually been — sorted by how often you go there, how recently, or how near
+the car is standing now — with a filter for the rest and a cap of ten.
+
+Tap one. The share sheet opens with a map link; pick Tesla and the destination lands
+on the car's navigation. No Tesla account, no token, nothing to connect.
+
+Please check:
+- The places are ones you recognise, and "Most visited" really is your most visited.
+- "Nearest" measures from where the car is now. With no reported position it falls
+  back to most-visited rather than inventing an order.
+- The Tesla app actually accepts it and the car navigates to the right place. This
+  is the part I cannot verify from here.
+- The section is absent while the car is driving. That is deliberate.
+
+The link carries the coordinate, not the name. The car re-geocodes whatever it is
+handed, and "Home" or "Whole Foods" would resolve to whichever one the car's own
+search prefers rather than the one you have been parking at.
+
+This cannot go through TeslaMate instead. TeslaMate is a logger — it reads the car
+and writes rows, and neither it nor TeslaMateApi has any endpoint that sends a
+command to a vehicle.
+
+2. SHARE A PAGE
+
+Eleven screens now have a share button in the top right: the home screen, battery
+health, achievements, software updates, tyres, places, analysis, a drive, a charge,
+drives and charging.
+
+What it produces is a picture of the whole page, not a screenshot of whatever was
+scrolled into view. The page is laid out again at a fixed width and drawn in one
+piece however long it is, with the figures summarised at the top, a Tessalytics mark
+in the bottom right, and a written summary travelling beside it so a message thread
+quotes real numbers rather than just showing an image.
+
+Please check:
+- The share sheet previews the picture rather than the text.
+- Maps appear in the image rather than as blank rectangles — the drive route, the
+  places map, the car's location on the home screen.
+- Nothing is in the picture that should not be: the analytics period picker, the
+  Game Center sign-in card and the charging map are all left out on purpose,
+  because a control is not a fact.
+- A long page — a drive with five charts — comes out whole.
+
+ALSO CHANGED
+
+Direct Tesla is now developer-only. The Owner API is unofficial and undocumented,
+and Tesla retires parts of it without notice: /api/1/vehicles has answered 412 since
+January 2023. It is no longer offered in Settings or on the home screen unless debug
+mode is unlocked — tap the version number in Settings five times. Nothing that reads
+from TeslaMate is affected; if you had it connected, your token is untouched and the
+screen is where it always was, behind the unlock.
+
+If you rely on the direct controls day to day, say so — this is a judgement about
+what an owner should be asked to depend on, not a removal.

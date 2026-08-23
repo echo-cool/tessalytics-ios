@@ -1,9 +1,8 @@
 import XCTest
 @testable import Tessalytics
 
-/// "Allow local HTTP" exists so a self-hosted TeslaMate on the LAN can be reached
-/// without a certificate. It must not become a way to send the bearer token to
-/// the public internet in the clear.
+/// HTTP is opt-in. Local/private addresses are the normal compatibility case,
+/// but a public IP and port can be enabled deliberately for older deployments.
 final class ServerURLSafetyTests: XCTestCase {
     private func draft(_ url: String, allowsLocalHTTP: Bool = true) -> ProfileDraft {
         var draft = ProfileDraft()
@@ -24,6 +23,8 @@ final class ServerURLSafetyTests: XCTestCase {
 
     func testCleartextIsRefusedUnlessItIsAskedFor() {
         XCTAssertFalse(accepts("http://192.168.1.10:3022", allowsLocalHTTP: false))
+        XCTAssertFalse(accepts("http://203.0.113.10:3022", allowsLocalHTTP: false))
+        XCTAssertTrue(accepts("http://203.0.113.10:3022", allowsLocalHTTP: true))
     }
 
     func testCleartextIsAcceptedForARealPrivateAddress() {
@@ -39,18 +40,18 @@ final class ServerURLSafetyTests: XCTestCase {
         XCTAssertTrue(accepts("http://172.28.5.1:3022"))
     }
 
-    func testAnAddressOutsideThePrivateRangesIsRefused() {
+    func testAddressClassificationStillDistinguishesPublicFromPrivate() {
         for host in ["172.15.0.1", "172.32.0.1", "11.0.0.1", "193.168.1.1", "8.8.8.8"] {
-            XCTAssertFalse(accepts("http://\(host):3022"), "\(host) is not on the local network")
+            XCTAssertFalse(ProfileDraft.isLocal(host), "\(host) is not on the local network")
         }
     }
 
     /// The bug: `hasPrefix("10.")` is true of `10.example.com`, which anyone can
     /// register. The app would have accepted it as "local", downgraded to
     /// cleartext, and put the bearer token on the wire for it.
-    func testAPublicHostnameThatLooksLikeAPrivateAddressIsRefused() {
+    func testAPublicHostnameThatLooksLikeAPrivateAddressIsNotClassifiedAsLocal() {
         for host in ["10.example.com", "127.0.0.1.example.com", "192.168.evil.test", "172.16.attacker.net"] {
-            XCTAssertFalse(accepts("http://\(host)"), "\(host) is a public name, not a private address")
+            XCTAssertFalse(ProfileDraft.isLocal(host), "\(host) is a public name, not a private address")
         }
     }
 
@@ -82,7 +83,11 @@ final class ServerURLSafetyTests: XCTestCase {
         guard let ats else {
             return XCTFail("The app declares no App Transport Security policy at all.")
         }
-        XCTAssertEqual(ats["NSAllowsArbitraryLoads"] as? Bool, false, "Arbitrary cleartext must stay off")
+        XCTAssertEqual(
+            ats["NSAllowsArbitraryLoads"] as? Bool,
+            true,
+            "ATS must permit the explicit public-HTTP mode; ProfileDraft remains the opt-in guard"
+        )
         XCTAssertEqual(ats["NSAllowsLocalNetworking"] as? Bool, true, "Local HTTP has to be permitted to work")
     }
 }

@@ -11,6 +11,7 @@ import GameKit
 /// they come from — so a player who is signed out sees the same list.
 struct AchievementsView: View {
     @Environment(AppEnvironment.self) private var environment
+    @Environment(\.isRenderingSharePoster) private var isRenderingPoster
 
     private var progress: [AchievementProgress] { environment.achievements }
     private var earned: [AchievementProgress] { progress.filter(\.isEarned) }
@@ -23,22 +24,7 @@ struct AchievementsView: View {
         TessalyticsScreen {
             ScrollView {
                 LazyVStack(spacing: TessalyticsLayout.stackSpacing) {
-                    summary
-                    gameCenterCard
-                    if !remaining.isEmpty {
-                        SectionCard("In progress", symbol: "figure.walk", tint: TessalyticsTheme.accent) {
-                            VStack(spacing: 14) {
-                                ForEach(remaining) { AchievementRow(progress: $0, units: environment.statusUnits) }
-                            }
-                        }
-                    }
-                    if !earned.isEmpty {
-                        SectionCard("Earned", symbol: "rosette", tint: TessalyticsTheme.positive) {
-                            VStack(spacing: 14) {
-                                ForEach(earned) { AchievementRow(progress: $0, units: environment.statusUnits) }
-                            }
-                        }
-                    }
+                    pageContent
                 }
                 .tessalyticsScreenPadding()
                 .tessalyticsReadableWidth()
@@ -47,6 +33,60 @@ struct AchievementsView: View {
         .navigationTitle("Achievements")
         .navigationBarTitleDisplayMode(.inline)
         .accessibilityIdentifier("achievements-screen")
+        .shareablePage(sharePage) {
+            VStack(spacing: TessalyticsLayout.stackSpacing) { pageContent }
+        }
+    }
+
+    @ViewBuilder private var pageContent: some View {
+        summary
+        // The Game Center card is a sign-in prompt or a status line about this
+        // phone's account. Nobody wants that in a picture they send someone.
+        if !isRenderingPoster { gameCenterCard }
+        if !remaining.isEmpty {
+            SectionCard("In progress", symbol: "figure.walk", tint: TessalyticsTheme.accent) {
+                VStack(spacing: 14) {
+                    ForEach(remaining) { AchievementRow(progress: $0, units: environment.statusUnits) }
+                }
+            }
+        }
+        if !earned.isEmpty {
+            SectionCard("Earned", symbol: "rosette", tint: TessalyticsTheme.positive) {
+                VStack(spacing: 14) {
+                    ForEach(earned) { AchievementRow(progress: $0, units: environment.statusUnits) }
+                }
+            }
+        }
+    }
+
+    private func sharePage() -> SharePage {
+        let next = remaining.first
+        var highlights: [ShareHighlight] = [
+            .init(label: "earned", value: "\(earned.count) of \(progress.count)")
+        ]
+        if let next {
+            highlights.append(.init(label: "closest", value: next.achievement.title))
+            highlights.append(
+                .init(label: "progress", value: ValueFormatting.percentage(next.percentComplete / 100, digits: 0))
+            )
+        }
+
+        var sentences = [
+            "\(earned.count) of \(progress.count) Tessalytics achievements earned "
+            + "with \(environment.selectedVehicle?.name?.nilIfEmpty ?? "my Tesla")."
+        ]
+        if let next {
+            sentences.append(
+                "Next up: \(next.achievement.title) — "
+                + "\(ValueFormatting.percentage(next.percentComplete / 100, digits: 0)) of the way there."
+            )
+        }
+        return SharePage(
+            title: "Achievements",
+            subtitle: SharePage.subtitle(car: environment.selectedVehicle?.name),
+            highlights: highlights,
+            summary: sentences.joined(separator: " ")
+        )
     }
 
     private var summary: some View {

@@ -83,8 +83,44 @@ alongside, computed on the device and reported to Game Center when you are signe
 > The live-driving captures are from a real car and show real routes and addresses.
 > Everything else uses generated demo data — no real vehicle, VIN, server or credential.
 
+## Send a destination to the car
+
+The car has already been everywhere you go. Tessalytics records those arrivals, so
+the home screen can offer them back as one tap each — sorted by how often you go
+there, how recently, or how near the car is standing now, with a filter for the rest.
+
+Tap one and it opens the share sheet; pick **Tesla** and the destination lands on the
+car's navigation. That is the whole flow — no Tesla account, no token, nothing to
+connect. It beats opening a maps app to search for somewhere you have driven to
+fifty times.
+
+It cannot go through TeslaMate instead. TeslaMate is a logger: it reads the car and
+writes rows, and neither it nor TeslaMateApi has any endpoint that sends a command to
+a vehicle. The Tessalytics backend holds no Tesla token by design, so it has nothing
+to send one with either. The share sheet is the route that works without asking you
+to trust anything new.
+
+The list is hidden while the car is driving. Handing a driver a list of places to tap
+through is the wrong thing to put on a screen mid-drive, and the car's own navigation
+is already running.
+
+## Share a page
+
+Every substantial screen has a share button in the top right, and what it produces is
+a picture of the whole page — not a screenshot of what happened to be scrolled into
+view, and not a line of text. The page is laid out again at a fixed width and drawn
+in one piece, however long it is, with the figures summarised at the top and a
+Tessalytics mark in the bottom right corner. A written summary travels beside it, so
+a message thread quotes real numbers rather than just showing an image.
+
+Maps in a shared image are drawn as tiles rather than left blank, and anything that
+is a control rather than a fact — a picker, a sign-in prompt, a row of buttons — is
+left out of the picture.
+
 ## What Tessalytics does
 
+- Sends any of your most-visited places to the car's navigation in one tap, through the Tesla app's share extension
+- Shares any page as a single tall image, watermarked, with a written summary beside it
 - Shows live or last-reported battery, range, location, climate, security, charging, odometer, tire pressure, and software state
 - Labels freshness honestly as live, direct live, stale, asleep, offline, or unavailable
 - Caches the last known status plus drive and charging history for immediate startup and offline browsing
@@ -97,7 +133,7 @@ alongside, computed on the device and reported to Game Center when you are signe
 - Supports multiple TeslaMate servers and multiple vehicles
 - Supports Bearer token, HTTP Basic, and explicitly private/VPN-only connections
 - Includes an on-device demo with generated status, routes, charging sessions, analytics, battery trends, and forecasts
-- Optionally connects to the unofficial Owner API with a refresh token for live state and confirmed controls
+- Keeps the unofficial Owner API behind the debug unlock, for people working on it rather than for owners to depend on
 - Protects every direct command with confirmation and Face ID or the device passcode
 
 ## Explore without a Tesla
@@ -118,7 +154,7 @@ The generated demo requires only iOS 18 or later. To use Tessalytics with your o
 To build from source you also need Xcode 16 or later. The app has no third-party runtime dependencies.
 
 > [!WARNING]
-> Tessalytics Backend requires a bearer token on every route, but a token alone is not a security boundary. If the service is reachable outside a trusted private network, put a VPN or an authenticating reverse proxy in front of it as well.
+> Public deployments should use a domain and HTTPS reverse proxy (Caddy, nginx, Traefik, or a cloud load balancer). A strong bearer token over authenticated HTTPS is the supported security boundary. Direct public HTTP by IP and port is available only as an explicit compatibility mode; it is not confidential and can expose both the token and location history to a network observer.
 
 Never expose PostgreSQL, Mosquitto/MQTT, Tesla account tokens, or an unprotected API service.
 
@@ -135,7 +171,7 @@ TeslaMate ── PostgreSQL history
                  ↓
       Tessalytics Backend
                  ↓
-       VPN or authenticated HTTPS
+          authenticated HTTPS
                  ↓
              Tessalytics
 ```
@@ -164,14 +200,16 @@ services:
       TIMEZONE: "${TIME_ZONE}"
 ```
 
-`ports: 3022:8080` publishes the service on port 3022 of **every** host interface, which is convenient on a home LAN and is the reason the next step is not optional. If the host is reachable from the internet, either bind it to one interface (`127.0.0.1:3022:8080`) and put a reverse proxy in front, or drop the `ports` block for `expose: ["8080"]` and reach the service only from inside the Compose network. The API answers with a complete location history; a bearer token is the only thing between it and whoever finds the port.
+`ports: 3022:8080` publishes the service on port 3022 of **every** host interface. For a normal public deployment, bind it to `127.0.0.1`, put a maintained HTTPS reverse proxy in front, and enable the backend's `PUBLIC_DEPLOYMENT` mode. The backend repository includes a Caddy Compose stack for AWS, OCI, and ordinary VPS hosts that publishes only ports 80/443.
+
+A direct address such as `http://203.0.113.10:1234` is also supported for compatibility. The server must set `PUBLIC_DEPLOYMENT=true`, `PUBLIC_BASE_URL` to that exact origin, and `ALLOW_INSECURE_PUBLIC_HTTP=true`; in the app, enable **Allow insecure HTTP** for the profile. This keeps bearer authentication and request limits, but it cannot prevent interception of the token or vehicle data. A domain and HTTPS is the recommended fix.
 
 ### 2. Protect every route
 
 Choose one of these patterns:
 
 - **Private network:** Tailscale, WireGuard, or another authenticated VPN with no public API listener
-- **HTTPS reverse proxy:** Caddy, nginx, or Traefik with authentication applied to every backend route
+- **HTTPS reverse proxy:** Caddy, nginx, Traefik, or a cloud load balancer; the backend's bearer authentication protects every data route
 - **HTTP Basic authentication:** supported directly by Tessalytics
 - **Bearer authentication:** enforce `Authorization: Bearer <TOKEN>` at the reverse proxy
 
@@ -230,12 +268,12 @@ xcodegen generate
 
 1. Open Tessalytics and tap **Configure server**, or tap **Explore Demo** to try the app first.
 2. Enter a profile name and the protected Tessalytics Backend base URL. This is the backend's address, not TeslaMate's port 4000 or Grafana's port 3000.
-3. Select Bearer token, HTTP Basic, or no application authentication.
+3. Select Bearer token for Tessalytics Backend (or the method enforced by your own authenticating proxy).
 4. Use no authentication only for a deliberately private VPN/local deployment.
 5. Tap **Test Connection**. Tessalytics checks reachability, credentials, API compatibility, and vehicle discovery.
 6. Save the verified profile. Credentials are stored in Keychain, not SwiftData or `UserDefaults`.
 
-Remote endpoints must use HTTPS. Local HTTP is available only when explicitly enabled for common private-network or localhost addresses.
+HTTPS is strongly recommended for every remote endpoint. HTTP—including a public IP and port—is available only when **Allow insecure HTTP** is explicitly enabled. It never disables TLS validation; it chooses not to use TLS, so the app warns that credentials and vehicle data can be intercepted.
 
 ## Use the app
 
@@ -300,18 +338,24 @@ Settings switches servers and vehicles, manages notifications, displays software
 
 Tapping the version number five times turns on **debug mode**: a screen showing the live state exactly as the app holds it, the connection's health, an optional recording of every raw event the server sends, and an export you can share. The export is redacted — tokens, VINs and coordinates are stripped before the file leaves the device. Turning debug mode off clears the log and hides the screen again.
 
-### Optional direct live data and controls
+### Direct live data and controls (developer only)
+
+**This is behind the debug unlock.** Tap the version number in Settings five times to
+reveal it. The Owner API is unofficial, undocumented and retired in pieces by Tesla
+without notice — `/api/1/vehicles` has answered `412 Precondition Failed` since
+January 2023 — so it is not offered to owners as a feature they might come to rely
+on. Everything the app does with TeslaMate works without it.
 
 Tessalytics accepts an Owner API **refresh token** generated outside the app and exchanges it for an access token itself — there is nothing else to paste. It never asks for a Tesla password. Both tokens are stored in device-only Keychain protection, refresh rotation is persisted securely, and commands require a second confirmation plus device-owner authentication.
 
-The Owner API is unofficial and may change or stop working. Connecting it is optional; TeslaMate analytics work without it. When no valid token and live connection are present, direct-control actions are not shown. Direct commands may wake the vehicle and should be used deliberately.
+The Owner API is unofficial and may change or stop working. When no valid token and live connection are present, direct-control actions are not shown. Direct commands may wake the vehicle and should be used deliberately.
 
 Tesla changes this API without notice, and the app is written to say so plainly when it does. The account's cars are read from `/api/1/products` rather than `/api/1/vehicles`, which has answered `412 Precondition Failed` since January 2023; a `412` from anywhere else is reported as itself rather than as an unexpected status, because there is nothing an owner can do about it and a clear message is worth more than a retry.
 
 ## Privacy and security
 
 - No Tessalytics cloud, account, ads, telemetry, or analytics SDK
-- Backend credentials use Keychain After First Unlock for authorized refresh
+- Backend credentials use Keychain When Unlocked, This Device Only protection
 - Owner API credentials use When Unlocked, This Device Only
 - Historical records are cached locally with SwiftData for offline access
 - Secrets, VINs, coordinates, addresses, and private deployment URLs are excluded from fixtures and logs

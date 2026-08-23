@@ -48,22 +48,26 @@ struct SettingsView: View {
                         }
 
                         Section {
-                            Button { presentedSheet = .ownerAPI } label: {
-                                HStack {
-                                    Label("Direct Tesla", systemImage: "bolt.car.fill")
-                                    Spacer()
-                                    StatusBadge(text: "Optional", color: TessalyticsTheme.steel)
+                            // Developer-only here too — see the note on the other
+                            // copy of this row, further down.
+                            if environment.diagnostics.isUnlocked {
+                                Button { presentedSheet = .ownerAPI } label: {
+                                    HStack {
+                                        Label("Direct Tesla", systemImage: "bolt.car.fill")
+                                        Spacer()
+                                        StatusBadge(text: "Developer", color: TessalyticsTheme.warning)
+                                    }
                                 }
+                                .accessibilityIdentifier("owner-api-settings")
                             }
-                            .accessibilityIdentifier("owner-api-settings")
                             Button { presentedSheet = .liveCharts } label: {
                                 Label("Live charts", systemImage: "chart.xyaxis.line")
                             }
                             .accessibilityIdentifier("live-charts-settings")
                         } header: {
-                            Label("Live data & controls", systemImage: "dot.radiowaves.left.and.right")
+                            Label("Live data", systemImage: "dot.radiowaves.left.and.right")
                         } footer: {
-                            Text("Owner API access is separate from generated demo data.")
+                            Text("Charts of the live stream. Generated demo data feeds them here.")
                         }
                     } else {
                         ServerListSection(editing: $editingProfile) {
@@ -90,17 +94,26 @@ struct SettingsView: View {
                         }
 
                         Section {
-                            Button { presentedSheet = .ownerAPI } label: {
-                                HStack {
-                                    Label("Direct Tesla", systemImage: "bolt.car.fill")
-                                    Spacer()
-                                    StatusBadge(
-                                        text: environment.isOwnerConnected ? "Connected" : "Optional",
-                                        color: environment.isOwnerConnected ? TessalyticsTheme.positive : TessalyticsTheme.steel
-                                    )
+                            // The Owner API is unofficial, undocumented and
+                            // retired in pieces by Tesla without notice — the
+                            // vehicles endpoint has answered 412 since 2023. It
+                            // stays in the app for people working on it, behind
+                            // the same unlock as the rest of the debug tools,
+                            // rather than being offered to owners as a feature
+                            // that may stop working under them.
+                            if environment.diagnostics.isUnlocked {
+                                Button { presentedSheet = .ownerAPI } label: {
+                                    HStack {
+                                        Label("Direct Tesla", systemImage: "bolt.car.fill")
+                                        Spacer()
+                                        StatusBadge(
+                                            text: environment.isOwnerConnected ? "Connected" : "Developer",
+                                            color: environment.isOwnerConnected ? TessalyticsTheme.positive : TessalyticsTheme.warning
+                                        )
+                                    }
                                 }
+                                .accessibilityIdentifier("owner-api-settings")
                             }
-                            .accessibilityIdentifier("owner-api-settings")
                             Button { presentedSheet = .liveCharts } label: {
                                 Label("Live charts", systemImage: "chart.xyaxis.line")
                             }
@@ -405,11 +418,11 @@ private struct AddServerView: View {
                 Section {
                     TextField("Profile name", text: $draft.name)
                     TextField("https://example.com", text: $draft.serverURL).textInputAutocapitalization(.never).keyboardType(.URL)
-                    Toggle("Allow local HTTP", isOn: $draft.allowsLocalHTTP)
+                    Toggle("Allow insecure HTTP", isOn: $draft.allowsLocalHTTP)
                 } header: {
                     Text("Tessalytics Backend")
                 } footer: {
-                    Text("The address of Tessalytics Backend, deployed beside TeslaMate. A TeslaMate or Grafana address will not work.")
+                    Text("The address of Tessalytics Backend, deployed beside TeslaMate. Use HTTPS on public networks. Enabling HTTP allows a public IP and port too, but sends the credential and vehicle data without encryption.")
                 }
                 Section("Authentication") { Picker("Method", selection: $draft.authenticationMethod) { ForEach(AuthenticationMethod.allCases) { Text($0.title).tag($0) } }; if draft.authenticationMethod == .bearer { SecureField("Bearer token", text: $draft.token) }; if draft.authenticationMethod == .basic { TextField("Username", text: $draft.username); SecureField("Password", text: $draft.password) }; if draft.authenticationMethod == .none { Label("Use only on a trusted private network or VPN.", systemImage: "exclamationmark.triangle").foregroundStyle(TessalyticsTheme.warning) } }
                 Section { Button(verified ? "Connection verified" : "Test Connection") { Task { await test() } }.disabled(testing); if let message { Text(message).foregroundStyle(verified ? TessalyticsTheme.positive : TessalyticsTheme.critical) } }

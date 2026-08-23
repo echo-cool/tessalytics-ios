@@ -48,6 +48,7 @@ final class UtilitiesTests: XCTestCase {
         var draft = ProfileDraft(); draft.serverURL = "https://example.com///"
         XCTAssertEqual(try draft.profile().baseURL.absoluteString, "https://example.com")
         draft.serverURL = "http://example.com"; XCTAssertThrowsError(try draft.profile())
+        draft.allowsLocalHTTP = true; XCTAssertNoThrow(try draft.profile())
         draft.serverURL = "http://192.168.1.2"; draft.allowsLocalHTTP = true; XCTAssertNoThrow(try draft.profile())
     }
 
@@ -374,4 +375,3 @@ final class UtilitiesTests: XCTestCase {
         )
     }
 }
-

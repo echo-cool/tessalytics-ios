@@ -12,16 +12,15 @@
 	had no ATS section, so the policy was whatever the default happened to be and
 	the "Allow local HTTP" setting could not work on a device.
 
-	`NSAllowsArbitraryLoads` stays false: every internet connection this app makes
-	is HTTPS. `NSAllowsLocalNetworking` is what permits cleartext to a host on the
-	local network, which is where a self-hosted TeslaMate usually lives — and it
-	is scoped to exactly that, so it cannot be used to reach anything public.
-	`ProfileDraft.isLocal` enforces the same boundary before a URL is ever saved.
+	A user-configured server may deliberately be a public IP and HTTP port.
+	`NSAllowsArbitraryLoads` makes that explicit compatibility mode technically
+	possible; `ProfileDraft` still rejects HTTP until the person enables "Allow
+	insecure HTTP" for that profile. TLS certificate validation is never disabled.
 	-->
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>
-		<false/>
+		<true/>
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>

@@ -45,6 +45,7 @@ struct DriveHistoryView: View {
             }
         }
         .navigationTitle(title ?? (embedded ? "Activity" : "Drives"))
+        .shareablePage(sharePage) { posterRows }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button("Filter drives", systemImage: "line.3.horizontal.decrease.circle") { showFilters.toggle() }
@@ -62,6 +63,47 @@ struct DriveHistoryView: View {
             if records.isEmpty { await refresh() }
         }
         .accessibilityIdentifier("drive-history-screen")
+    }
+
+
+    /// The rows again, as a plain stack.
+    ///
+    /// `ImageRenderer` walks SwiftUI's own layers, and `List` is a
+    /// `UICollectionView` underneath — a poster built from one comes out blank.
+    /// Twenty rows, because a poster of two hundred drives is a picture nobody
+    /// looks at and a bitmap large enough to fail on device.
+    @ViewBuilder private var posterRows: some View {
+        VStack(spacing: 8) {
+            ForEach(records.prefix(20), id: \.driveID) { DriveRow(record: $0) }
+            if records.count > 20 {
+                Text("and \(records.count - 20) more")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+
+    private func sharePage() -> SharePage {
+        let units = environment.statusUnits
+        let distance = records.compactMap(\.distance).reduce(0, +)
+        let minutes = records.compactMap(\.durationMinutes).reduce(0, +)
+        var highlights: [ShareHighlight] = [
+            .init(label: "drives", value: "\(records.count)"),
+            .init(label: "distance", value: ValueFormatting.distance(distance, units: units, digits: 0))
+        ]
+        if minutes > 0 {
+            highlights.append(.init(label: "time driving", value: ValueFormatting.duration(minutes: minutes)))
+        }
+
+        let car = environment.selectedVehicle?.name?.nilIfEmpty ?? "My Tesla"
+        return SharePage(
+            title: "Drives",
+            subtitle: SharePage.subtitle(car: environment.selectedVehicle?.name),
+            highlights: highlights,
+            summary: "\(car): \(records.count) drive\(records.count == 1 ? "" : "s"), "
+                + "\(ValueFormatting.distance(distance, units: units, digits: 0)) in total. Recorded by Tessalytics."
+        )
     }
 
     private var list: some View {

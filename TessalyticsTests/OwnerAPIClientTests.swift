@@ -106,6 +106,54 @@ final class OwnerAPIClientTests: XCTestCase {
         XCTAssertEqual(json, ["which_trunk": "rear"])
     }
 
+    /// The navigation share is not a plain command: it is an Android share intent
+    /// forwarded to the car, and the car ignores anything not shaped like one.
+    func testADestinationIsSentAsAShareIntentTheCarUnderstands() async throws {
+        let store = MemoryOwnerCredentialStore(OwnerAPICredentials(
+            accessToken: "access",
+            refreshToken: "refresh",
+            expiresAt: .now.addingTimeInterval(3_600),
+            region: .global
+        ))
+        let transport = OwnerMockTransport(scenario: .command)
+        let session = OwnerAPISession(store: store, transport: transport)
+
+        try await session.sendDestination("https://maps.google.com/?q=37.386052,-122.083851", vehicleID: 42)
+
+        let requests = await transport.requests
+        let request = try XCTUnwrap(requests.first)
+        XCTAssertEqual(request.httpMethod, "POST")
+        XCTAssertEqual(request.url?.path, "/api/1/vehicles/42/command/share")
+
+        let body = try XCTUnwrap(request.httpBody)
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
+        XCTAssertEqual(json["type"] as? String, "share_ext_content_raw")
+        let value = try XCTUnwrap(json["value"] as? [String: String])
+        XCTAssertEqual(value["android.intent.extra.TEXT"], "https://maps.google.com/?q=37.386052,-122.083851")
+        // Both are required by Tesla; a missing timestamp is rejected outright.
+        XCTAssertNotNil(json["locale"] as? String)
+        XCTAssertNotNil(json["timestamp_ms"] as? String)
+    }
+
+    /// A refusal has to surface. Reporting "sent" for a destination the car never
+    /// took would send someone to a car that has not been told where to go.
+    func testARefusedDestinationIsReportedRatherThanSwallowed() async throws {
+        let store = MemoryOwnerCredentialStore(OwnerAPICredentials(
+            accessToken: "access",
+            refreshToken: "refresh",
+            expiresAt: .now.addingTimeInterval(3_600),
+            region: .global
+        ))
+        let session = OwnerAPISession(store: store, transport: OwnerMockTransport(scenario: .commandRefused))
+
+        do {
+            try await session.sendDestination("https://maps.google.com/?q=1,2", vehicleID: 42)
+            XCTFail("A refusal should not read as a success")
+        } catch let error as OwnerAPIError {
+            XCTAssertEqual(error, .commandRejected("vehicle unavailable"))
+        }
+    }
+
     func testVehicleDataMapsToDashboardStatus() throws {
         let json = Data(Self.vehicleDataJSON.utf8)
         let decoder = JSONDecoder()
@@ -271,6 +319,8 @@ final class OwnerAPIConnectionTests: XCTestCase {
 private actor OwnerMockTransport: HTTPTransport {
     enum Scenario: Equatable, Sendable {
         case vehicles, refreshThenVehicles, unauthorizedThenRefresh, concurrentRefresh, command
+        /// The car answered, and said no.
+        case commandRefused
         /// What Tesla has answered on `/api/1/vehicles` since January 2023.
         case preconditionFailed
         /// A mixed product list: one car, one Powerwall, one solar site.
@@ -310,6 +360,9 @@ private actor OwnerMockTransport: HTTPTransport {
         }
         if scenario == .command {
             return response(request, 200, #"{"response":{"result":true,"reason":""}}"#)
+        }
+        if scenario == .commandRefused {
+            return response(request, 200, #"{"response":{"result":false,"reason":"vehicle unavailable"}}"#)
         }
         return response(request, 200, #"{"response":[{"id":42,"vehicle_id":84,"vin":"5YJTEST","display_name":"Roadrunner","state":"online"}],"count":1}"#)
     }

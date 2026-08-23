@@ -11,6 +11,9 @@ struct DriveDetailView: View {
     @State private var simplified: [CoordinateDTO] = []
     @State private var loading = true
     @State private var errorMessage: String?
+    @State private var routeSnapshot = RoutePosterSnapshot()
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.isRenderingSharePoster) private var isRenderingPoster
 
     var body: some View {
         TessalyticsScreen {
@@ -20,57 +23,7 @@ struct DriveDetailView: View {
                         .padding()
                 } else if let detail {
                     VStack(spacing: TessalyticsLayout.stackSpacing) {
-                    routeMap
-                    addresses(detail)
-                    MetricGrid {
-                        MetricCard(
-                            title: "Distance",
-                            value: ValueFormatting.distance(detail.odometerDetails?.odometerDistance, units: environment.statusUnits),
-                            symbol: "arrow.left.and.right",
-                            detail: averageSpeedDetail(detail)
-                        )
-                        MetricCard(
-                            title: "Duration",
-                            value: ValueFormatting.duration(minutes: detail.durationMin),
-                            symbol: "clock",
-                            detail: ValueFormatting.date(detail.startDate?.value),
-                            tint: TessalyticsTheme.neutral
-                        )
-                        MetricCard(
-                            title: "Maximum speed",
-                            value: ValueFormatting.speed(detail.speedMax, units: environment.statusUnits, digits: 0),
-                            symbol: "speedometer",
-                            detail: detail.speedAvg.map { "Avg \(ValueFormatting.speed($0, units: environment.statusUnits, digits: 0))" } ?? "Average not reported",
-                            tint: TessalyticsTheme.warning
-                        )
-                        MetricCard(
-                            title: "Energy used",
-                            value: ValueFormatting.number(detail.energyConsumedNet, unit: "kWh"),
-                            symbol: "bolt",
-                            detail: ValueFormatting.efficiency(detail.consumptionNet, units: environment.statusUnits, digits: 0),
-                            tint: TessalyticsTheme.positive
-                        )
-                        MetricCard(
-                            title: "Battery used",
-                            value: batteryChange(detail),
-                            symbol: "battery.50percent",
-                            detail: batteryEndpointsDetail(detail),
-                            tint: TessalyticsTheme.positive
-                        )
-                        MetricCard(
-                            title: "Elevation",
-                            value: ValueFormatting.number(elevationChange(detail).up, unit: "m", digits: 0),
-                            symbol: "arrow.up.forward",
-                            detail: "-\(ValueFormatting.number(elevationChange(detail).down, unit: "m", digits: 0)) descent",
-                            tint: TessalyticsTheme.neutral
-                        )
-                    }
-                    chart(title: "Speed", unit: resolvedUnits.speedSymbol, values: series(detail) { $0.speed })
-                    chart(title: "Power", unit: "kW", tint: TessalyticsTheme.warning, values: series(detail) { $0.power })
-                    chart(title: "Battery level", unit: "%", tint: TessalyticsTheme.positive, values: series(detail) { $0.batteryLevel.map(Double.init) })
-                    chart(title: "Elevation", unit: "m", tint: TessalyticsTheme.chartNeutral, baseline: .focused, values: series(detail) { $0.elevation })
-                    chart(title: "Outside temperature", unit: resolvedUnits.temperatureSymbol, tint: TessalyticsTheme.steel, baseline: .focused, values: series(detail) { $0.climateInfo?.outsideTemp })
-                    ShareLink(item: summary(detail)) { Label("Share drive summary", systemImage: "square.and.arrow.up").frame(maxWidth: .infinity) }.buttonStyle(.bordered)
+                    pageContent(detail)
                     }
                     .tessalyticsScreenPadding()
                     .tessalyticsReadableWidth(TessalyticsLayout.wideReadableWidth)
@@ -82,12 +35,127 @@ struct DriveDetailView: View {
         .navigationTitle("Drive")
         .navigationBarTitleDisplayMode(.inline)
         .task { await load() }
+        .shareablePage(sharePage, prepare: prepareRouteSnapshot) {
+            VStack(spacing: TessalyticsLayout.stackSpacing) {
+                if let detail { pageContent(detail) }
+            }
+        }
     }
 
     private var resolvedUnits: UnitsDTO { environment.statusUnits ?? .metricDefaults }
 
+    @ViewBuilder private func pageContent(_ detail: DriveDetailDTO) -> some View {
+        routeMap
+        addresses(detail)
+        MetricGrid {
+            MetricCard(
+                title: "Distance",
+                value: ValueFormatting.distance(detail.odometerDetails?.odometerDistance, units: environment.statusUnits),
+                symbol: "arrow.left.and.right",
+                detail: averageSpeedDetail(detail)
+            )
+            MetricCard(
+                title: "Duration",
+                value: ValueFormatting.duration(minutes: detail.durationMin),
+                symbol: "clock",
+                detail: ValueFormatting.date(detail.startDate?.value),
+                tint: TessalyticsTheme.neutral
+            )
+            MetricCard(
+                title: "Maximum speed",
+                value: ValueFormatting.speed(detail.speedMax, units: environment.statusUnits, digits: 0),
+                symbol: "speedometer",
+                detail: detail.speedAvg.map { "Avg \(ValueFormatting.speed($0, units: environment.statusUnits, digits: 0))" } ?? "Average not reported",
+                tint: TessalyticsTheme.warning
+            )
+            MetricCard(
+                title: "Energy used",
+                value: ValueFormatting.number(detail.energyConsumedNet, unit: "kWh"),
+                symbol: "bolt",
+                detail: ValueFormatting.efficiency(detail.consumptionNet, units: environment.statusUnits, digits: 0),
+                tint: TessalyticsTheme.positive
+            )
+            MetricCard(
+                title: "Battery used",
+                value: batteryChange(detail),
+                symbol: "battery.50percent",
+                detail: batteryEndpointsDetail(detail),
+                tint: TessalyticsTheme.positive
+            )
+            MetricCard(
+                title: "Elevation",
+                value: ValueFormatting.number(elevationChange(detail).up, unit: "m", digits: 0),
+                symbol: "arrow.up.forward",
+                detail: "-\(ValueFormatting.number(elevationChange(detail).down, unit: "m", digits: 0)) descent",
+                tint: TessalyticsTheme.neutral
+            )
+        }
+        chart(title: "Speed", unit: resolvedUnits.speedSymbol, values: series(detail) { $0.speed })
+        chart(title: "Power", unit: "kW", tint: TessalyticsTheme.warning, values: series(detail) { $0.power })
+        chart(title: "Battery level", unit: "%", tint: TessalyticsTheme.positive, values: series(detail) { $0.batteryLevel.map(Double.init) })
+        chart(title: "Elevation", unit: "m", tint: TessalyticsTheme.chartNeutral, baseline: .focused, values: series(detail) { $0.elevation })
+        chart(title: "Outside temperature", unit: resolvedUnits.temperatureSymbol, tint: TessalyticsTheme.steel, baseline: .focused, values: series(detail) { $0.climateInfo?.outsideTemp })
+    }
 
-    private var routeMap: some View {
+    private func sharePage() -> SharePage {
+        let units = environment.statusUnits
+        guard let detail else {
+            return SharePage(title: "Drive", subtitle: SharePage.subtitle(car: environment.selectedVehicle?.name))
+        }
+        var highlights: [ShareHighlight] = [
+            .init(
+                label: "distance",
+                value: ValueFormatting.distance(detail.odometerDetails?.odometerDistance, units: units)
+            ),
+            .init(label: "duration", value: ValueFormatting.duration(minutes: detail.durationMin))
+        ]
+        if detail.energyConsumedNet != nil {
+            highlights.append(.init(label: "energy", value: ValueFormatting.number(detail.energyConsumedNet, unit: "kWh")))
+        }
+        if detail.speedMax != nil {
+            highlights.append(.init(label: "top speed", value: ValueFormatting.speed(detail.speedMax, units: units, digits: 0)))
+        }
+
+        var sentences: [String] = []
+        if let start = detail.startAddress?.nilIfEmpty, let end = detail.endAddress?.nilIfEmpty {
+            sentences.append("\(start) to \(end).")
+        }
+        sentences.append(
+            "\(ValueFormatting.distance(detail.odometerDetails?.odometerDistance, units: units)) "
+            + "in \(ValueFormatting.duration(minutes: detail.durationMin))"
+            + (detail.energyConsumedNet == nil
+                ? "."
+                : ", using \(ValueFormatting.number(detail.energyConsumedNet, unit: "kWh")).")
+        )
+        sentences.append("Recorded by Tessalytics.")
+        return SharePage(
+            title: "Drive",
+            subtitle: SharePage.subtitle(car: environment.selectedVehicle?.name, date: detail.startDate?.value ?? .now),
+            highlights: highlights,
+            summary: sentences.joined(separator: " ")
+        )
+    }
+
+    /// Fetches the map tiles for this route, so the poster has a map in it rather
+    /// than the blank rectangle `ImageRenderer` makes of a `Map`.
+    private func prepareRouteSnapshot() async {
+        await routeSnapshot.load(
+            route: simplified,
+            size: CGSize(width: SharePoster<AnyView>.width - 40, height: 216),
+            colorScheme: colorScheme
+        )
+    }
+
+
+    @ViewBuilder private var routeMap: some View {
+        if isRenderingPoster {
+            RoutePosterMap(route: simplified, height: 216, snapshot: routeSnapshot.image)
+        } else {
+            liveRouteMap
+        }
+    }
+
+    private var liveRouteMap: some View {
         Map {
             if simplified.count > 1 { MapPolyline(coordinates: simplified.map { CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude) }).stroke(TessalyticsTheme.accent, lineWidth: 5) }
             if let first = simplified.first { Marker("Start", systemImage: "flag.fill", coordinate: CLLocationCoordinate2D(latitude: first.latitude, longitude: first.longitude)).tint(TessalyticsTheme.positive) }
@@ -236,7 +304,6 @@ struct DriveDetailView: View {
             errorMessage = error.localizedDescription
         }
     }
-    private func summary(_ detail: DriveDetailDTO) -> String { "Drive from \(detail.startAddress ?? "an unreported location") to \(detail.endAddress ?? "an unreported location"). Distance: \(ValueFormatting.distance(detail.odometerDetails?.odometerDistance, units: environment.statusUnits)). Duration: \(ValueFormatting.duration(minutes: detail.durationMin)). Generated by Tessalytics." }
     private func elevationChange(_ detail: DriveDetailDTO) -> (up: Double?, down: Double?) {
         let elevations = detail.driveDetails.compactMap(\.elevation)
         guard elevations.count > 1 else { return (nil, nil) }
