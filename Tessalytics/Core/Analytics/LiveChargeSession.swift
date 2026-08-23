@@ -114,6 +114,33 @@ struct LiveChargeSession: Equatable, Sendable {
         return max(last - first, 0)
     }
 
+    /// Where the charge began, worked back from the energy the car says it has
+    /// taken.
+    ///
+    /// The app only sees readings from the moment it is opened, so a car that has
+    /// been on a charger for an hour arrives with a session that started a second
+    /// ago. The car, though, reports how much energy it has put in since the cable
+    /// went in — so the level at the start is recoverable even though the readings
+    /// are not.
+    ///
+    /// Approximate, and knowingly so: reported energy includes charging losses the
+    /// pack never received, so this reads a little low. It is drawn as an inferred
+    /// segment rather than as measurement.
+    static func inferredStartLevel(
+        currentLevel: Double,
+        energyAdded: Double?,
+        usableCapacity: Double?
+    ) -> Double? {
+        guard let energyAdded, energyAdded > 0,
+              let usableCapacity, usableCapacity > 0 else { return nil }
+        let gained = energyAdded / usableCapacity * 100
+        // More than the whole pack, or none of it, means one of the two figures is
+        // not what it claims to be — and a start level below zero drawn on a chart
+        // is worse than no line at all.
+        guard gained > 0.5, gained < 100 else { return nil }
+        return max(currentLevel - gained, 0)
+    }
+
     var duration: TimeInterval? {
         guard let first = samples.first, let last = samples.last else { return nil }
         return last.date.timeIntervalSince(first.date)

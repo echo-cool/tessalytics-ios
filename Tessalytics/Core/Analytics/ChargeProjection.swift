@@ -37,6 +37,17 @@ struct ChargeProjection: Equatable, Sendable {
     /// How the rate changes per percent of charge added. Zero is a flat rate;
     /// negative is a taper.
     let decay: Double
+    /// The charge above which the rate starts falling.
+    ///
+    /// A DC charge tapers from wherever it is now, so this equals the current
+    /// level and the whole projection bends. An AC charge does not: a wall box
+    /// holds its rate flat and the car only eases off near the top, so the decay
+    /// applies above a knee and everything below it is a straight line.
+    ///
+    /// Modelling AC as a uniform taper put 80% forty-five minutes later than it
+    /// actually arrives — the slowdown that belongs to the last ten percent was
+    /// being smeared across the whole charge.
+    var knee: Double = 0
     /// What the charger is delivering right now, kW. The forecast power curve is
     /// anchored on this.
     var referencePower: Double?
@@ -49,7 +60,18 @@ struct ChargeProjection: Equatable, Sendable {
 
     /// The rate at a given charge, percent per hour.
     func rate(at percent: Double) -> Double {
-        max(initialRate + decay * (percent - level), 0)
+        guard percent > knee else { return initialRate }
+        return max(initialRate + decay * (percent - knee), 0)
+    }
+
+    /// Hours to climb from the knee to a given charge above it.
+    private func hoursAboveKnee(to percent: Double) -> Double {
+        let delta = percent - knee
+        guard delta > 0 else { return 0 }
+        guard abs(decay) > 1e-9 else { return delta / initialRate }
+        let ratio = 1 + decay * delta / initialRate
+        guard ratio > 0 else { return .infinity }
+        return log(ratio) / decay
     }
 
     /// The power the car will be drawing at a given charge, kW.
@@ -79,11 +101,20 @@ struct ChargeProjection: Equatable, Sendable {
     func level(after interval: TimeInterval) -> Double {
         guard initialRate > 0, interval > 0 else { return min(level, limit) }
         let hours = interval / 3_600
+
+        // The flat stretch below the knee, where there is one.
+        let flatHours = max(knee - level, 0) / initialRate
+        if hours <= flatHours {
+            return min(level + initialRate * hours, limit)
+        }
+
+        let above = hours - flatHours
+        let start = max(level, knee)
         let projected: Double
         if abs(decay) < 1e-9 {
-            projected = level + initialRate * hours
+            projected = start + initialRate * above
         } else {
-            projected = level + (initialRate / decay) * (exp(decay * hours) - 1)
+            projected = start + (initialRate / decay) * (exp(decay * above) - 1)
         }
         return min(max(projected, level), limit)
     }
@@ -96,17 +127,8 @@ struct ChargeProjection: Equatable, Sendable {
     func date(reaching percent: Double) -> Date? {
         guard percent > level else { return start }
         guard percent <= limit + 0.001, initialRate > 0 else { return nil }
-        let delta = percent - level
-        let hours: Double
-        if abs(decay) < 1e-9 {
-            hours = delta / initialRate
-        } else {
-            let ratio = 1 + decay * delta / initialRate
-            // The rate would reach zero before this charge does, so it never
-            // arrives. Only reachable with a fit that has gone wrong.
-            guard ratio > 0 else { return nil }
-            hours = log(ratio) / decay
-        }
+        let flatHours = max(min(percent, knee) - level, 0) / initialRate
+        let hours = flatHours + hoursAboveKnee(to: percent)
         guard hours.isFinite, hours >= 0 else { return nil }
         return start.addingTimeInterval(hours * 3_600)
     }
@@ -166,6 +188,12 @@ struct ChargeProjection: Equatable, Sendable {
 }
 
 extension ChargeProjection {
+    /// At or above this rate, the pack is being pushed hard enough that the taper
+    /// has already begun. Percent per hour, which is a C-rate by another name.
+    static let directCurrentRate: Double = 30
+    /// Where a wall-box charge starts easing off, percent.
+    static let wallBoxKnee: Double = 90
+
     /// Builds a projection from what the car is reporting.
     ///
     /// - Parameters:
@@ -226,10 +254,40 @@ extension ChargeProjection {
             )
         }
 
-        let decay = fitDecay(rate: rate, delta: delta, hours: hours)
+        // Where the rate starts falling.
+        //
+        // A rate at or above 30 %/h is roughly 0.3C or more, which is DC
+        // territory: the pack is already at a current the chemistry limits, and it
+        // eases off from here. Below that it is a wall box, which holds its rate
+        // until the car begins balancing near the top — so the taper belongs to
+        // the last stretch, not to the whole charge.
+        //
+        // Expressed as a rate rather than a C-rate on purpose: percent per hour
+        // *is* a C-rate, and reading it straight off the measurement avoids
+        // needing a pack size that may be wrong.
+        let knee = rate >= Self.directCurrentRate ? level : max(level, Self.wallBoxKnee)
+        // The whole climb is above the knee already, so it is a uniform taper
+        // whatever the rate says.
+        let effectiveKnee = knee >= limit ? level : knee
+
+        let flatHours = max(effectiveKnee - level, 0) / rate
+        // The flat stretch alone already takes as long as the car says the whole
+        // charge will. Trying to fit a taper on top of that has no solution.
+        guard flatHours < hours else {
+            return ChargeProjection(
+                start: now, level: level, limit: limit,
+                initialRate: delta / hours, decay: 0, referencePower: power
+            )
+        }
+
+        let decay = fitDecay(
+            rate: rate,
+            delta: limit - effectiveKnee,
+            hours: hours - flatHours
+        )
         return ChargeProjection(
             start: now, level: level, limit: limit,
-            initialRate: rate, decay: decay, referencePower: power
+            initialRate: rate, decay: decay, knee: effectiveKnee, referencePower: power
         )
     }
 

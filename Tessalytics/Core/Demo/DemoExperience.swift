@@ -290,6 +290,79 @@ enum DemoExperience {
         return session
     }
 
+    /// A car on a wall box that the app has only just been opened on.
+    ///
+    /// The case the DC demo hides: the charge began seventy minutes ago and the
+    /// app has three minutes of readings, so the axis has to come from the car
+    /// rather than from the buffer. Also 7 kW rather than 70, which is what
+    /// exposed a right-hand axis ticking at 2.5 kW and rounding the labels to
+    /// whole numbers.
+    static let wallBoxKW: Double = 7
+    static let wallBoxElapsed: TimeInterval = 70 * 60
+    static let wallBoxObserved: TimeInterval = 3 * 60
+    static let wallBoxNowLevel: Double = 64
+
+    static func wallBoxChargingStatus(now: Date = .now) -> VehicleStatus {
+        let parked = status(now: now)
+        let limit: Double = 100
+        let capacity = chargingPackKWh
+        // A flat rate to 95, then the balancing at the top the car allows for.
+        let flatHours = max(95 - wallBoxNowLevel, 0) / (wallBoxKW / capacity * 100)
+        let topHours = 5.0 / (wallBoxKW * 0.45 / capacity * 100)
+        return VehicleStatus(
+            displayName: parked.displayName,
+            state: "charging",
+            stateSince: FlexibleDate(now.addingTimeInterval(-wallBoxElapsed)),
+            odometer: parked.odometer,
+            carStatus: parked.carStatus,
+            carDetails: parked.carDetails,
+            carGeodata: parked.carGeodata,
+            carVersions: parked.carVersions,
+            drivingDetails: parked.drivingDetails,
+            climateDetails: parked.climateDetails,
+            batteryDetails: StatusBatteryDTO(
+                estBatteryRange: 211.42,
+                ratedBatteryRange: 205,
+                idealBatteryRange: 218,
+                batteryLevel: Int(wallBoxNowLevel),
+                usableBatteryLevel: Int(wallBoxNowLevel)
+            ),
+            chargingDetails: StatusChargingDTO(
+                pluggedIn: true,
+                chargingState: "Charging",
+                chargeEnergyAdded: wallBoxKW * (wallBoxElapsed / 3_600),
+                chargeLimitSoc: Int(limit),
+                chargePortDoorOpen: true,
+                chargerActualCurrent: 30,
+                chargerPhases: 1,
+                chargerPower: wallBoxKW,
+                chargerVoltage: 240,
+                scheduledChargingStartTime: nil,
+                timeToFullCharge: flatHours + topHours
+            ),
+            tpmsDetails: parked.tpmsDetails
+        )
+    }
+
+    /// Only the last few minutes, because that is all the app has seen.
+    static func wallBoxSession(now: Date = .now) -> LiveChargeSession {
+        var session = LiveChargeSession()
+        let rate = wallBoxKW / chargingPackKWh * 100
+        var offset: TimeInterval = 0
+        while offset <= wallBoxObserved {
+            let level = wallBoxNowLevel - rate * ((wallBoxObserved - offset) / 3_600)
+            session.record(
+                date: now.addingTimeInterval(offset - wallBoxObserved),
+                level: level.rounded(),
+                power: wallBoxKW,
+                energyAdded: wallBoxKW * ((wallBoxElapsed - wallBoxObserved + offset) / 3_600),
+                range: 205 + level - wallBoxNowLevel
+            )
+            offset += 30
+        }
+        return session
+    }
+
     static func status(now: Date = .now) -> VehicleStatus {
         VehicleStatus(
             displayName: "Aurora",

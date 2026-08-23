@@ -201,6 +201,17 @@ struct ChargeMilestoneList: View {
 struct HeroChargeForecast: View {
     let session: LiveChargeSession
     let projection: ChargeProjection
+    /// When the car says this charge began — which is not when the app started
+    /// watching it. Opening the app on a car that has been plugged in for an hour
+    /// gives a session one second old, and a chart that began at "now" told the
+    /// owner their charge had just started.
+    var chargeStartedAt: Date?
+    /// Energy the car reports taking on this session, kWh. Used to work back to
+    /// the level the charge began at, for the stretch that happened before the app
+    /// was looking.
+    var energyAdded: Double?
+    /// The pack's usable capacity, kWh, for that same inference.
+    var usableCapacity: Double?
 
     private struct Point: Identifiable {
         let id: Int
@@ -215,6 +226,38 @@ struct HeroChargeForecast: View {
         }
     }
 
+    /// When the charge actually began, as far as anything reliable says so.
+    ///
+    /// The car's own figure where it looks sane, the first reading otherwise. A
+    /// "since" timestamp days old is a state the car has been sitting in, not a
+    /// charge, and stretching the axis back to it would squash the whole session
+    /// into the last pixel.
+    private var began: Date? {
+        guard let chargeStartedAt else { return session.startedAt }
+        let elapsed = projection.start.timeIntervalSince(chargeStartedAt)
+        guard elapsed > 0, elapsed < 24 * 3_600 else { return session.startedAt }
+        return chargeStartedAt
+    }
+
+    /// The stretch of the charge that happened before the app was watching.
+    ///
+    /// Two points, not a curve: the level it must have started at, and the first
+    /// level actually seen. Drawn faintly and finely dashed, because a straight
+    /// line between two endpoints is what it is — an inference from the energy the
+    /// car says it has taken, not a record of what happened.
+    private var inferred: [Point] {
+        guard let began, let first = observed.first, began < first.date else { return [] }
+        guard let startLevel = LiveChargeSession.inferredStartLevel(
+            currentLevel: first.percent,
+            energyAdded: energyAdded,
+            usableCapacity: usableCapacity
+        ) else { return [] }
+        return [
+            Point(id: 20_000, date: began, percent: startLevel, power: nil),
+            Point(id: 20_001, date: first.date, percent: first.percent, power: nil)
+        ]
+    }
+
     private var forecast: [Point] {
         projection.curve(through: 6 * 3_600).map {
             Point(id: 10_000 + $0.id, date: $0.date, percent: $0.percent, power: $0.power)
@@ -226,22 +269,28 @@ struct HeroChargeForecast: View {
     /// The power series is mapped onto the charge axis for drawing and the right
     /// hand axis is labelled with the inverse, so the numbers a reader sees on
     /// each side are the real ones in their own units.
-    private var powerCeiling: Double {
+    /// The gap between kilowatt labels.
+    ///
+    /// Chosen from a set of round numbers so the axis reads 0, 2, 4, 6, 8 rather
+    /// than 0, 3, 5, 8 — which is what came out of dividing an arbitrary ceiling
+    /// into four, and which had a 7 kW wall box drawing its line against labels
+    /// that were 2.5 kW apart and rounded to whole numbers for display.
+    private var powerStep: Double {
         let powers = (observed.compactMap(\.power) + forecast.compactMap(\.power))
         let peak = powers.max() ?? 0
         guard peak > 0 else { return 0 }
-        // Rounded up to something with a readable label on it.
-        let step: Double = peak > 60 ? 50 : (peak > 20 ? 20 : 5)
-        return max((peak / step).rounded(.up) * step, step)
+        let candidates: [Double] = [0.5, 1, 2, 2.5, 5, 10, 20, 25, 40, 50, 75, 100]
+        return candidates.first { $0 * 4 >= peak } ?? peak / 4
     }
+
+    private var powerCeiling: Double { powerStep * 4 }
 
     private var showsPower: Bool { powerCeiling > 0 }
 
     /// Round kilowatt values inside the visible range, for the right-hand axis.
     private var powerTicks: [Double] {
-        guard powerCeiling > 0 else { return [] }
-        let step = powerCeiling / 4
-        return (0...4).map { Double($0) * step }
+        guard powerStep > 0 else { return [] }
+        return (0...4).map { Double($0) * powerStep }
     }
 
     private func scaled(_ power: Double) -> Double {
@@ -259,7 +308,8 @@ struct HeroChargeForecast: View {
     /// Never the full nought-to-a-hundred: a charge from 60 to 80 drawn on a
     /// full-height axis is a flat line with nothing to read.
     private var chargeDomain: ClosedRange<Double> {
-        let levels = observed.map(\.percent) + forecast.map(\.percent) + [projection.limit]
+        let levels = observed.map(\.percent) + forecast.map(\.percent)
+            + inferred.map(\.percent) + [projection.limit]
         let low = max((levels.min() ?? 0) - 5, 0)
         let high = min((levels.max() ?? 100) + 5, 100)
         guard high - low >= 15 else { return max(high - 15, 0)...min(max(high - 15, 0) + 15, 100) }
@@ -269,7 +319,7 @@ struct HeroChargeForecast: View {
     /// A little room past the last point, so the rightmost time label is not
     /// drawn half outside the card and clipped.
     private var timeDomain: ClosedRange<Date> {
-        let dates = observed.map(\.date) + forecast.map(\.date)
+        let dates = observed.map(\.date) + forecast.map(\.date) + [began].compactMap { $0 }
         guard let first = dates.min(), let last = dates.max(), last > first else {
             return projection.start.addingTimeInterval(-600)...projection.start.addingTimeInterval(3_600)
         }
@@ -339,6 +389,16 @@ struct HeroChargeForecast: View {
                 }
             }
 
+            ForEach(inferred) { point in
+                LineMark(
+                    x: .value("Time", point.date),
+                    y: .value("Charge", point.percent),
+                    series: .value("Kind", "charge before")
+                )
+                .foregroundStyle(TessalyticsTheme.positive.opacity(0.35))
+                .lineStyle(.init(lineWidth: 1.6, lineCap: .round, dash: [2, 3]))
+            }
+
             // Two named series, not two sets of marks. Without the series value
             // Swift Charts joins every LineMark sharing the x and y roles into one
             // line and one style — which drew the forecast solid, in the measured
@@ -379,12 +439,14 @@ struct HeroChargeForecast: View {
             // well as an end. Without it the solid line just starts somewhere,
             // and how long the car has been on the charger — the thing that makes
             // the rate believable — is left to be inferred from the axis.
-            if let startedAt = session.startedAt, startedAt < projection.start {
-                RuleMark(x: .value("Started", startedAt))
+            if let began, began < projection.start.addingTimeInterval(-60) {
+                RuleMark(x: .value("Started", began))
                     .foregroundStyle(TessalyticsTheme.positive.opacity(0.35))
                     .lineStyle(.init(lineWidth: 1, dash: [2, 2]))
-                    .annotation(position: .top, alignment: .leading, spacing: 1) {
-                        Text("plugged in \(startedAt.formatted(date: .omitted, time: .shortened))")
+                    // Along the bottom, where "now" is not: leading-aligned at the
+                    // top the two labels sat on each other and read as one word.
+                    .annotation(position: .bottom, alignment: .leading, spacing: 1) {
+                        Text("plugged in \(began.formatted(date: .omitted, time: .shortened))")
                             .font(.system(size: 8))
                             .foregroundStyle(.secondary)
                     }
@@ -433,6 +495,7 @@ struct HeroChargeForecast: View {
         }
         .frame(height: 140)
         .padding(.top, 10)
+        .padding(.bottom, 12)
         .accessibilityLabel("Charge forecast")
         .accessibilityValue(accessibilityValue)
         .accessibilityIdentifier("charge-forecast-chart")
@@ -462,8 +525,8 @@ struct HeroChargeForecast: View {
     private var accessibilityValue: String {
         let hour = Int(projection.level(after: 3_600).rounded())
         var sentence = ""
-        if let startedAt = session.startedAt {
-            sentence += "plugged in at \(startedAt.formatted(date: .omitted, time: .shortened)), "
+        if let began {
+            sentence += "plugged in at \(began.formatted(date: .omitted, time: .shortened)), "
         }
         sentence += "\(Int(projection.level.rounded())) percent now, \(hour) percent in an hour"
         if let completes = projection.completesAt {

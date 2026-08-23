@@ -102,8 +102,19 @@ rate, a Supercharger does not — and a table of curves per model would be wrong
 some pack, temperature or cabinet. Instead one number is fitted to two things the
 car itself reports: the rate right now, and the time the car says it needs to reach
 the limit. If they agree, the line is straight. If the car says it needs longer than
-the current rate implies, that difference *is* the taper, and the curve bends until
-the two agree. The card says "slowing" when it does.
+the current rate implies, that difference *is* the taper. The card says "slowing"
+when it does.
+
+Where the taper goes depends on how hard the pack is being pushed. At 0.3C or more —
+30% of the pack an hour, which is DC territory — the slowdown has already begun and
+the whole projection bends. Below that it is a wall box, which holds its rate until
+the car starts balancing near the top, so the line stays straight until about 90%
+and eases after. Getting this wrong put 80% forty-five minutes late on an AC charge.
+
+The chart starts when the charge started, not when the app was opened. The app only
+holds readings from the moment you open it, so the stretch before that is worked back
+from the energy the car reports taking and drawn as a fine dotted line — inferred,
+not watched.
 
 ## Send a destination to the car
 

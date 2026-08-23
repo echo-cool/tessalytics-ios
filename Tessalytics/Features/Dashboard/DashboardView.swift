@@ -1560,7 +1560,13 @@ private struct VehicleHeroCard: View {
                     // in: the question has changed from "how has it been doing"
                     // to "when can I leave".
                     Divider()
-                    HeroChargeForecast(session: chargeSession, projection: chargeProjection)
+                    HeroChargeForecast(
+                        session: chargeSession,
+                        projection: chargeProjection,
+                        chargeStartedAt: status?.stateSince?.value,
+                        energyAdded: status?.chargingDetails?.chargeEnergyAdded,
+                        usableCapacity: battery?.capacityNew
+                    )
                 } else if !batteryLevels.isEmpty {
                     Divider()
                     Button { onOpen(.batteryHealth) } label: {

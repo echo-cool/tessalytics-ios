@@ -351,9 +351,14 @@ final class AppEnvironment {
         // Demo mode never reaches the network, so the geocoder must not either.
         livePlace = LivePlaceName(resolver: DemoExperience.placeNames)
         if charging {
-            let reading = DemoExperience.chargingStatus()
+            let onAWallBox = ProcessInfo.processInfo.arguments.contains("-ui-demo-charging-slow")
+            let reading = onAWallBox
+                ? DemoExperience.wallBoxChargingStatus()
+                : DemoExperience.chargingStatus()
             status = reading
-            liveChargeSession = DemoExperience.chargingSession()
+            liveChargeSession = onAWallBox
+                ? DemoExperience.wallBoxSession()
+                : DemoExperience.chargingSession()
             updateLivePlace(reading)
             updateChargingLatch(reading, now: .now)
         } else if driving {

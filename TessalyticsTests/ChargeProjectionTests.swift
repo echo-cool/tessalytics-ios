@@ -113,6 +113,78 @@ final class ChargeProjectionTests: XCTestCase {
         XCTAssertEqual(projection.level(after: 3_600), 80, accuracy: 0.5)
     }
 
+    // MARK: - Where the taper belongs
+
+    /// The case the real app hit first. A 7 kW wall box into a 74 kWh pack is
+    /// about 9 %/h, and the car's longer estimate is the balancing it does near
+    /// 100% — not a slowdown that has already started.
+    func testAWallBoxHoldsItsRateAndOnlyEasesOffNearTheTop() throws {
+        let projection = try XCTUnwrap(
+            ChargeProjection.make(
+                level: 64, limit: 100,
+                observedRate: 9.46,
+                power: 7, usableCapacity: 74,
+                hoursToFull: 4.7,        // longer than 36 / 9.46 = 3.8
+                now: now
+            )
+        )
+        XCTAssertTrue(projection.isTapering)
+        XCTAssertEqual(projection.knee, ChargeProjection.wallBoxKnee)
+        // Flat all the way to the knee.
+        XCTAssertEqual(projection.rate(at: 70), 9.46, accuracy: 0.01)
+        XCTAssertEqual(projection.rate(at: 89), 9.46, accuracy: 0.01)
+        XCTAssertLessThan(projection.rate(at: 97), 9.46)
+
+        // 80% arrives at the flat rate, not forty-five minutes later — which is
+        // what smearing the taper across the whole charge produced.
+        let eighty = try XCTUnwrap(projection.date(reaching: 80))
+        XCTAssertEqual(
+            eighty.timeIntervalSince(now) / 3_600,
+            (80 - 64) / 9.46,
+            accuracy: 0.05,
+            "The slowdown belongs to the last stretch, not to the middle"
+        )
+    }
+
+    /// A DC charge is already past the knee: it tapers from wherever it is.
+    func testADirectCurrentChargeTapersFromWhereItIsNow() throws {
+        let projection = try XCTUnwrap(
+            ChargeProjection.make(
+                level: 30, limit: 80,
+                observedRate: 100, power: 150, usableCapacity: 75,
+                hoursToFull: 1.25, now: now
+            )
+        )
+        XCTAssertEqual(projection.knee, 30, "Nothing is flat on a Supercharger at 30%")
+        XCTAssertLessThan(projection.rate(at: 45), projection.rate(at: 31))
+    }
+
+    /// A wall box stopping at 80 never reaches the knee, so nothing bends.
+    func testAWallBoxStoppingBelowTheKneeIsAStraightLine() throws {
+        let projection = try XCTUnwrap(
+            ChargeProjection.make(
+                level: 40, limit: 80,
+                observedRate: 9.5, power: 7, usableCapacity: 74,
+                hoursToFull: 40 / 9.5, now: now
+            )
+        )
+        XCTAssertFalse(projection.isTapering)
+        XCTAssertEqual(projection.rate(at: 79), 9.5, accuracy: 0.01)
+    }
+
+    /// Whatever the shape, the fit still has to land where the car says.
+    func testTheKneedFitStillLandsOnTheCarsFinishingTime() throws {
+        let projection = try XCTUnwrap(
+            ChargeProjection.make(
+                level: 64, limit: 100,
+                observedRate: 9.46, power: 7, usableCapacity: 74,
+                hoursToFull: 4.7, now: now
+            )
+        )
+        let completes = try XCTUnwrap(projection.completesAt)
+        XCTAssertEqual(completes.timeIntervalSince(now) / 3_600, 4.7, accuracy: 0.05)
+    }
+
     // MARK: - Milestones
 
     func testMilestonesAreTheRoundNumbersStillAhead() throws {

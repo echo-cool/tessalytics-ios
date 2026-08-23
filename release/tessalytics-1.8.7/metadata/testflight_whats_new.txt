@@ -1,0 +1,37 @@
+Tessalytics 1.8.7 — the charge forecast, corrected by a real charge.
+
+1.8.6 added the forecast. Putting it in front of an actual car found three things
+wrong with it, all visible in one screenshot of a wall box.
+
+THE CHART NOW STARTS WHEN THE CHARGE DID
+
+It started at "now". The app only sees readings from the moment it is opened, so a
+car that had been plugged in for an hour showed a chart beginning a second ago,
+labelled as though the charge had just started.
+
+It now takes the start time from the car, and works back to the level the charge
+began at from the energy the car says it has taken. That earlier stretch is drawn
+as a fine dotted line, because it is inferred rather than watched — the app was not
+there for it.
+
+THE SLOWDOWN IS NOW WHERE IT ACTUALLY HAPPENS
+
+The bigger error. A wall box holds its rate: 7 kW at 64% and 7 kW at 85%. The car
+still reports a longer time to full than that flat rate implies, because it eases
+off near 100% to balance the pack — and 1.8.6 took that difference and spread it
+across the whole charge. The result was a forecast that put 80% about forty-five
+minutes later than it actually arrives.
+
+The taper is now applied where it belongs: flat until about 90%, then easing. A DC
+charge is unchanged, because there the slowdown really has already begun — a pack
+taking 100 %/h is at a current the chemistry is limiting from that moment on. The
+app tells the two apart by the rate itself, not by anything it has to be told.
+
+Please check the milestone times against what actually happens on a wall box. That
+is the number this release exists to fix.
+
+ALSO
+
+- The right-hand axis was ticking at 2.5 kW and rounding the labels for display, so
+  a 7 kW charge was drawn against an axis reading 0, 3, 5, 8, 10. Round numbers now.
+- "now" and the plug-in time were printed on top of each other.
