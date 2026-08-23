@@ -105,11 +105,27 @@ the limit. If they agree, the line is straight. If the car says it needs longer 
 the current rate implies, that difference *is* the taper. The card says "slowing"
 when it does.
 
-Where the taper goes depends on how hard the pack is being pushed. At 0.3C or more —
-30% of the pack an hour, which is DC territory — the slowdown has already begun and
-the whole projection bends. Below that it is a wall box, which holds its rate until
-the car starts balancing near the top, so the line stays straight until about 90%
-and eases after. Getting this wrong put 80% forty-five minutes late on an AC charge.
+Which shape gets used depends on the evidence.
+
+**Below 10 kW nothing tapers.** A wall box is the charger's limit, not the pack's:
+ten kilowatts into any Tesla pack is under 0.15C, so the rate holds, the power line
+is level and the forecast is a straight line. The car's own estimate may be later,
+because it allows for the balancing it does in the last few percent — where the two
+differ by more than a quarter of an hour the card says so rather than printing two
+finishing times and leaving you to guess.
+
+**Above 10 kW the app uses your car's own taper.** Every DC session it watches, it
+records charging power against state of charge for that car; once it has enough it
+forecasts from that measured shape rather than a fitted assumption. The live reading
+sets the scale — a cold pack or a shared stall changes the curve's height, not its
+shape — and the finish is still anchored on the car's estimate. When a forecast comes
+from this the card says "From this car's own charging history".
+
+**Until then, a fitted decay.** One parameter against two reported numbers, which is
+what the app does before it has seen your car fast-charge.
+
+Nothing is learned in demo mode, nothing is learned from wall boxes, and the curve
+never leaves the device.
 
 The chart starts when the charge started, not when the app was opened. The app only
 holds readings from the moment you open it, so the stretch before that is worked back

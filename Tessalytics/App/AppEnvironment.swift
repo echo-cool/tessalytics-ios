@@ -31,6 +31,11 @@ final class AppEnvironment {
     var liveTelemetry = LiveTelemetryBuffer()
     /// Readings taken during the charge the car is on now.
     var liveChargeSession = LiveChargeSession()
+    /// How the selected car fast-charges, learned from past sessions. Held in
+    /// memory during a charge and written back when it ends, so a session does not
+    /// touch the store on every reading.
+    private(set) var chargeCurveProfile = ChargeCurveProfile()
+    private var chargeCurveIsDirty = false
     /// Distance, energy and the peaks for the drive in progress.
     ///
     /// Kept apart from the buffer above, which holds about eight minutes of a
@@ -321,6 +326,7 @@ final class AppEnvironment {
         if let selectedVehicle, status == nil {
             restoreCachedStatus(profile: selectedProfile, vehicle: selectedVehicle)
         }
+        loadChargeCurve()
         startHistoryPolling()
     }
 
@@ -682,7 +688,11 @@ final class AppEnvironment {
         statusRefreshTask?.cancel()
         statusRefreshTask = nil
         statusRefreshID = nil
+        // Whatever was learned about the car being left behind, before the
+        // in-memory copy is replaced by the next car's.
+        persistChargeCurve()
         selectedVehicle = vehicle
+        loadChargeCurve()
         if let profile = selectedProfile { restoreCachedStatus(profile: profile, vehicle: vehicle) }
         else { status = nil; statusUnits = nil; statusFetchedAt = nil }
         if isOwnerConnected { selectedOwnerVehicle = matchingOwnerVehicle() ?? selectedOwnerVehicle }
@@ -711,6 +721,10 @@ final class AppEnvironment {
     }
 
     func handleBackgroundEntry() {
+        // A charge can outlast the app being on screen, and a curve learned across
+        // an hour at a Supercharger should not be lost because the phone was put
+        // away before the cable came out.
+        persistChargeCurve()
         stopStatusPolling()
         stopHistoryPolling()
         // The stream is the expensive one: it holds a connection open and wakes on
@@ -901,13 +915,22 @@ final class AppEnvironment {
         if status.isCharging {
             lastChargingReadingAt = now
             isLiveCharging = true
+            let level = status.batteryDetails?.batteryLevel.map(Double.init)
+            let power = status.chargingDetails?.reportedPower
             liveChargeSession.record(
                 date: now,
-                level: status.batteryDetails?.batteryLevel.map(Double.init),
-                power: status.chargingDetails?.reportedPower,
+                level: level,
+                power: power,
                 energyAdded: status.chargingDetails?.chargeEnergyAdded,
                 range: status.batteryDetails?.displayRange?.value
             )
+            // Learn this car's taper from the car itself. Only fast charges: a
+            // wall box holds its rate and its readings would flatten a curve that
+            // is not flat.
+            if let level, let power, power >= ChargeCurveProfile.minimumPowerKW, !isDemoMode {
+                chargeCurveProfile.record(level: level, power: power)
+                chargeCurveIsDirty = true
+            }
             return
         }
 
@@ -936,6 +959,33 @@ final class AppEnvironment {
         isLiveCharging = false
         lastChargingReadingAt = nil
         if !liveChargeSession.isEmpty { liveChargeSession.reset() }
+        persistChargeCurve()
+    }
+
+    /// Writes the learned curve back, once, at the end of a session.
+    func persistChargeCurve() {
+        guard chargeCurveIsDirty, !isDemoMode else { return }
+        guard let profile = selectedProfile, let vehicle = selectedVehicle,
+              let record = vehicleRecord(serverID: profile.id, carID: vehicle.id) else { return }
+        record.chargeCurve = chargeCurveProfile.encoded()
+        try? container.mainContext.save()
+        chargeCurveIsDirty = false
+        diagnostics.record(
+            .state,
+            "Charging curve updated",
+            detail: "\(chargeCurveProfile.sampleCount) readings"
+        )
+    }
+
+    /// Loads what has been learned about the selected car.
+    func loadChargeCurve() {
+        guard let profile = selectedProfile, let vehicle = selectedVehicle,
+              let record = vehicleRecord(serverID: profile.id, carID: vehicle.id) else {
+            chargeCurveProfile = ChargeCurveProfile()
+            return
+        }
+        chargeCurveProfile = ChargeCurveProfile.decoded(from: record.chargeCurve) ?? ChargeCurveProfile()
+        chargeCurveIsDirty = false
     }
 
     /// Where the battery is heading, from what the car is reporting now.
@@ -952,7 +1002,8 @@ final class AppEnvironment {
             observedRate: liveChargeSession.observedRate(),
             power: status.chargingDetails?.reportedPower,
             usableCapacity: fleet.battery?.capacityNew,
-            hoursToFull: status.chargingDetails?.timeToFullCharge
+            hoursToFull: status.chargingDetails?.timeToFullCharge,
+            profile: chargeCurveProfile.isEmpty ? nil : chargeCurveProfile
         )
     }
 

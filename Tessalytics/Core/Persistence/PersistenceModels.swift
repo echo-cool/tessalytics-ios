@@ -56,6 +56,9 @@ final class VehicleRecord {
     var capacityNewOverride: Double?
     /// Owner-supplied rated range at 100% when new, in the server's length unit.
     var maxRangeNewOverride: Double?
+    /// How this car fast-charges, learned from watching it. Encoded
+    /// `ChargeCurveProfile`; optional so the store migrates in place.
+    var chargeCurve: Data?
     init(vehicle: Vehicle) {
         cacheKey = Self.key(serverID: vehicle.serverID, carID: vehicle.id); serverID = vehicle.serverID.uuidString; carID = vehicle.id
         name = vehicle.name; model = vehicle.model; trim = vehicle.trim; vin = vehicle.vin

@@ -115,10 +115,10 @@ final class ChargeProjectionTests: XCTestCase {
 
     // MARK: - Where the taper belongs
 
-    /// The case the real app hit first. A 7 kW wall box into a 74 kWh pack is
-    /// about 9 %/h, and the car's longer estimate is the balancing it does near
-    /// 100% — not a slowdown that has already started.
-    func testAWallBoxHoldsItsRateAndOnlyEasesOffNearTheTop() throws {
+    /// A wall box is the charger's limit, not the pack's. Ten kilowatts into any
+    /// Tesla pack is under 0.15C — nothing about the chemistry is being asked for
+    /// at that current, so the rate holds and the line is straight.
+    func testAWallBoxHoldsItsRateForTheWholeSession() throws {
         let projection = try XCTUnwrap(
             ChargeProjection.make(
                 level: 64, limit: 100,
@@ -128,22 +128,33 @@ final class ChargeProjectionTests: XCTestCase {
                 now: now
             )
         )
-        XCTAssertTrue(projection.isTapering)
-        XCTAssertEqual(projection.knee, ChargeProjection.wallBoxKnee)
-        // Flat all the way to the knee.
-        XCTAssertEqual(projection.rate(at: 70), 9.46, accuracy: 0.01)
-        XCTAssertEqual(projection.rate(at: 89), 9.46, accuracy: 0.01)
-        XCTAssertLessThan(projection.rate(at: 97), 9.46)
+        XCTAssertFalse(projection.isTapering, "7 kW does not taper")
+        for percent in [70.0, 85, 95, 99] {
+            XCTAssertEqual(projection.rate(at: percent), 9.46, accuracy: 0.01)
+        }
 
         // 80% arrives at the flat rate, not forty-five minutes later — which is
-        // what smearing the taper across the whole charge produced.
+        // what smearing a taper across the whole charge produced.
         let eighty = try XCTUnwrap(projection.date(reaching: 80))
         XCTAssertEqual(
             eighty.timeIntervalSince(now) / 3_600,
             (80 - 64) / 9.46,
-            accuracy: 0.05,
-            "The slowdown belongs to the last stretch, not to the middle"
+            accuracy: 0.05
         )
+    }
+
+    /// The power line for a slow charge has to be level, because the charger's
+    /// output is.
+    func testAWallBoxPowerForecastIsLevel() throws {
+        let projection = try XCTUnwrap(
+            ChargeProjection.make(
+                level: 40, limit: 100,
+                observedRate: 9.4, power: 7, usableCapacity: 74,
+                hoursToFull: 8, now: now
+            )
+        )
+        XCTAssertEqual(try XCTUnwrap(projection.power(at: 50)), 7, accuracy: 0.01)
+        XCTAssertEqual(try XCTUnwrap(projection.power(at: 95)), 7, accuracy: 0.01)
     }
 
     /// A DC charge is already past the knee: it tapers from wherever it is.
@@ -159,30 +170,110 @@ final class ChargeProjectionTests: XCTestCase {
         XCTAssertLessThan(projection.rate(at: 45), projection.rate(at: 31))
     }
 
-    /// A wall box stopping at 80 never reaches the knee, so nothing bends.
-    func testAWallBoxStoppingBelowTheKneeIsAStraightLine() throws {
+    /// A moderate DC charge with no history to draw on still gets the fitted
+    /// knee, which is what the fallback is for.
+    func testAFastChargeWithNoHistoryFallsBackToTheFittedKnee() throws {
         let projection = try XCTUnwrap(
             ChargeProjection.make(
-                level: 40, limit: 80,
-                observedRate: 9.5, power: 7, usableCapacity: 74,
-                hoursToFull: 40 / 9.5, now: now
+                level: 50, limit: 100,
+                observedRate: 25,           // under the DC rate threshold
+                power: 22, usableCapacity: 74,
+                hoursToFull: 3, now: now    // longer than 50 / 25 = 2
             )
         )
-        XCTAssertFalse(projection.isTapering)
-        XCTAssertEqual(projection.rate(at: 79), 9.5, accuracy: 0.01)
+        XCTAssertFalse(projection.isLearned)
+        XCTAssertTrue(projection.isTapering)
+        XCTAssertEqual(projection.knee, ChargeProjection.wallBoxKnee)
     }
 
     /// Whatever the shape, the fit still has to land where the car says.
-    func testTheKneedFitStillLandsOnTheCarsFinishingTime() throws {
+    func testAFittedShapeLandsOnTheCarsFinishingTime() throws {
         let projection = try XCTUnwrap(
             ChargeProjection.make(
-                level: 64, limit: 100,
-                observedRate: 9.46, power: 7, usableCapacity: 74,
-                hoursToFull: 4.7, now: now
+                level: 50, limit: 100,
+                observedRate: 25, power: 22, usableCapacity: 74,
+                hoursToFull: 3, now: now
             )
         )
         let completes = try XCTUnwrap(projection.completesAt)
-        XCTAssertEqual(completes.timeIntervalSince(now) / 3_600, 4.7, accuracy: 0.05)
+        XCTAssertEqual(completes.timeIntervalSince(now) / 3_600, 3, accuracy: 0.06)
+    }
+
+    // MARK: - A curve learned from the car
+
+    /// A profile shaped like a real Supercharger taper: strong low down, easing
+    /// steadily, well down by the top.
+    private func superchargerProfile() -> ChargeCurveProfile {
+        var profile = ChargeCurveProfile()
+        for level in stride(from: 5.0, through: 97.0, by: 1) {
+            let power = max(170 - 1.6 * level, 20)
+            for _ in 0..<3 { profile.record(level: level, power: power) }
+        }
+        return profile
+    }
+
+    func testAFastChargeUsesTheShapeLearnedFromThisCar() throws {
+        let projection = try XCTUnwrap(
+            ChargeProjection.make(
+                level: 30, limit: 80,
+                observedRate: 100, power: 120, usableCapacity: 75,
+                hoursToFull: 1.25,
+                profile: superchargerProfile(),
+                now: now
+            )
+        )
+        XCTAssertTrue(projection.isLearned, "There is a measured curve; use it")
+        XCTAssertTrue(projection.isTapering)
+        XCTAssertGreaterThan(projection.rate(at: 35), projection.rate(at: 75))
+    }
+
+    /// The learned shape is still re-timed to agree with the car, because the
+    /// profile knows the shape and the car knows today.
+    func testALearnedShapeIsScaledToTheCarsFinishingTime() throws {
+        let projection = try XCTUnwrap(
+            ChargeProjection.make(
+                level: 30, limit: 80,
+                observedRate: 100, power: 120, usableCapacity: 75,
+                hoursToFull: 1.25,
+                profile: superchargerProfile(),
+                now: now
+            )
+        )
+        let completes = try XCTUnwrap(projection.completesAt)
+        XCTAssertEqual(completes.timeIntervalSince(now) / 3_600, 1.25, accuracy: 0.06)
+    }
+
+    /// A profile that has only seen the bottom of the pack says nothing about the
+    /// top, and must not be used as though it did.
+    func testAProfileThatDoesNotCoverTheClimbIsNotUsed() throws {
+        var profile = ChargeCurveProfile()
+        for level in stride(from: 5.0, through: 25.0, by: 1) {
+            for _ in 0..<3 { profile.record(level: level, power: 150) }
+        }
+        let projection = try XCTUnwrap(
+            ChargeProjection.make(
+                level: 60, limit: 90,
+                observedRate: 60, power: 60, usableCapacity: 75,
+                hoursToFull: 0.9, profile: profile, now: now
+            )
+        )
+        XCTAssertFalse(projection.isLearned)
+    }
+
+    /// A wall box never consults the profile: its shape is flat whatever the
+    /// history of fast charges says.
+    func testAWallBoxIgnoresTheLearnedCurveEntirely() throws {
+        let projection = try XCTUnwrap(
+            ChargeProjection.make(
+                level: 40, limit: 100,
+                observedRate: 9.4, power: 7, usableCapacity: 74,
+                hoursToFull: 8,
+                profile: superchargerProfile(),
+                now: now
+            )
+        )
+        XCTAssertFalse(projection.isLearned)
+        XCTAssertFalse(projection.isTapering)
     }
 
     // MARK: - Milestones
@@ -424,5 +515,71 @@ final class LiveChargeSessionTests: XCTestCase {
         XCTAssertTrue(session.isEmpty)
         XCTAssertNil(session.startedAt)
         XCTAssertNil(session.levelGained)
+    }
+}
+
+/// The profile is the app's memory of how this car charges, so what it declines
+/// to learn matters as much as what it does.
+final class ChargeCurveProfileTests: XCTestCase {
+    func testAWallBoxIsNotLearnedFrom() {
+        // Its readings are flat and would drag a taper towards a straight line.
+        var profile = ChargeCurveProfile()
+        for level in stride(from: 20.0, through: 90.0, by: 1) {
+            profile.record(level: level, power: 7)
+        }
+        XCTAssertTrue(profile.isEmpty)
+    }
+
+    func testABucketIsNotTrustedUntilItHasBeenSeenSeveralTimes() {
+        var profile = ChargeCurveProfile()
+        profile.record(level: 50, power: 100)
+        XCTAssertNil(profile.power(at: 50), "One reading is an anecdote")
+        profile.record(level: 50, power: 100)
+        profile.record(level: 50, power: 100)
+        XCTAssertEqual(try XCTUnwrap(profile.power(at: 50)), 100, accuracy: 0.01)
+    }
+
+    func testTheShapeIsRelativeRatherThanAbsolute() throws {
+        // Scale belongs to the live reading: a cold pack changes the height of the
+        // curve without changing its shape.
+        var profile = ChargeCurveProfile()
+        for _ in 0..<3 {
+            profile.record(level: 32, power: 150)
+            profile.record(level: 72, power: 75)
+        }
+        let relative = try XCTUnwrap(profile.relativeRate(at: 72, comparedWith: 32))
+        XCTAssertEqual(relative, 0.5, accuracy: 0.05)
+    }
+
+    func testCoverageIsJudgedAboveTheCurrentChargeNotBelowIt() {
+        var profile = ChargeCurveProfile()
+        for level in stride(from: 5.0, through: 30.0, by: 1) {
+            for _ in 0..<3 { profile.record(level: level, power: 150) }
+        }
+        XCTAssertFalse(
+            profile.covers(from: 60, to: 90),
+            "Readings from the bottom of the pack say nothing about the top"
+        )
+        XCTAssertTrue(profile.covers(from: 10, to: 30))
+    }
+
+    func testBeyondTheReadingsTheCurveHoldsRatherThanHeadingForZero() throws {
+        // A taper extrapolated past the evidence predicts a charge that never
+        // finishes.
+        var profile = ChargeCurveProfile()
+        for _ in 0..<3 {
+            profile.record(level: 30, power: 120)
+            profile.record(level: 50, power: 80)
+        }
+        let beyond = try XCTUnwrap(profile.relativeRate(at: 95, comparedWith: 30))
+        XCTAssertGreaterThan(beyond, 0)
+    }
+
+    func testItSurvivesBeingWrittenDownAndReadBack() throws {
+        var profile = ChargeCurveProfile()
+        for _ in 0..<3 { profile.record(level: 45, power: 110) }
+        let restored = try XCTUnwrap(ChargeCurveProfile.decoded(from: profile.encoded()))
+        XCTAssertEqual(restored, profile)
+        XCTAssertEqual(try XCTUnwrap(restored.power(at: 45)), 110, accuracy: 0.01)
     }
 }

@@ -23,7 +23,10 @@ struct LiveChargeSection: View {
                 // The forecast chart itself is in the hero card, where the
                 // question it answers is being asked. This is the detail behind
                 // it.
-                ChargeMilestoneList(projection: projection)
+                ChargeMilestoneList(
+                    projection: projection,
+                    carHoursToFull: status?.chargingDetails?.timeToFullCharge
+                )
             }
         }
         // No identifier on the Group. One here is applied to every child and
@@ -130,6 +133,9 @@ struct LiveChargeSection: View {
 /// clock time for the percentage they actually need, not a curve to read one off.
 struct ChargeMilestoneList: View {
     let projection: ChargeProjection
+    /// The car's own time to the limit, hours. Shown only where it disagrees with
+    /// the forecast, which on a wall box it can.
+    var carHoursToFull: Double?
 
     private var milestones: [ChargeProjection.Milestone] { projection.milestones() }
 
@@ -137,9 +143,7 @@ struct ChargeMilestoneList: View {
         if !milestones.isEmpty {
             SectionCard(
                 "When it reaches",
-                subtitle: projection.isTapering
-                    ? "Allowing for the rate falling as the pack fills"
-                    : "At the rate it is charging now",
+                subtitle: milestoneSubtitle,
                 symbol: "clock",
                 tint: TessalyticsTheme.accentBright
             ) {
@@ -153,6 +157,35 @@ struct ChargeMilestoneList: View {
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("charge-milestones")
         }
+    }
+
+    /// Where the times came from, in a line.
+    ///
+    /// Worth saying: "allowing for the taper" and "from this car's own charging
+    /// history" are different degrees of confidence, and an owner deciding whether
+    /// to wait for 80% is entitled to know which one they are reading.
+    private var milestoneSubtitle: String {
+        if projection.isLearned { return "From this car's own charging history" }
+        if projection.isTapering { return "Allowing for the rate falling as the pack fills" }
+        guard let disagreement else { return "At the rate it is charging now" }
+        // The car's own estimate is on this screen too, in the progress row. When
+        // the two differ by enough to notice, the screen has to say so rather than
+        // print two finishing times and let the reader wonder which is broken.
+        return "At the rate it is charging now · the car says \(disagreement)"
+    }
+
+    /// The car's finishing time, when it is far enough from the forecast to be
+    /// worth mentioning.
+    ///
+    /// A wall box holds its rate, so the forecast follows the measurement — but
+    /// the car allows for the balancing it does near 100%, which the measurement
+    /// cannot see yet. A quarter of an hour is about where a difference stops
+    /// being rounding and starts being a different answer.
+    private var disagreement: String? {
+        guard let carHoursToFull, carHoursToFull > 0, let mine = projection.completesAt else { return nil }
+        let theirs = projection.start.addingTimeInterval(carHoursToFull * 3_600)
+        guard abs(theirs.timeIntervalSince(mine)) > 15 * 60 else { return nil }
+        return theirs.formatted(date: .omitted, time: .shortened)
     }
 
     private func row(_ milestone: ChargeProjection.Milestone) -> some View {
@@ -323,7 +356,7 @@ struct HeroChargeForecast: View {
         guard let first = dates.min(), let last = dates.max(), last > first else {
             return projection.start.addingTimeInterval(-600)...projection.start.addingTimeInterval(3_600)
         }
-        return first...last.addingTimeInterval(last.timeIntervalSince(first) * 0.07)
+        return first...last.addingTimeInterval(last.timeIntervalSince(first) * 0.14)
     }
 
     var body: some View {

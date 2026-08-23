@@ -1,0 +1,44 @@
+Tessalytics 1.8.8 — a slow charge is drawn slow, and a fast one learns your car.
+
+TWO CHANGES TO THE CHARGE FORECAST
+
+1. BELOW 10 kW, NOTHING TAPERS
+
+A wall box is the charger's limit, not the pack's. Ten kilowatts into any Tesla
+pack is under 0.15C — nothing about the chemistry is being asked for at that
+current — so the rate holds, the power line is level, and the forecast is a
+straight line. 1.8.7 still bent it near the top; it no longer does.
+
+You may see the forecast finish earlier than the car's own "time remaining". That
+is real, not a mistake: the car allows for the balancing it does in the last few
+percent, which the measured rate cannot see yet. Where the two differ by more than
+a quarter of an hour, the card now says what the car thinks, so the screen is not
+quietly printing two finishing times.
+
+2. ABOVE 10 kW, THE APP LEARNS YOUR CAR'S TAPER
+
+A fast charge does taper, and the shape of that taper belongs to your pack — its
+chemistry, its age, how your car chooses to treat it. Nothing anyone could ship
+would be right for all of those.
+
+So the app now watches. Every DC session it sees, it records charging power against
+state of charge for your car, and once it has enough it uses that shape for the
+forecast instead of a fitted assumption. The live reading still sets the scale — a
+cold pack or a shared stall changes the height of the curve, not its shape — and
+the finish is still anchored on the car's own estimate.
+
+When a forecast is built this way the card says "From this car's own charging
+history". Until then it says something else, and both are true.
+
+WHAT TO TEST
+
+- A wall box: the power line should be flat and the milestone times should match
+  what actually happens. This is the case 1.8.7 got wrong.
+- Your first few Superchargers: the forecast will use the fitted fallback, and the
+  card will not claim otherwise. After three or four sessions it should switch to
+  your car's own curve — tell me whether it gets better or worse when it does.
+- Nothing is learned in demo mode, and nothing is learned from wall boxes, because
+  a flat curve would drag a taper straight.
+
+The learned curve is stored on the device with the rest of the vehicle's record.
+It never leaves the phone.

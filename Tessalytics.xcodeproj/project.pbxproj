@@ -127,6 +127,7 @@
 		C88BA6DD9FCD74AF06B6D19D /* HistoryPreviews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74B179789D528ABB0D91F124 /* HistoryPreviews.swift */; };
 		C8F2B8EF685CDEC5BFE4A274 /* ServerListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47FA48AE6F542F32703F5107 /* ServerListView.swift */; };
 		CB28E96F723DFE4D88113F45 /* ServerURLSafetyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DEDF91509021E9A4148A2A4 /* ServerURLSafetyTests.swift */; };
+		CF2D38D72EC0CA2AE12090EB /* ChargeCurveProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = E95FF2546F0FFA2B361F1BA0 /* ChargeCurveProfile.swift */; };
 		CFB3971DC18EB6F5131FBC5D /* TessalyticsBackendClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C138DFA45C25B71CE3784C5 /* TessalyticsBackendClient.swift */; };
 		D5F2E134A5BDD8C7E97B6206 /* SelfDrivingModeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 229CA263425B523F022F660F /* SelfDrivingModeTests.swift */; };
 		D66404E42CC10A67BE067705 /* LiveRouteTrailTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 257B363C3A17F7357A9FC67F /* LiveRouteTrailTests.swift */; };
@@ -326,6 +327,7 @@
 		E74EA66EE097BA911C59C42E /* FakeEventStreamServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FakeEventStreamServer.swift; sourceTree = "<group>"; };
 		E7B8D7F048243F298540FDCC /* ChargeDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChargeDetailView.swift; sourceTree = "<group>"; };
 		E9437C633B63ABC563E6859F /* Achievements.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Achievements.swift; sourceTree = "<group>"; };
+		E95FF2546F0FFA2B361F1BA0 /* ChargeCurveProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChargeCurveProfile.swift; sourceTree = "<group>"; };
 		EA8CC225422B884D999C24A4 /* IntelligenceNotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntelligenceNotificationService.swift; sourceTree = "<group>"; };
 		EAB5577362235478009EDDAA /* FleetHistorySync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FleetHistorySync.swift; sourceTree = "<group>"; };
 		F0E0757B2D95725A49822BC2 /* LiveStateStream.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveStateStream.swift; sourceTree = "<group>"; };
@@ -375,6 +377,7 @@
 			children = (
 				28F714155C63878469AC8259 /* AnalyticsService.swift */,
 				C1571B189CA924F7F1A07461 /* BatteryLevelHistory.swift */,
+				E95FF2546F0FFA2B361F1BA0 /* ChargeCurveProfile.swift */,
 				18B7372FE1999F7452ECD0CA /* ChargeProjection.swift */,
 				A7B2B8727A67DEFF32A55699 /* FleetStatistics.swift */,
 				B520968A8B9F779E8BEE8E59 /* HistoryCoverage.swift */,
@@ -1025,6 +1028,7 @@
 				74F0E8A7F643957747EBC8EE /* CapacityCharts.swift in Sources */,
 				55BAEA92CCC440E5C0EA2CC7 /* CarDestination.swift in Sources */,
 				5A77E2461C5DD4C42830C412 /* ChargeCurveChart.swift in Sources */,
+				CF2D38D72EC0CA2AE12090EB /* ChargeCurveProfile.swift in Sources */,
 				DC684EF770524BC1181C6A5C /* ChargeDetailView.swift in Sources */,
 				EBAF49258554D280F75F2370 /* ChargeHistoryView.swift in Sources */,
 				10C4481823C0630EC2A393F5 /* ChargeProjection.swift in Sources */,
@@ -1210,7 +1214,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 202608231509;
+				CURRENT_PROJECT_VERSION = 202608231544;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = P8FYZDZ6AA;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -1230,7 +1234,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
-				MARKETING_VERSION = 1.8.7;
+				MARKETING_VERSION = 1.8.8;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -1278,7 +1282,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 202608231509;
+				CURRENT_PROJECT_VERSION = 202608231544;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = P8FYZDZ6AA;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -1292,7 +1296,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
-				MARKETING_VERSION = 1.8.7;
+				MARKETING_VERSION = 1.8.8;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
