@@ -9,7 +9,7 @@
 <p align="center">
   <img alt="Swift 6" src="https://img.shields.io/badge/Swift-6.0-F05138?logo=swift&logoColor=white">
   <img alt="iOS 18+" src="https://img.shields.io/badge/iOS-18%2B-000000?logo=apple">
-  <img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-blue.svg">
+  <img alt="License: AGPL v3" src="https://img.shields.io/badge/License-AGPL%20v3-blue.svg">
   <img alt="No tracking" src="https://img.shields.io/badge/tracking-none-1f9d55">
 </p>
 
@@ -383,4 +383,14 @@ TeslaMate is a separate project. Review the [TeslaMate trademark policy](https:/
 
 ## License
 
-Tessalytics is open source under the [MIT License](LICENSE).
+Tessalytics is open source under the **GNU Affero General Public License, version 3 or later** — see
+[LICENSE](LICENSE). The same licence [TeslaMate uses](https://github.com/teslamate-org/teslamate/blob/main/LICENSE):
+use it, self-host it, modify it, share it, and if you run a modified version as a service other people can reach,
+those people are entitled to your modified source.
+
+The **name and the app icon** are covered separately by [TRADEMARK.md](TRADEMARK.md), modelled on TeslaMate's own
+policy: free for self-hosting, community writing and open-source interoperability; not for commercial products, paid
+hosting or merchandise trading on the name.
+
+> Earlier commits were published under the MIT licence. Anyone who obtained a copy under those terms keeps them for
+> that copy; everything from this change onward is AGPL-3.0-or-later.

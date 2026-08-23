@@ -67,7 +67,7 @@ Recommended for this open-source release, subject to account-holder approval:
 
 - Price: Free
 - Availability: All eligible storefronts
-- License: Apple standard EULA plus the repository’s MIT license for source code
+- License: Apple standard EULA plus the repository’s AGPL-3.0-or-later license for source code
 - Release: Manually release after approval
 
 ## App Review access

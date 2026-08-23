@@ -12,4 +12,4 @@ Thank you for helping Tessalytics become a dependable community client.
 
 Code should follow Swift 6 concurrency checking, native Apple API conventions, Dynamic Type, VoiceOver support, and the existing feature-oriented architecture. New third-party dependencies require a documented, substantial benefit.
 
-By participating, you agree to follow the [Code of Conduct](CODE_OF_CONDUCT.md) and license your contribution under MIT.
+By participating, you agree to follow the [Code of Conduct](CODE_OF_CONDUCT.md) and license your contribution under AGPL-3.0-or-later.

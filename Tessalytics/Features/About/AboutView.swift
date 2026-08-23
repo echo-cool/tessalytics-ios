@@ -36,6 +36,21 @@ struct AboutView: View {
                     Text("All three are open source. Issues and pull requests are welcome.")
                 }
 
+                // The licence, in the app rather than only in the repository.
+                // Distributing a copy of AGPL software means telling the person
+                // holding it what its terms are and where the source is — and on
+                // the App Store this screen is the only place that can happen.
+                Section {
+                    Text("Tessalytics is free software under the GNU Affero General Public License, version 3 or later. You may use, study, modify and share it; a modified version offered to others over a network must offer them its source.")
+                    Link("Licence (AGPL-3.0-or-later)", destination: URL(string: "https://github.com/echo-cool/tessalytics-ios/blob/main/LICENSE")!)
+                    Link("Source code", destination: URL(string: "https://github.com/echo-cool/tessalytics-ios")!)
+                    Link("Trademark policy", destination: URL(string: "https://github.com/echo-cool/tessalytics-ios/blob/main/TRADEMARK.md")!)
+                } header: {
+                    Label("Licence", systemImage: "doc.text")
+                } footer: {
+                    Text("The licence covers the code. The Tessalytics name and icon are covered by the trademark policy.")
+                }
+
                 Section {
                     Text("This project is an unofficial community tool and is not affiliated with, endorsed by, or supported by the official TeslaMate project or Tesla, Inc. \"TeslaMate\" and \"Tesla\" are the trademarks of their respective owners and are used here only to say what this app connects to.")
                     Link("TeslaMate", destination: URL(string: "https://github.com/teslamate-org/teslamate")!)
