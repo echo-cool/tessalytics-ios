@@ -1,0 +1,58 @@
+Tessalytics 1.8.6 — what the battery will be at, and when.
+
+WHAT TO TEST FIRST
+
+Plug the car in. While it is charging, the hero card puts a forecast where the
+seven-day battery chart usually sits: what the charge will be in an hour, what time
+it reaches your limit, and a chart of both.
+
+The chart has two axes. Charge climbs on the left; charging power falls on the
+right. The solid lines are measured — what the car has actually reported since the
+cable went in, marked with the time it was plugged in. The dashed lines are the
+forecast. They meet at "now", and they are drawn differently on purpose: one is a
+reading and one is a guess, and you should be able to tell at a glance which you
+are planning around.
+
+Below, "This charge" carries the figures, and "When it reaches" gives a clock time
+for every ten percent between here and your limit — so you can decide whether to
+wait for 70 or come back for 80.
+
+Please check:
+
+1. The hour-ahead figure against what actually happens. This is the number worth
+   getting right and the one I most want a real reading on.
+
+2. The finishing time against the car's own. They should agree — the forecast is
+   anchored on the car's estimate rather than competing with it.
+
+3. A Supercharger especially. On a wall box the rate is flat and a straight line
+   is the truth. On DC the rate falls as the pack fills, and a straight line drawn
+   from the current rate promises an hour that will not happen. When that is
+   happening the card says "slowing" and the curve bends. Tell me if it bends too
+   much or too little.
+
+4. A charge that is nearly done, one that has just started, and one where the app
+   has only seen a minute or two. The rate is measured from the car's own reported
+   charge over the last several minutes, and until there is enough of a spread to
+   divide by, it should decline to guess rather than show something wild.
+
+HOW IT WORKS, BRIEFLY
+
+Charging is not one shape, so the app does not assume one. It fits a single number
+to two things the car itself reports: the rate right now, and the time the car says
+it needs to reach the limit. If those agree, the rate is flat and the line is
+straight. If the car says it needs longer than the current rate implies, that
+difference is the taper, and the curve bends until the two agree. No charging curve
+per model is baked in, because none would be right for every pack, temperature and
+cabinet.
+
+The power forecast is scaled from the power the charger reports now, in proportion
+to how the rate changes — not computed from pack size, which sounds more principled
+and is worse: usable capacity is not rated capacity, and reported power includes
+losses the pack never sees.
+
+ALSO
+
+The seven-day battery chart is unchanged when the car is not plugged in; it simply
+stands aside while it is, because the question has changed from "how has it been
+doing" to "when can I leave".

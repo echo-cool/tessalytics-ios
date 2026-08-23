@@ -251,6 +251,8 @@ struct DashboardView: View {
                     activity: recentDrivePoints,
                     efficiency: recentEfficiency,
                     batteryLevels: batteryLevels,
+                    chargeProjection: environment.chargeProjection,
+                    chargeSession: environment.liveChargeSession,
                     // A sleeping car reports 0 psi at every corner, so fall
                     // back to the last reading taken while it was awake.
                     tyres: environment.status?.tpmsDetails?.hasAnyReading == true
@@ -297,6 +299,15 @@ struct DashboardView: View {
                     LiveDriveSection(
                         buffer: environment.liveTelemetry,
                         totals: environment.liveDriveTotals,
+                        units: environment.statusUnits
+                    )
+                }
+
+                if environment.isLiveCharging {
+                    LiveChargeSection(
+                        session: environment.liveChargeSession,
+                        projection: environment.chargeProjection,
+                        status: environment.status,
                         units: environment.statusUnits
                     )
                 }
@@ -1232,6 +1243,10 @@ private struct VehicleHeroCard: View {
     let efficiency: Double?
     /// Battery level over the last week, rebuilt from drives and charges.
     let batteryLevels: [BatteryLevelPoint]
+    /// Where the charge is heading, when the car is on a charger.
+    var chargeProjection: ChargeProjection?
+    /// What the charger has done so far, for the measured half of the forecast.
+    var chargeSession = LiveChargeSession()
     let tyres: TPMSDTO?
     /// The route of the drive in progress, already stabilised so a redraw of this
     /// card does not redraw the line on the map.
@@ -1539,6 +1554,13 @@ private struct VehicleHeroCard: View {
                         metrics: LiveMetrics.hero(status: status, totals: liveTotals, units: units)
                     )
                     .accessibilityIdentifier("hero-live-metrics")
+                } else if let chargeProjection, !chargeProjection.isComplete, !chargeSession.isEmpty {
+                    // A week of battery history is the right thing to show a
+                    // parked car and the wrong thing to show one that is plugged
+                    // in: the question has changed from "how has it been doing"
+                    // to "when can I leave".
+                    Divider()
+                    HeroChargeForecast(session: chargeSession, projection: chargeProjection)
                 } else if !batteryLevels.isEmpty {
                     Divider()
                     Button { onOpen(.batteryHealth) } label: {

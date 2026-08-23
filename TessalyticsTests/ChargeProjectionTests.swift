@@ -1,0 +1,356 @@
+import XCTest
+@testable import Tessalytics
+
+/// The number this produces is one somebody plans an hour of their life around,
+/// so the thing worth testing is not that it returns something — it is that it
+/// refuses to promise a straight line when the car has told it otherwise.
+final class ChargeProjectionTests: XCTestCase {
+    private let now = Date(timeIntervalSince1970: 1_700_000_000)
+
+    // MARK: - A flat rate
+
+    /// A wall box holds its rate: 7 kW at 20% and 7 kW at 79%. A straight line is
+    /// not an approximation here, it is what happens.
+    func testAWallBoxProjectsAsAStraightLine() throws {
+        let projection = try XCTUnwrap(
+            ChargeProjection.make(
+                level: 40, limit: 80,
+                observedRate: 10,          // %/h
+                power: 7, usableCapacity: 75,
+                hoursToFull: 4,            // 40 points at 10 %/h — the two agree
+                now: now
+            )
+        )
+        XCTAssertFalse(projection.isTapering)
+        XCTAssertEqual(projection.level(after: 3_600), 50, accuracy: 0.01)
+        XCTAssertEqual(projection.level(after: 2 * 3_600), 60, accuracy: 0.01)
+    }
+
+    func testTheHourlyFigureStopsAtTheChargeLimit() throws {
+        // The car stops at the limit. Projecting through it would put a number on
+        // screen that the car will not produce.
+        let projection = try XCTUnwrap(
+            ChargeProjection.make(
+                level: 75, limit: 80,
+                observedRate: 30, power: nil, usableCapacity: nil,
+                hoursToFull: 5.0 / 30.0,
+                now: now
+            )
+        )
+        XCTAssertEqual(projection.level(after: 3_600), 80, accuracy: 0.01)
+    }
+
+    // MARK: - A taper
+
+    /// The case that makes a naive projection dangerous. The car is drawing hard
+    /// right now but says it needs far longer than that rate implies to reach the
+    /// limit — that gap is the taper, and the projection has to bend.
+    func testASuperchargerThatSaysItWillTakeLongerIsModelledAsTapering() throws {
+        let projection = try XCTUnwrap(
+            ChargeProjection.make(
+                level: 30, limit: 80,
+                observedRate: 100,   // 100 %/h right now
+                power: 150, usableCapacity: 75,
+                // A straight line would take half an hour. The car says it needs
+                // an hour and a quarter.
+                hoursToFull: 1.25,
+                now: now
+            )
+        )
+        XCTAssertTrue(projection.isTapering)
+
+        let straightLine = 30 + 100 * 1.0
+        let projected = projection.level(after: 3_600)
+        XCTAssertLessThan(projected, straightLine, "A tapering charge must not promise the flat-rate figure")
+        XCTAssertGreaterThan(projected, 30)
+    }
+
+    /// The fit has one job: agree with the car about when the limit arrives.
+    func testTheFitLandsOnTheCarsOwnFinishingTime() throws {
+        let projection = try XCTUnwrap(
+            ChargeProjection.make(
+                level: 20, limit: 90,
+                observedRate: 120, power: nil, usableCapacity: nil,
+                hoursToFull: 1.5,
+                now: now
+            )
+        )
+        let completes = try XCTUnwrap(projection.completesAt)
+        XCTAssertEqual(
+            completes.timeIntervalSince(now),
+            1.5 * 3_600,
+            accuracy: 60,
+            "The model is anchored on the car's estimate; landing elsewhere means the fit is wrong"
+        )
+    }
+
+    func testATaperingRateFallsAsThePackFills() throws {
+        let projection = try XCTUnwrap(
+            ChargeProjection.make(
+                level: 20, limit: 90,
+                observedRate: 120, power: nil, usableCapacity: nil,
+                hoursToFull: 1.5,
+                now: now
+            )
+        )
+        XCTAssertGreaterThan(projection.rate(at: 30), projection.rate(at: 70))
+        XCTAssertGreaterThan(projection.rate(at: 70), 0, "A rate that reaches zero never arrives")
+    }
+
+    /// If the car expects to do better than the rate measured this instant — a
+    /// pack still warming, say — its estimate is the better evidence.
+    func testWhenTheCarExpectsToSpeedUpItsOwnEstimateWins() throws {
+        let projection = try XCTUnwrap(
+            ChargeProjection.make(
+                level: 20, limit: 80,
+                observedRate: 20,     // a straight line would need three hours
+                power: nil, usableCapacity: nil,
+                hoursToFull: 1,       // the car says one
+                now: now
+            )
+        )
+        XCTAssertFalse(projection.isTapering)
+        XCTAssertEqual(projection.level(after: 3_600), 80, accuracy: 0.5)
+    }
+
+    // MARK: - Milestones
+
+    func testMilestonesAreTheRoundNumbersStillAhead() throws {
+        let projection = try XCTUnwrap(
+            ChargeProjection.make(
+                level: 42, limit: 80,
+                observedRate: 20, power: nil, usableCapacity: nil,
+                hoursToFull: 38.0 / 20.0,
+                now: now
+            )
+        )
+        XCTAssertEqual(projection.milestones().map(\.percent), [50, 60, 70, 80])
+    }
+
+    func testAMilestoneAboveTheLimitHasNoTimeRatherThanAnInventedOne() throws {
+        // The car stops at 80. "When will it reach 90" has no answer, and a date
+        // is worse than nothing because someone would wait for it.
+        let projection = try XCTUnwrap(
+            ChargeProjection.make(
+                level: 50, limit: 80,
+                observedRate: 30, power: nil, usableCapacity: nil,
+                hoursToFull: 1, now: now
+            )
+        )
+        XCTAssertNil(projection.date(reaching: 90))
+        XCTAssertNotNil(projection.date(reaching: 80))
+        XCTAssertFalse(projection.milestones().contains { $0.percent > 80 })
+    }
+
+    func testMilestonesRunInOrderAndInTheFuture() throws {
+        let projection = try XCTUnwrap(
+            ChargeProjection.make(
+                level: 15, limit: 100,
+                observedRate: 90, power: nil, usableCapacity: nil,
+                hoursToFull: 2.4, now: now
+            )
+        )
+        let milestones = projection.milestones()
+        XCTAssertFalse(milestones.isEmpty)
+        for (earlier, later) in zip(milestones, milestones.dropFirst()) {
+            XCTAssertLessThan(earlier.date, later.date, "A later milestone cannot arrive sooner")
+        }
+        XCTAssertGreaterThanOrEqual(try XCTUnwrap(milestones.first).date, now)
+    }
+
+    // MARK: - Nothing to say
+
+    func testAChargeAlreadyAtItsLimitProjectsNothing() throws {
+        let projection = try XCTUnwrap(
+            ChargeProjection.make(
+                level: 80, limit: 80,
+                observedRate: 0, power: nil, usableCapacity: nil,
+                hoursToFull: 0, now: now
+            )
+        )
+        XCTAssertTrue(projection.isComplete)
+        XCTAssertTrue(projection.milestones().isEmpty)
+    }
+
+    func testNoRateFromAnySourceIsNoProjection() {
+        // Better a card with no forecast on it than a forecast of nothing
+        // presented as a forecast.
+        XCTAssertNil(
+            ChargeProjection.make(
+                level: 40, limit: 80,
+                observedRate: nil, power: nil, usableCapacity: nil, hoursToFull: nil,
+                now: now
+            )
+        )
+    }
+
+    func testPowerAndPackSizeCarryTheFirstMinutesBeforeARateCanBeMeasured() throws {
+        let projection = try XCTUnwrap(
+            ChargeProjection.make(
+                level: 40, limit: 80,
+                observedRate: nil,
+                power: 11, usableCapacity: 75,
+                hoursToFull: nil,
+                now: now
+            )
+        )
+        // 11 kW into 75 kWh is about 14.7 points an hour.
+        XCTAssertEqual(projection.initialRate, 14.67, accuracy: 0.1)
+    }
+
+    // MARK: - Power
+
+    /// The forecast power line has to start exactly where the measured one ends.
+    ///
+    /// It used to be computed as rate × pack capacity, which is arithmetically
+    /// tidy and wrong: usable capacity is not rated capacity and the charger's
+    /// reported power includes losses the pack never sees, so the two disagreed by
+    /// tens of kilowatts and the chart showed a step at the join.
+    func testTheForecastPowerContinuesFromTheReportedPowerRatherThanRestarting() throws {
+        let projection = try XCTUnwrap(
+            ChargeProjection.make(
+                level: 41, limit: 80,
+                observedRate: 87,
+                power: 118, usableCapacity: 78,
+                hoursToFull: 0.62,
+                now: now
+            )
+        )
+        XCTAssertEqual(
+            try XCTUnwrap(projection.power(at: 41)),
+            118,
+            accuracy: 0.01,
+            "The join between measured and forecast is where a reader is looking"
+        )
+    }
+
+    func testForecastPowerFallsInStepWithTheRate() throws {
+        let projection = try XCTUnwrap(
+            ChargeProjection.make(
+                level: 30, limit: 80,
+                observedRate: 100, power: 120, usableCapacity: 75,
+                hoursToFull: 1.25, now: now
+            )
+        )
+        let early = try XCTUnwrap(projection.power(at: 35))
+        let late = try XCTUnwrap(projection.power(at: 75))
+        XCTAssertGreaterThan(early, late)
+        // Power is the rate in different units, so the ratios must match.
+        XCTAssertEqual(
+            late / early,
+            projection.rate(at: 75) / projection.rate(at: 35),
+            accuracy: 0.001
+        )
+    }
+
+    func testWithNoReportedPowerThereIsNoPowerForecast() throws {
+        // Rather than deriving one from pack size, which is the thing that was
+        // wrong before.
+        let projection = try XCTUnwrap(
+            ChargeProjection.make(
+                level: 40, limit: 80,
+                observedRate: 20, power: nil, usableCapacity: 75,
+                hoursToFull: 2, now: now
+            )
+        )
+        XCTAssertNil(projection.power(at: 60))
+    }
+
+    func testTheCurveStopsAtTheLimitRatherThanRunningOn() throws {
+        let projection = try XCTUnwrap(
+            ChargeProjection.make(
+                level: 70, limit: 80,
+                observedRate: 20, power: nil, usableCapacity: nil,
+                hoursToFull: 0.5, now: now
+            )
+        )
+        let curve = projection.curve(through: 6 * 3_600)
+        XCTAssertEqual(try XCTUnwrap(curve.last).percent, 80, accuracy: 0.01)
+        XCTAssertLessThan(
+            try XCTUnwrap(curve.last).date.timeIntervalSince(now),
+            3_600,
+            "The curve should end when charging does"
+        )
+    }
+}
+
+/// The measured rate is what everything above is built on, so what it refuses to
+/// measure matters as much as what it does.
+final class LiveChargeSessionTests: XCTestCase {
+    private let start = Date(timeIntervalSince1970: 1_700_000_000)
+
+    private func session(levels: [(minutes: Double, level: Double)]) -> LiveChargeSession {
+        var session = LiveChargeSession()
+        for point in levels {
+            session.record(
+                date: start.addingTimeInterval(point.minutes * 60),
+                level: point.level,
+                power: 11,
+                energyAdded: nil,
+                range: nil
+            )
+        }
+        return session
+    }
+
+    func testARateIsMeasuredFromTheChargeActuallyGained() {
+        let session = session(levels: [(0, 40), (5, 41), (10, 43)])
+        let rate = session.observedRate(now: start.addingTimeInterval(10 * 60))
+        // Three points in ten minutes is eighteen an hour.
+        XCTAssertEqual(try XCTUnwrap(rate), 18, accuracy: 0.5)
+    }
+
+    func testTooShortASpanIsNoRateRatherThanAWildOne() {
+        // A level reported in whole percent, divided by twenty seconds, is either
+        // zero or enormous — and both would be put on screen as a plan.
+        let session = session(levels: [(0, 40), (0.33, 41)])
+        XCTAssertNil(session.observedRate(now: start.addingTimeInterval(20)))
+    }
+
+    func testALevelThatHasNotTickedOverYetIsNotAZeroRate() {
+        // Between two whole percents the car reports the same number for minutes.
+        // That is granularity, not a stalled charge.
+        let session = session(levels: [(0, 40), (5, 40), (10, 40)])
+        XCTAssertNil(session.observedRate(now: start.addingTimeInterval(10 * 60)))
+    }
+
+    func testOldReadingsFallOutOfTheWindowSoATaperIsFollowedDown() {
+        var session = LiveChargeSession()
+        // Fast early, slow now. Averaging across the whole session would report a
+        // rate the charger stopped delivering half an hour ago.
+        for minute in stride(from: 0.0, through: 30.0, by: 5) {
+            session.record(
+                date: start.addingTimeInterval(minute * 60),
+                level: 20 + minute * 2,
+                power: 150, energyAdded: nil, range: nil
+            )
+        }
+        for minute in stride(from: 35.0, through: 60.0, by: 5) {
+            session.record(
+                date: start.addingTimeInterval(minute * 60),
+                level: 80 + (minute - 30) * 0.2,
+                power: 30, energyAdded: nil, range: nil
+            )
+        }
+        let rate = try? XCTUnwrap(session.observedRate(now: start.addingTimeInterval(60 * 60)))
+        XCTAssertEqual(try XCTUnwrap(rate), 12, accuracy: 2, "The recent window is what is happening now")
+    }
+
+    func testGainsAreMeasuredFromTheStartOfTheSession() {
+        var session = LiveChargeSession()
+        session.record(date: start, level: 30, power: 50, energyAdded: 0, range: 100)
+        session.record(date: start.addingTimeInterval(600), level: 45, power: 50, energyAdded: 11.2, range: 155)
+        XCTAssertEqual(session.levelGained, 15)
+        XCTAssertEqual(session.rangeGained, 55)
+        XCTAssertEqual(session.energyAdded, 11.2)
+    }
+
+    func testAResetLeavesNothingOfThePreviousCharge() {
+        var session = LiveChargeSession()
+        session.record(date: start, level: 30, power: 50, energyAdded: 1, range: 100)
+        session.reset()
+        XCTAssertTrue(session.isEmpty)
+        XCTAssertNil(session.startedAt)
+        XCTAssertNil(session.levelGained)
+    }
+}

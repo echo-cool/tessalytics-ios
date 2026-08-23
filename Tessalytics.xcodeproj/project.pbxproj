@@ -15,6 +15,7 @@
 		0E336CD613FB460161E3C6F0 /* LiveDriveTotals.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CB309007860516549076B71 /* LiveDriveTotals.swift */; };
 		0E498FF594E7C44C2F8D8B1B /* UtilitiesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31E504FBBABA689C16A7479 /* UtilitiesTests.swift */; };
 		0F4F801C8F6DE89482942C5D /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89DEB8D112678AA392F7F3FD /* Components.swift */; };
+		10C4481823C0630EC2A393F5 /* ChargeProjection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18B7372FE1999F7452ECD0CA /* ChargeProjection.swift */; };
 		10C50C816DEF3DBD4672FF40 /* BackendClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDEEF6BBA94C3B7DAE5FB611 /* BackendClientTests.swift */; };
 		13095B5F39E375C448CB2666 /* SoftwareTimelineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54250E89E46E99ED30E20997 /* SoftwareTimelineTests.swift */; };
 		156276866132FA3C7CD38F76 /* GameCenterService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E1DD1FA0AD4F9851B0E723C /* GameCenterService.swift */; };
@@ -52,6 +53,7 @@
 		44A20F378B3FF54279C0CED2 /* ValueFormatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00D5950AF2AA3008BDB48C0C /* ValueFormatting.swift */; };
 		4532769BB1D5F29265CE8A2F /* battery-packs.json in Resources */ = {isa = PBXBuildFile; fileRef = 91CB86FCA8C7162B0725E314 /* battery-packs.json */; };
 		45DB2678083C7EF9804C0B91 /* ChartExplorer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A177C6B532764AAF1FF8DF3 /* ChartExplorer.swift */; };
+		4688BFB36656A95597B41E1B /* LiveChargeSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB2884D0CD9146467FBBDF89 /* LiveChargeSession.swift */; };
 		4D144803EC7234101FFB5D41 /* IntelligenceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E57175F82AA81155CABC906 /* IntelligenceView.swift */; };
 		4F70EBE4D78239142119E587 /* VehicleIntelligence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 415B42439C1E98208603B922 /* VehicleIntelligence.swift */; };
 		4FFBA03103597D35B71B3B26 /* LiveStateStream.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0E0757B2D95725A49822BC2 /* LiveStateStream.swift */; };
@@ -82,6 +84,7 @@
 		7AD89A36D0B99F03AC695F7C /* HistoryCoverageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9D86DAEB7008F166B621123 /* HistoryCoverageTests.swift */; };
 		7B8F2E9602339BCA4F461991 /* AppEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8799A0636A222A24A9C5375 /* AppEnvironment.swift */; };
 		8053FBFB8319C4B56F1D26D7 /* VehicleStatusCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94CC45DF24EDA0FF2613043C /* VehicleStatusCache.swift */; };
+		827A253D35A1A7BE72B114C9 /* LiveChargingViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE6F030D8FB62AF67E691EC0 /* LiveChargingViews.swift */; };
 		83086C0F7D31F8F1AC857D0C /* AchievementTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63D85125EF993F7004CF9C23 /* AchievementTests.swift */; };
 		831E2499CE20C203347D593D /* BatteryHealthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69B44CC97FFD4A1612AE9764 /* BatteryHealthView.swift */; };
 		83FF03E475A2C2D2DB8FF6A1 /* SharePoster.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33B44CE5E8EE1E03A5E4E4D7 /* SharePoster.swift */; };
@@ -99,6 +102,7 @@
 		98D2D6299FAE6932E9D97515 /* ScreenshotCaptureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4EB6E134D4971A688A7AF48 /* ScreenshotCaptureTests.swift */; };
 		9ABF6177BE29205A3F6019FF /* OwnerAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 702DCF1C2DDA8272CF7B1819 /* OwnerAPIClient.swift */; };
 		9B71ED6D4947742A1929D6C2 /* LiveRoutePathTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FB265EB8DFADB85DF531C76 /* LiveRoutePathTests.swift */; };
+		9CDCB5AE56764E2B621919A5 /* LiveChargingUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B92FDDD42CDBF40BBB4A1AA /* LiveChargingUITests.swift */; };
 		A053217C9B3E28E8B1581C81 /* APIModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70EF7E9E2D84547312F453C6 /* APIModels.swift */; };
 		A2D0741E7C29C94641044C57 /* OwnerAPICredentials.swift in Sources */ = {isa = PBXBuildFile; fileRef = 398D3A521A8AB7475EBE15DA /* OwnerAPICredentials.swift */; };
 		A48135F2ACA736D954604D75 /* HeroNavigationUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B4600996DCB4F7F41811E7C /* HeroNavigationUITests.swift */; };
@@ -117,6 +121,7 @@
 		B83F84CA133B23F5E06B6E4C /* PageSharingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C88CD14142D6439F4E61500 /* PageSharingTests.swift */; };
 		B8D5FD4C107D1E71675F6A7A /* LivePlaceNameTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6CD756CFC2F43081B61A3A2 /* LivePlaceNameTests.swift */; };
 		B98F75DA9489F9474A95284F /* LiveChartSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 950EDD42935461F27CF65B06 /* LiveChartSettingsView.swift */; };
+		B9C5FE1DFC1E352329690EEF /* ChargeProjectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FD1608AB20B21F494BEAE68 /* ChargeProjectionTests.swift */; };
 		C5F45DC6E0947445550E284E /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DD4E74EF9DBC45F5220DCEB /* SettingsView.swift */; };
 		C7C6796808B3E231294EF56B /* LiveStreamRefreshTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2659CAF96E322B15E2BCFAA9 /* LiveStreamRefreshTests.swift */; };
 		C88BA6DD9FCD74AF06B6D19D /* HistoryPreviews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74B179789D528ABB0D91F124 /* HistoryPreviews.swift */; };
@@ -189,6 +194,7 @@
 		0E7C7F2B95E5080A8010BA80 /* LiveChartPreferencesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveChartPreferencesTests.swift; sourceTree = "<group>"; };
 		0FEFDB871920BB9F0F3D947A /* LiveMetrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveMetrics.swift; sourceTree = "<group>"; };
 		11EC7525327A0C74EC7AE7A6 /* LiveReadingsCarriedThroughTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveReadingsCarriedThroughTests.swift; sourceTree = "<group>"; };
+		18B7372FE1999F7452ECD0CA /* ChargeProjection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChargeProjection.swift; sourceTree = "<group>"; };
 		199B8523D2A11AB11E7022C1 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
 		1AAABDA0F97A80B7609ED65C /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		1F03C152D0943CB501CCA498 /* IntelligenceNotificationSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntelligenceNotificationSettingsView.swift; sourceTree = "<group>"; };
@@ -237,6 +243,7 @@
 		5919E2938CD1717E0DEC12BE /* ChargingMapCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChargingMapCard.swift; sourceTree = "<group>"; };
 		5A27A41A9E3BC183BBB2F82E /* SoftwareTimeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoftwareTimeline.swift; sourceTree = "<group>"; };
 		5A310F5BA2391ED8763AFBE8 /* LiveRouteTrail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveRouteTrail.swift; sourceTree = "<group>"; };
+		5B92FDDD42CDBF40BBB4A1AA /* LiveChargingUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveChargingUITests.swift; sourceTree = "<group>"; };
 		5C64E8C37EA39F92E3F4382B /* VehicleSpecificationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VehicleSpecificationView.swift; sourceTree = "<group>"; };
 		5E4902A8606A0CAFEDFAB8DB /* VINDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VINDecoder.swift; sourceTree = "<group>"; };
 		5FB265EB8DFADB85DF531C76 /* LiveRoutePathTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveRoutePathTests.swift; sourceTree = "<group>"; };
@@ -246,6 +253,7 @@
 		63D85125EF993F7004CF9C23 /* AchievementTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AchievementTests.swift; sourceTree = "<group>"; };
 		69B44CC97FFD4A1612AE9764 /* BatteryHealthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatteryHealthView.swift; sourceTree = "<group>"; };
 		6F6420EFA70BE1BF7180F124 /* InsightsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightsView.swift; sourceTree = "<group>"; };
+		6FD1608AB20B21F494BEAE68 /* ChargeProjectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChargeProjectionTests.swift; sourceTree = "<group>"; };
 		702DCF1C2DDA8272CF7B1819 /* OwnerAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OwnerAPIClient.swift; sourceTree = "<group>"; };
 		70EF7E9E2D84547312F453C6 /* APIModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIModels.swift; sourceTree = "<group>"; };
 		736A99C71F59EF76B9A1A2CA /* HistoryRepositories.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryRepositories.swift; sourceTree = "<group>"; };
@@ -274,6 +282,7 @@
 		A7B2B8727A67DEFF32A55699 /* FleetStatistics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FleetStatistics.swift; sourceTree = "<group>"; };
 		A8628070B08C47B53C21DA09 /* DirectTeslaControlsCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DirectTeslaControlsCard.swift; sourceTree = "<group>"; };
 		A9058F20C9970E1F434441E9 /* TyrePressureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TyrePressureView.swift; sourceTree = "<group>"; };
+		AB2884D0CD9146467FBBDF89 /* LiveChargeSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveChargeSession.swift; sourceTree = "<group>"; };
 		AB56D93B2E638559734F5B3B /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		AC8E2BBB853FCEEA2FE25424 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
 		AD58F56270ED9EE5AA34AD00 /* FleetStatisticsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FleetStatisticsTests.swift; sourceTree = "<group>"; };
@@ -307,6 +316,7 @@
 		D8799A0636A222A24A9C5375 /* AppEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppEnvironment.swift; sourceTree = "<group>"; };
 		DC6B9FEB599EB4201B5D3E7B /* VehicleDataAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VehicleDataAPI.swift; sourceTree = "<group>"; };
 		DE3DAE5214CDEEF2FCE5C095 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
+		DE6F030D8FB62AF67E691EC0 /* LiveChargingViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveChargingViews.swift; sourceTree = "<group>"; };
 		E31E504FBBABA689C16A7479 /* UtilitiesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UtilitiesTests.swift; sourceTree = "<group>"; };
 		E3C10EA5F7393F88E2105AA5 /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
 		E3D4DC173E043F24BDD0CDF2 /* SoftwareUpdatesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoftwareUpdatesView.swift; sourceTree = "<group>"; };
@@ -365,8 +375,10 @@
 			children = (
 				28F714155C63878469AC8259 /* AnalyticsService.swift */,
 				C1571B189CA924F7F1A07461 /* BatteryLevelHistory.swift */,
+				18B7372FE1999F7452ECD0CA /* ChargeProjection.swift */,
 				A7B2B8727A67DEFF32A55699 /* FleetStatistics.swift */,
 				B520968A8B9F779E8BEE8E59 /* HistoryCoverage.swift */,
+				AB2884D0CD9146467FBBDF89 /* LiveChargeSession.swift */,
 				52202B52CA38F2B8E0BBB01D /* LiveChartPreferences.swift */,
 				4CB309007860516549076B71 /* LiveDriveTotals.swift */,
 				C2E177A9AD4627F417170B33 /* LiveMapCamera.swift */,
@@ -570,6 +582,7 @@
 				F59C8724992095D365E50D5D /* ChartInteractionUITests.swift */,
 				22C59F4E0F6181687BA5423C /* DiagnosticsUITests.swift */,
 				7B4600996DCB4F7F41811E7C /* HeroNavigationUITests.swift */,
+				5B92FDDD42CDBF40BBB4A1AA /* LiveChargingUITests.swift */,
 				E65425A91176BBD3A34A1C5A /* LiveDrivingUITests.swift */,
 				E4EB6E134D4971A688A7AF48 /* ScreenshotCaptureTests.swift */,
 				547FF730D723B1424858A5FA /* SendToCarUITests.swift */,
@@ -704,6 +717,7 @@
 			children = (
 				AC8E2BBB853FCEEA2FE25424 /* DashboardView.swift */,
 				A8628070B08C47B53C21DA09 /* DirectTeslaControlsCard.swift */,
+				DE6F030D8FB62AF67E691EC0 /* LiveChargingViews.swift */,
 				50FAB728E3996FF6AFF386C7 /* LiveDrivingViews.swift */,
 				CD2E3E9E560B072FA7AB7C6F /* LiveMapScreen.swift */,
 				199B8523D2A11AB11E7022C1 /* MainTabView.swift */,
@@ -773,6 +787,7 @@
 				4F35D5274137AFD824BAA32C /* BatteryLevelHistoryTests.swift */,
 				0391D95748708137B54B1CD5 /* BatteryPackCatalogueTests.swift */,
 				D5E872FDD6FDA9D7DE38B03B /* CarDestinationTests.swift */,
+				6FD1608AB20B21F494BEAE68 /* ChargeProjectionTests.swift */,
 				CF42BFB43015DC8F460CA7FA /* ChartDomainTests.swift */,
 				B07D8877CA78A9ABD1445B95 /* DateParsingTests.swift */,
 				C5D82A8357ABD2FC67D9A2AB /* DemoDriveSimulationTests.swift */,
@@ -950,6 +965,7 @@
 				33A412D089CA000121AE68A3 /* BatteryLevelHistoryTests.swift in Sources */,
 				27ECD1648D40604CB5419FED /* BatteryPackCatalogueTests.swift in Sources */,
 				2750ED8E9CCC350A845D1BF5 /* CarDestinationTests.swift in Sources */,
+				B9C5FE1DFC1E352329690EEF /* ChargeProjectionTests.swift in Sources */,
 				94489801B81E24CB6EF790FC /* ChartDomainTests.swift in Sources */,
 				33C58313A0294E362C5DB0E3 /* DateParsingTests.swift in Sources */,
 				FC6D3DFA53283655B80343BD /* DemoDriveSimulationTests.swift in Sources */,
@@ -1011,6 +1027,7 @@
 				5A77E2461C5DD4C42830C412 /* ChargeCurveChart.swift in Sources */,
 				DC684EF770524BC1181C6A5C /* ChargeDetailView.swift in Sources */,
 				EBAF49258554D280F75F2370 /* ChargeHistoryView.swift in Sources */,
+				10C4481823C0630EC2A393F5 /* ChargeProjection.swift in Sources */,
 				3A91A61B9AA68CA36351A3FC /* ChargingMapCard.swift in Sources */,
 				45DB2678083C7EF9804C0B91 /* ChartExplorer.swift in Sources */,
 				0F4F801C8F6DE89482942C5D /* Components.swift in Sources */,
@@ -1035,6 +1052,8 @@
 				3EFEDFAFDC076A7CE0DA779A /* IntelligenceNotificationSettingsView.swift in Sources */,
 				4D144803EC7234101FFB5D41 /* IntelligenceView.swift in Sources */,
 				500A93FD681BB216A203E726 /* KeychainCredentialStore.swift in Sources */,
+				4688BFB36656A95597B41E1B /* LiveChargeSession.swift in Sources */,
+				827A253D35A1A7BE72B114C9 /* LiveChargingViews.swift in Sources */,
 				1BF499A2492CFD3DD47098B3 /* LiveChartPreferences.swift in Sources */,
 				B98F75DA9489F9474A95284F /* LiveChartSettingsView.swift in Sources */,
 				0E336CD613FB460161E3C6F0 /* LiveDriveTotals.swift in Sources */,
@@ -1094,6 +1113,7 @@
 				B7A99FE7A6837A3B9F37EFAF /* ChartInteractionUITests.swift in Sources */,
 				6F900B9D243C2F39000F9D5E /* DiagnosticsUITests.swift in Sources */,
 				A48135F2ACA736D954604D75 /* HeroNavigationUITests.swift in Sources */,
+				9CDCB5AE56764E2B621919A5 /* LiveChargingUITests.swift in Sources */,
 				DE784E88E448C34D53B8CED2 /* LiveDrivingUITests.swift in Sources */,
 				98D2D6299FAE6932E9D97515 /* ScreenshotCaptureTests.swift in Sources */,
 				1B5B53DB9ACE7AF58A928415 /* SendToCarUITests.swift in Sources */,
@@ -1190,7 +1210,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 202608231311;
+				CURRENT_PROJECT_VERSION = 202608231439;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = P8FYZDZ6AA;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -1210,7 +1230,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
-				MARKETING_VERSION = 1.8.5;
+				MARKETING_VERSION = 1.8.6;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -1258,7 +1278,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 202608231311;
+				CURRENT_PROJECT_VERSION = 202608231439;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = P8FYZDZ6AA;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -1272,7 +1292,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
-				MARKETING_VERSION = 1.8.5;
+				MARKETING_VERSION = 1.8.6;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";

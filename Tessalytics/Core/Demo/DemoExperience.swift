@@ -184,6 +184,112 @@ enum DemoExperience {
         return totals
     }
 
+    /// A car part-way through a DC fast charge.
+    ///
+    /// Deliberately a *tapering* one: still drawing hard, but with the car itself
+    /// saying it needs longer to reach 80 than that rate implies. A demo that
+    /// charged at a flat rate would exercise the easy half of the forecast and
+    /// hide the half that matters.
+    ///
+    /// The figures are kept consistent with each other on purpose. An earlier
+    /// version claimed 118 kW beside a level climbing at 60 %/h, which on a 78 kWh
+    /// pack is arithmetically impossible — and it showed, as a power line and a
+    /// charge line telling two different stories in the same frame.
+    static let chargingPackKWh: Double = 78
+    /// Where the session began.
+    static let chargingStartLevel: Double = 22
+    static let chargingNowLevel: Double = 41
+    static let chargingElapsed: TimeInterval = 17 * 60
+
+    /// Percent per hour at a given charge: fast at the bottom, easing as it fills.
+    private static func chargingRate(at percent: Double) -> Double {
+        max(105 - 0.85 * (percent - chargingStartLevel), 12)
+    }
+
+    private static func chargingPower(at percent: Double) -> Double {
+        chargingRate(at: percent) / 100 * chargingPackKWh
+    }
+
+    static func chargingStatus(now: Date = .now) -> VehicleStatus {
+        let parked = status(now: now)
+        let limit: Double = 80
+        // Integrating 1/rate from here to the limit, which is what the car's own
+        // estimate would be if the car agreed with this curve.
+        var hours = 0.0
+        var level = chargingNowLevel
+        while level < limit {
+            hours += 0.25 / chargingRate(at: level)
+            level += 0.25
+        }
+        return VehicleStatus(
+            displayName: parked.displayName,
+            state: "charging",
+            stateSince: FlexibleDate(now.addingTimeInterval(-chargingElapsed)),
+            odometer: parked.odometer,
+            carStatus: parked.carStatus,
+            carDetails: parked.carDetails,
+            carGeodata: parked.carGeodata,
+            carVersions: parked.carVersions,
+            drivingDetails: parked.drivingDetails,
+            climateDetails: parked.climateDetails,
+            batteryDetails: StatusBatteryDTO(
+                estBatteryRange: 125.4,
+                ratedBatteryRange: 120.6,
+                idealBatteryRange: 129,
+                batteryLevel: Int(chargingNowLevel),
+                usableBatteryLevel: Int(chargingNowLevel)
+            ),
+            chargingDetails: StatusChargingDTO(
+                pluggedIn: true,
+                chargingState: "Charging",
+                chargeEnergyAdded: chargingSession(now: now).energyAdded ?? 0,
+                chargeLimitSoc: Int(limit),
+                chargePortDoorOpen: true,
+                chargerActualCurrent: 190,
+                chargerPhases: nil,
+                chargerPower: chargingPower(at: chargingNowLevel).rounded(),
+                chargerVoltage: 394,
+                scheduledChargingStartTime: nil,
+                timeToFullCharge: hours
+            ),
+            tpmsDetails: parked.tpmsDetails
+        )
+    }
+
+    /// Readings from the minutes of this charge already elapsed, so the measured
+    /// rate and the solid half of the forecast chart have something real behind
+    /// them.
+    ///
+    /// Integrated *backwards* from the level the status reports, not forwards from
+    /// where the session began. Forwards, the walk ended wherever the arithmetic
+    /// took it — nine points above the reading — and the measured line climbed
+    /// past the current charge and then dropped to meet it, drawing a charge that
+    /// went down while the car was plugged in.
+    static func chargingSession(now: Date = .now) -> LiveChargeSession {
+        let step: TimeInterval = 60
+        var levels: [Double] = []
+        var level = chargingNowLevel
+        var offset: TimeInterval = 0
+        while offset <= chargingElapsed {
+            levels.append(level)
+            level -= chargingRate(at: level) * (step / 3_600)
+            offset += step
+        }
+
+        var session = LiveChargeSession()
+        for (index, level) in levels.reversed().enumerated() {
+            let elapsed = Double(index) * step
+            session.record(
+                date: now.addingTimeInterval(elapsed - chargingElapsed),
+                level: level.rounded(),
+                power: chargingPower(at: level).rounded(),
+                energyAdded: ((level - levels.last!) / 100 * chargingPackKWh).rounded(),
+                range: 67 + (level - levels.last!) * 3.07
+            )
+        }
+        return session
+    }
+
     static func status(now: Date = .now) -> VehicleStatus {
         VehicleStatus(
             displayName: "Aurora",

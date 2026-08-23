@@ -83,6 +83,28 @@ alongside, computed on the device and reported to Game Center when you are signe
 > The live-driving captures are from a real car and show real routes and addresses.
 > Everything else uses generated demo data — no real vehicle, VIN, server or credential.
 
+## While it is charging
+
+Plugged in, the hero card stops showing a week of battery history and starts
+answering the question a charging car actually raises: when can I leave, and with
+what. It shows the charge an hour from now, the time it reaches your limit, and a
+chart of both — with a clock time for every ten percent along the way.
+
+The chart carries two axes. Charge climbs on the left, charging power falls on the
+right, and the second explains the first: it is the power tapering that makes the
+last ten percent take as long as the first thirty. Solid lines are measured, from
+the car's own readings since the moment it was plugged in. Dashed lines are the
+forecast. They meet at "now", and they look different because one is a reading and
+the other is a guess.
+
+**No charging curve is baked in.** Charging is not one shape — a wall box holds its
+rate, a Supercharger does not — and a table of curves per model would be wrong for
+some pack, temperature or cabinet. Instead one number is fitted to two things the
+car itself reports: the rate right now, and the time the car says it needs to reach
+the limit. If they agree, the line is straight. If the car says it needs longer than
+the current rate implies, that difference *is* the taper, and the curve bends until
+the two agree. The card says "slowing" when it does.
+
 ## Send a destination to the car
 
 The car has already been everywhere you go. Tessalytics records those arrivals, so
@@ -119,6 +141,7 @@ left out of the picture.
 
 ## What Tessalytics does
 
+- Forecasts the charge an hour ahead and the time it reaches your limit, allowing for the rate tapering
 - Sends any of your most-visited places to the car's navigation in one tap, through the Tesla app's share extension
 - Shares any page as a single tall image, watermarked, with a written summary beside it
 - Shows live or last-reported battery, range, location, climate, security, charging, odometer, tire pressure, and software state

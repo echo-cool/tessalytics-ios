@@ -29,6 +29,8 @@ final class AppEnvironment {
     /// A rolling window, by design. The figures for the *whole* journey live in
     /// `liveDriveTotals`, because this one is pruned.
     var liveTelemetry = LiveTelemetryBuffer()
+    /// Readings taken during the charge the car is on now.
+    var liveChargeSession = LiveChargeSession()
     /// Distance, energy and the peaks for the drive in progress.
     ///
     /// Kept apart from the buffer above, which holds about eight minutes of a
@@ -67,7 +69,10 @@ final class AppEnvironment {
     /// forgot to mention the gear is a flicker, not an update. A drive ends on a
     /// reading that says so, or on the grace expiring; not on a silence.
     private(set) var isLiveDriving = false
+    /// Whether the car is on a charger right now.
+    private(set) var isLiveCharging = false
     private var lastDrivingReadingAt: Date?
+    private var lastChargingReadingAt: Date?
 
     /// Where the car is, in words.
     ///
@@ -216,6 +221,7 @@ final class AppEnvironment {
                     && !arguments.contains("-ui-owner-disconnected"),
                 offline: arguments.contains("-ui-demo-offline"),
                 driving: arguments.contains("-ui-demo-driving"),
+                charging: arguments.contains("-ui-demo-charging"),
                 // A drive that actually moves. Off by default: the screenshot
                 // sets want one fixed frame, not a car that has driven away by
                 // the time the shutter opens.
@@ -322,6 +328,7 @@ final class AppEnvironment {
         showDirectControls: Bool,
         offline: Bool = false,
         driving: Bool = false,
+        charging: Bool = false,
         animated: Bool = false
     ) {
         stopStatusPolling()
@@ -343,7 +350,13 @@ final class AppEnvironment {
         selectedVehicle = vehicle
         // Demo mode never reaches the network, so the geocoder must not either.
         livePlace = LivePlaceName(resolver: DemoExperience.placeNames)
-        if driving {
+        if charging {
+            let reading = DemoExperience.chargingStatus()
+            status = reading
+            liveChargeSession = DemoExperience.chargingSession()
+            updateLivePlace(reading)
+            updateChargingLatch(reading, now: .now)
+        } else if driving {
             let reading = DemoExperience.drivingStatus()
             status = reading
             liveTelemetry = DemoExperience.drivingTelemetry()
@@ -808,6 +821,7 @@ final class AppEnvironment {
     private func recordLive(_ status: VehicleStatus, now: Date = .now) {
         updateLivePlace(status)
         updateDrivingLatch(status, now: now)
+        updateChargingLatch(status, now: now)
         guard status.isDriving else {
             // Still latched: the reading did not say the journey ended, so the
             // charts and the route stay where they are for another moment rather
@@ -858,6 +872,84 @@ final class AppEnvironment {
         recordLive(status, now: now)
     }
     #endif
+
+    /// How long a charge survives readings that neither confirm nor deny it.
+    ///
+    /// Longer than a drive's grace. A charging car reports far less often than a
+    /// moving one — nothing is changing except a percentage — and dropping the
+    /// card between readings would flicker the whole section off the screen.
+    static let chargingGrace: TimeInterval = 90
+
+    /// Decides whether the screen is still in a charge, and records the reading.
+    private func updateChargingLatch(_ status: VehicleStatus, now: Date) {
+        let was = isLiveCharging
+        defer {
+            if was != isLiveCharging {
+                diagnostics.record(
+                    .state,
+                    isLiveCharging ? "Charge started" : "Charge ended",
+                    detail: Self.chargeLatchDetail(status)
+                )
+            }
+        }
+
+        if status.isCharging {
+            lastChargingReadingAt = now
+            isLiveCharging = true
+            liveChargeSession.record(
+                date: now,
+                level: status.batteryDetails?.batteryLevel.map(Double.init),
+                power: status.chargingDetails?.reportedPower,
+                energyAdded: status.chargingDetails?.chargeEnergyAdded,
+                range: status.batteryDetails?.displayRange?.value
+            )
+            return
+        }
+
+        // "Complete", "disconnected", unplugged, or driving away: all statements
+        // that this charge is over. Only silence gets the benefit of the doubt.
+        if status.isPositivelyNotCharging {
+            endCharge()
+            return
+        }
+        guard let last = lastChargingReadingAt else {
+            isLiveCharging = false
+            return
+        }
+        guard now.timeIntervalSince(last) >= Self.chargingGrace else { return }
+        endCharge()
+    }
+
+    private static func chargeLatchDetail(_ status: VehicleStatus) -> String {
+        let state = status.chargingDetails?.chargingState ?? "nil"
+        let power = status.chargingDetails?.chargerPower
+        let powerText = power.map { String(format: "%.1f", $0) } ?? "nil"
+        return "state=\(state) power=\(powerText)"
+    }
+
+    private func endCharge() {
+        isLiveCharging = false
+        lastChargingReadingAt = nil
+        if !liveChargeSession.isEmpty { liveChargeSession.reset() }
+    }
+
+    /// Where the battery is heading, from what the car is reporting now.
+    ///
+    /// Rebuilt on read rather than stored: it is a function of the latest reading
+    /// and the clock, and a stored copy would be a projection made at some earlier
+    /// moment quietly presented as the current one.
+    var chargeProjection: ChargeProjection? {
+        guard isLiveCharging, let status else { return nil }
+        guard let level = status.batteryDetails?.batteryLevel.map(Double.init) else { return nil }
+        return ChargeProjection.make(
+            level: level,
+            limit: Double(status.chargingDetails?.reportedChargeLimit ?? 100),
+            observedRate: liveChargeSession.observedRate(),
+            power: status.chargingDetails?.reportedPower,
+            usableCapacity: fleet.battery?.capacityNew,
+            hoursToFull: status.chargingDetails?.timeToFullCharge
+        )
+    }
 
     /// How long a drive survives readings that neither confirm nor deny it.
     ///

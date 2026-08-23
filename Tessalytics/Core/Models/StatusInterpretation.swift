@@ -271,6 +271,35 @@ extension VehicleStatus {
         }
     }
 
+    /// Whether the car is taking charge right now.
+    ///
+    /// Power rather than the state word alone: TeslaMate reports `charging` for a
+    /// moment before any current flows and, on some installs, keeps reporting it
+    /// after the car has finished. Either reading on its own is enough — a state
+    /// of "charging" before the first power reading arrives is still a charge
+    /// beginning.
+    var isCharging: Bool {
+        if (chargingDetails?.reportedPower ?? 0) > 0 { return true }
+        return chargingDetails?.chargingState?.lowercased() == "charging"
+    }
+
+    /// Whether the car has said, rather than merely failed to mention, that it is
+    /// not charging.
+    ///
+    /// The distinction matters for the same reason it does for a drive: a
+    /// charging car publishes rarely, because nothing about it is changing except
+    /// a percentage, and treating a quiet minute as the end of the session takes
+    /// the card off the screen while the cable is still in.
+    var isPositivelyNotCharging: Bool {
+        guard !isCharging else { return false }
+        if let state = chargingDetails?.chargingState?.lowercased() {
+            if ["complete", "disconnected", "stopped", "nopower"].contains(state) { return true }
+        }
+        if chargingDetails?.pluggedIn == false { return true }
+        if isDriving { return true }
+        return state?.lowercased() == "driving"
+    }
+
     /// Whether the car is in a drive but standing still — at a light, in traffic,
     /// or waiting to turn.
     ///
