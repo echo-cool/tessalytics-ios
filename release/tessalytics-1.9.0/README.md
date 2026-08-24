@@ -69,7 +69,7 @@ own place and vehicle names.
 
 ## Verification
 
-- 520-odd unit and UI tests passing before the archive.
+- 537 unit and UI tests passing before the archive.
 - `UnitPreferenceTests` covers both directions, the inverted efficiency factor,
   round-tripping, and that the preference never appears in an encoded payload.
 - `LocalizationTests` now checks all six catalogues resolve, that Traditional
