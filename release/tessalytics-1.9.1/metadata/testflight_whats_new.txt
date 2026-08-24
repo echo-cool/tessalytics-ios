@@ -1,0 +1,28 @@
+Tessalytics 1.9.1 — three layout fixes at large text sizes.
+
+Found by setting an iPhone to an accessibility text size and reading the German
+and Japanese screens. All three only appear at those sizes; nothing changes at the
+default.
+
+- A parked car's address collapsed to "1350…". It was sharing a row with the gear
+  and state badges under a one-line limit. It now gets the width of the card to
+  itself and wraps, because where the car is standing is the whole point of that
+  line.
+
+- The odometer icon drew on top of its own label. The icon's box was a fixed size
+  while the symbol inside it grew with the text, so it spilled over the words
+  beside it. The two icons beside the battery ring now step aside at accessibility
+  sizes; the labels say what the figures are without them.
+
+- "Auswertung" was cut to "Auswer…" in the four buttons under the vehicle card.
+  Two lines now.
+
+Japanese was clean throughout — it sets taller rather than wider, so nothing ran
+out of room.
+
+WHAT TO TEST
+
+Settings → Accessibility → Display & Text Size → Larger Text, pushed well up, then
+the home screen and Settings in German, Japanese and your own language. Anything
+cut off, overlapping or unreachable is worth reporting — especially in a language I
+have not looked at at that size.
