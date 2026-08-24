@@ -7,6 +7,11 @@ struct TessalyticsApp: App {
     @State private var environment: AppEnvironment
 
     init() {
+        // Before anything else, and before the app finishes launching: a
+        // notification that fires while the app is in front is not shown at all
+        // unless something has claimed the delegate. See NotificationPresenter.
+        NotificationPresenter.install()
+
         let schema = Schema([
             ServerProfileRecord.self, VehicleRecord.self, DriveRecord.self,
             ChargeRecord.self, DetailCacheRecord.self, BatteryHealthRecord.self,

@@ -121,6 +121,7 @@
 		ACD60CDDEF4297084B4FB903 /* VehicleHeroSummaryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 763B2AFC981CBAD088D81546 /* VehicleHeroSummaryTests.swift */; };
 		AF3D5F6B1C6726A8B6D48CDE /* RoutePosterMap.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1B82480C76165507D2A6282 /* RoutePosterMap.swift */; };
 		B0628B0C50A29B2C126E5937 /* VehicleSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F98CEEC267997D8530269F83 /* VehicleSettingsView.swift */; };
+		B1A27DAE47A11CC279468424 /* NotificationPresenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A92AA31928B006A6F83C681A /* NotificationPresenter.swift */; };
 		B2AEC655261286C5592F2570 /* LiveMetrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FEFDB871920BB9F0F3D947A /* LiveMetrics.swift */; };
 		B700A4372E697A2C4E395D9B /* OwnerCommandAuthorization.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C51341E85FE293B71D96C15 /* OwnerCommandAuthorization.swift */; };
 		B7A99FE7A6837A3B9F37EFAF /* ChartInteractionUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F59C8724992095D365E50D5D /* ChartInteractionUITests.swift */; };
@@ -297,6 +298,7 @@
 		A7B2B8727A67DEFF32A55699 /* FleetStatistics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FleetStatistics.swift; sourceTree = "<group>"; };
 		A8628070B08C47B53C21DA09 /* DirectTeslaControlsCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DirectTeslaControlsCard.swift; sourceTree = "<group>"; };
 		A9058F20C9970E1F434441E9 /* TyrePressureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TyrePressureView.swift; sourceTree = "<group>"; };
+		A92AA31928B006A6F83C681A /* NotificationPresenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationPresenter.swift; sourceTree = "<group>"; };
 		AB2884D0CD9146467FBBDF89 /* LiveChargeSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveChargeSession.swift; sourceTree = "<group>"; };
 		AB56D93B2E638559734F5B3B /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		AC8E2BBB853FCEEA2FE25424 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
@@ -676,6 +678,7 @@
 			isa = PBXGroup;
 			children = (
 				EA8CC225422B884D999C24A4 /* IntelligenceNotificationService.swift */,
+				A92AA31928B006A6F83C681A /* NotificationPresenter.swift */,
 			);
 			path = Notifications;
 			sourceTree = "<group>";
@@ -1112,6 +1115,7 @@
 				4FFBA03103597D35B71B3B26 /* LiveStateStream.swift in Sources */,
 				F769987F668689D5AA17DC69 /* LiveTelemetryBuffer.swift in Sources */,
 				5393643C00CF9A53248FF4D0 /* MainTabView.swift in Sources */,
+				B1A27DAE47A11CC279468424 /* NotificationPresenter.swift in Sources */,
 				9403C2A5150621FF5101861C /* OnboardingView.swift in Sources */,
 				9ABF6177BE29205A3F6019FF /* OwnerAPIClient.swift in Sources */,
 				18E0299F637D2564DF650B48 /* OwnerAPIConnectionView.swift in Sources */,

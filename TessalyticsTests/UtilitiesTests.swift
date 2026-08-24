@@ -1,3 +1,4 @@
+import UserNotifications
 import XCTest
 @testable import Tessalytics
 
@@ -258,6 +259,30 @@ final class UtilitiesTests: XCTestCase {
             severity: .warning
         )
         XCTAssertEqual(planner.insightNotifications(insights: [insight], vehicleName: "Nova", preferences: preferences).count, 1)
+    }
+
+    /// The planner tests above all passed while the feature delivered nothing:
+    /// they prove the right alerts are *planned*, and nothing checked that any
+    /// of them is ever *shown*. Every alert here fires with the app in front,
+    /// where iOS presents nothing at all unless a delegate says otherwise.
+    func testForegroundNotificationsArePresentedRatherThanSwallowed() {
+        let options = NotificationPresenter.foregroundPresentationOptions
+        XCTAssertTrue(options.contains(.banner), "An alert that fires with the app open must still be seen.")
+        XCTAssertTrue(options.contains(.sound), "Silent delivery is what the reader reported as nothing arriving.")
+        XCTAssertTrue(options.contains(.list), "It should also be findable in Notification Centre afterwards.")
+    }
+
+    /// `UNUserNotificationCenter.delegate` is a weak reference, so a delegate
+    /// that is merely created and assigned is deallocated on the spot and the
+    /// centre is left with none — indistinguishable from never having set one.
+    func testTheInstalledDelegateIsRetained() {
+        let center = UNUserNotificationCenter.current()
+        NotificationPresenter.install(on: center)
+        XCTAssertIdentical(
+            center.delegate as? NotificationPresenter,
+            NotificationPresenter.shared,
+            "The delegate must outlive the call that installed it."
+        )
     }
 
     private func makeStatus(
