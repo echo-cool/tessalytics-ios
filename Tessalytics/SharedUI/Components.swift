@@ -421,6 +421,7 @@ struct NavigationSectionCard<Destination: View, Content: View>: View {
 struct QuickLinkTile<Destination: View>: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.locale) private var locale
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let title: String
     let symbol: String
     var tint: Color = TessalyticsTheme.accent
@@ -451,7 +452,10 @@ struct QuickLinkTile<Destination: View>: View {
                 Text(locale.appString(title))
                     .font(.caption2.weight(.medium))
                     .foregroundStyle(.primary)
-                    .lineLimit(1)
+                    // A quarter of the width holds "Drives" on one line and
+                    // "Auswertung" on none. Two lines at accessibility sizes,
+                    // where a truncated tile label names nothing.
+                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
                     .minimumScaleFactor(0.7)
             }
             .frame(maxWidth: .infinity, minHeight: 52)

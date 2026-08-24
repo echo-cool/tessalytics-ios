@@ -1434,7 +1434,7 @@ private struct VehicleHeroCard: View {
                             .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
                             .minimumScaleFactor(0.78)
                             .accessibilityIdentifier("vehicle-headline")
-                    } else if let place = summary.placeText {
+                    } else if let place = summary.placeText, !dynamicTypeSize.isAccessibilitySize {
                         Label(place, systemImage: "mappin.and.ellipse")
                             .font(.subheadline.weight(.medium))
                             .foregroundStyle(.secondary)
@@ -1455,6 +1455,20 @@ private struct VehicleHeroCard: View {
                         StatusBadge(text: summary.stateNoun, color: tint)
                             .accessibilityIdentifier("vehicle-state-pill")
                     }
+                }
+
+                // At accessibility sizes the address gets the width of the card
+                // to itself. Sharing a row with the gear and state badges left it
+                // truncated to "1350…", and where a parked car is standing is the
+                // one thing that line exists to say.
+                if !summary.isNotable, let place = summary.placeText, dynamicTypeSize.isAccessibilitySize {
+                    Label(place, systemImage: "mappin.and.ellipse")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(4)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .accessibilityIdentifier("vehicle-place")
                 }
 
                 // "Driving" on its own says nothing a glance at the road does
@@ -2240,12 +2254,22 @@ private struct HeroFigure: View {
     let symbol: String
     let tint: Color
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: symbol)
-                .font(.footnote)
-                .foregroundStyle(tint)
-                .frame(width: 18)
+            // The icon drops out at accessibility sizes, as it does on
+            // MetricCard and for the same reason: the fixed frame that keeps the
+            // two figures' icons aligned does not clip, so a wide glyph — the
+            // road-lanes symbol on the odometer — grew straight over the label
+            // beside it. Scaling the frame did not help; the glyph is wider than
+            // its box either way. The label already names the figure.
+            if !dynamicTypeSize.isAccessibilitySize {
+                Image(systemName: symbol)
+                    .font(.footnote)
+                    .foregroundStyle(tint)
+                    .frame(width: 18)
+            }
             VStack(alignment: .leading, spacing: 0) {
                 Text(value)
                     .font(.title3.weight(.semibold))
