@@ -17,6 +17,18 @@
 	possible; `ProfileDraft` still rejects HTTP until the person enables "Allow
 	insecure HTTP" for that profile. TLS certificate validation is never disabled.
 	-->
+	<!--
+	The languages this app claims. iOS reads this to decide what to offer in
+	Settings > Tessalytics > Language, which is the other place someone might go
+	looking, and to pick a localization when the app is launched fresh.
+	-->
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>en</string>
+		<string>zh-Hans</string>
+	</array>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>

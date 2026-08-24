@@ -32,6 +32,10 @@ struct TessalyticsApp: App {
         WindowGroup {
             RootView()
                 .environment(environment)
+                // The chosen language, or the phone's when nothing was chosen.
+                // Everything that resolves a string reads this, so a change here
+                // redraws the whole interface in the new language at once.
+                .environment(\.locale, environment.languageLocale ?? Locale.autoupdatingCurrent)
                 .task { await environment.start() }
         }
         .modelContainer(container)

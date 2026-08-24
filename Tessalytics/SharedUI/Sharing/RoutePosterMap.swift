@@ -1,4 +1,5 @@
 import MapKit
+import os
 import SwiftUI
 
 /// A route drawn as a picture rather than as a map view.
@@ -74,7 +75,12 @@ final class RoutePosterSnapshot {
             userInterfaceStyle: colorScheme == .dark ? .dark : .light
         )
 
-        guard let snapshot = try? await MKMapSnapshotter(options: options).start() else { return nil }
+        // Bounded, because this sits between a tap and a share sheet. A tile
+        // server that is slow or unreachable would otherwise leave the button
+        // spinning with nothing to say, and a poster with a plain panel where the
+        // map should be is a better outcome than one that never arrives.
+        guard let boxed = await Self.snapshot(with: options, timeout: 6) else { return nil }
+        let snapshot = boxed.snapshot
 
         let format = UIGraphicsImageRendererFormat()
         format.scale = snapshot.image.scale
@@ -118,6 +124,51 @@ final class RoutePosterSnapshot {
                     for: CLLocationCoordinate2D(latitude: pin.latitude, longitude: pin.longitude)
                 )
                 mark(point, colour: UIColor(TessalyticsTheme.accent), in: context.cgContext)
+            }
+        }
+    }
+
+    /// A snapshot, handed across a task boundary.
+    ///
+    /// `MKMapSnapshotter.Snapshot` is not `Sendable`. Exactly one task reads this
+    /// one, after the callback that made it has returned, so vouching for it here
+    /// is honest rather than a way around the checker.
+    struct SnapshotBox: @unchecked Sendable {
+        let snapshot: MKMapSnapshotter.Snapshot
+        init(_ snapshot: MKMapSnapshotter.Snapshot) { self.snapshot = snapshot }
+    }
+
+    /// Takes a snapshot, giving up after a deadline.
+    ///
+    /// `MKMapSnapshotter` has no timeout of its own and waits on the network for
+    /// as long as the network takes — and this sits between a tap and a share
+    /// sheet. A poster with a plain panel where the map should be is a better
+    /// outcome than one that never arrives.
+    ///
+    /// Written around the callback rather than the `async` overload because
+    /// neither `Options` nor `Snapshot` is `Sendable`, so they cannot cross the
+    /// task boundary a `TaskGroup` race would need.
+    private nonisolated static func snapshot(
+        with options: MKMapSnapshotter.Options,
+        timeout: TimeInterval
+    ) async -> SnapshotBox? {
+        let snapshotter = MKMapSnapshotter(options: options)
+        return await withCheckedContinuation { continuation in
+            let hasResumed = OSAllocatedUnfairLock(initialState: false)
+            func finish(_ snapshot: SnapshotBox?) {
+                let shouldResume = hasResumed.withLock { resumed -> Bool in
+                    guard !resumed else { return false }
+                    resumed = true
+                    return true
+                }
+                if shouldResume { continuation.resume(returning: snapshot) }
+            }
+            snapshotter.start(with: .global(qos: .userInitiated)) { snapshot, _ in
+                finish(snapshot.map(SnapshotBox.init))
+            }
+            DispatchQueue.global().asyncAfter(deadline: .now() + timeout) {
+                snapshotter.cancel()
+                finish(nil)
             }
         }
     }
@@ -193,3 +244,4 @@ struct RoutePosterMap: View {
         .clipShape(.rect(cornerRadius: TessalyticsTheme.compactRadius, style: .continuous))
     }
 }
+

@@ -166,9 +166,26 @@ Maps in a shared image are drawn as tiles rather than left blank, and anything t
 is a control rather than a fact — a picker, a sign-in prompt, a row of buttons — is
 left out of the picture.
 
+## Languages
+
+English and 简体中文. Choose either in **Settings → Language**, or leave it on
+**System** to follow the phone. The change lands immediately — no relaunch.
+
+It is deliberately separate from iOS's own per-app language setting, which lives
+several screens deep in Settings and is not where anybody looks. Dates, distances,
+currency and number formatting keep following your region rather than the chosen
+language, because those are two different questions.
+
+The English text is the translation key, so an untranslated string shows in English
+rather than as a blank or an identifier — which is what makes adding a language
+incremental rather than all-or-nothing. Traditional Chinese is not claimed: it is a
+different script, and serving it simplified characters would be worse than serving
+it English.
+
 ## What Tessalytics does
 
 - Forecasts the charge an hour ahead and the time it reaches your limit, allowing for the rate tapering
+- Speaks English and 简体中文, switchable in-app without a relaunch
 - Sends any of your most-visited places to the car's navigation in one tap, through the Tesla app's share extension
 - Shares any page as a single tall image, watermarked, with a written summary beside it
 - Shows live or last-reported battery, range, location, climate, security, charging, odometer, tire pressure, and software state

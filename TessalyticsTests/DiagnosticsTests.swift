@@ -181,3 +181,43 @@ final class DiagnosticsTests: XCTestCase {
         XCTAssertFalse(Diagnostics(defaults: defaults).isUnlocked, "And it stays off across a relaunch")
     }
 }
+
+/// From a real export: 394 live events, six requests, and not one state change,
+/// stream event or failure — the entries somebody turns recording on to find.
+@MainActor
+final class DiagnosticsCapacityTests: XCTestCase {
+    private func unlocked() -> Diagnostics {
+        let defaults = UserDefaults(suiteName: "capacity-\(UUID().uuidString)")!
+        let diagnostics = Diagnostics(defaults: defaults)
+        diagnostics.unlock()
+        diagnostics.setRecordsLiveEvents(true)
+        return diagnostics
+    }
+
+    private let body = Data(#"{"data":{"state":{}}}"#.utf8)
+
+    func testAFloodOfLiveEventsDoesNotEvictTheDiagnosis() {
+        let diagnostics = unlocked()
+        diagnostics.record(.state, "Drive started")
+        diagnostics.record(.failure, "Something broke")
+        diagnostics.record(.stream, "Connected")
+
+        // A stream publishes about a reading a second; this is twenty minutes.
+        for _ in 0..<1_200 { diagnostics.recordLiveEvent(body: body) }
+
+        let kept = diagnostics.entries.filter { $0.kind != .liveEvent }.map(\.summary)
+        XCTAssertTrue(kept.contains("Drive started"))
+        XCTAssertTrue(kept.contains("Something broke"))
+        XCTAssertTrue(kept.contains("Connected"))
+    }
+
+    func testLiveEventsAreStillCappedSoTheLogCannotGrowWithoutBound() {
+        let diagnostics = unlocked()
+        for _ in 0..<2_000 { diagnostics.recordLiveEvent(body: body) }
+        XCTAssertLessThanOrEqual(
+            diagnostics.entries.count { $0.kind == .liveEvent },
+            Diagnostics.liveEventCapacity
+        )
+        XCTAssertLessThanOrEqual(diagnostics.entries.count, Diagnostics.entryCapacity)
+    }
+}

@@ -180,25 +180,39 @@ struct DashboardView: View {
         }
     }
 
+    /// Fetches both maps at once.
+    ///
+    /// Each is a round trip to Apple's tile servers, and awaiting them in turn
+    /// made the share button sit and spin for twice as long as it needed to —
+    /// which on the home screen, the page most likely to be shared, is the whole
+    /// of the delay somebody notices.
     private func prepareMapSnapshots() async {
         let width = SharePoster<AnyView>.width - 64
-        if let coordinate = environment.liveCoordinate ?? environment.status?.carGeodata?.location {
-            let trail = environment.liveMapRoute.coordinates
+        let coordinate = environment.liveCoordinate ?? environment.status?.carGeodata?.location
+        let trail = environment.liveMapRoute.coordinates
+        let places = visitedPlaces
+        let segments = visitedSegments
+        let scheme = colorScheme
+
+        async let hero: Void = {
+            guard let coordinate else { return }
             await heroSnapshot.load(
                 segments: trail.count > 1 ? [trail] : [],
                 pins: [CoordinateDTO(latitude: coordinate.latitude, longitude: coordinate.longitude)],
                 size: CGSize(width: width, height: 128),
-                colorScheme: colorScheme
+                colorScheme: scheme
             )
-        }
-        if !visitedPlaces.isEmpty {
+        }()
+        async let map: Void = {
+            guard !places.isEmpty else { return }
             await placesSnapshot.load(
-                segments: visitedSegments,
-                pins: visitedPlaces.map { CoordinateDTO(latitude: $0.latitude, longitude: $0.longitude) },
+                segments: segments,
+                pins: places.map { CoordinateDTO(latitude: $0.latitude, longitude: $0.longitude) },
                 size: CGSize(width: width, height: 190),
-                colorScheme: colorScheme
+                colorScheme: scheme
             )
-        }
+        }()
+        _ = await (hero, map)
     }
 
     private func sharePage() -> SharePage {
@@ -1224,6 +1238,7 @@ enum VehicleHeroDestination: Hashable, Sendable {
 }
 
 private struct VehicleHeroCard: View {
+    @Environment(\.locale) private var locale
     @Environment(\.isRenderingSharePoster) private var isRenderingPoster
     /// Tiles for the location map, drawn ahead of a share.
     var posterMap: UIImage?
@@ -1410,7 +1425,7 @@ private struct VehicleHeroCard: View {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 8) {
                     if summary.isNotable {
-                        Label(summary.headline, systemImage: summary.activity.symbol)
+                        Label(locale.appString(summary.headline), systemImage: summary.activity.symbol)
                             .font(.title3.weight(.semibold))
                             .foregroundStyle(.primary)
                             .symbolRenderingMode(.hierarchical)
@@ -1882,7 +1897,7 @@ struct VehicleHeroSummary: Equatable {
             // Two decimals, because the server reports them and rounding them off
             // made a range that was visibly falling look like one that was stuck.
             rangeValue = range.value.formatted(.number.precision(.fractionLength(2)))
-            rangeLabel = "\(resolvedUnits.lengthSymbol) \(range.label)"
+            rangeLabel = "\(resolvedUnits.lengthSymbol) \(AppText.string(range.label))"
             rangeAccessibilityValue = "\(rangeValue) \(resolvedUnits.lengthSymbol), \(range.label)"
         } else {
             rangeValue = "—"

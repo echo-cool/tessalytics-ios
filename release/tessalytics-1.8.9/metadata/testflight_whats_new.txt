@@ -1,0 +1,47 @@
+Tessalytics 1.8.9 — 简体中文, and the share crash fixed.
+
+简体中文
+
+The app now speaks Simplified Chinese. Settings → 语言 (Language) offers System,
+English and 简体中文, and the change lands immediately — no relaunch.
+
+It is deliberately separate from iOS's own per-app language setting, which is
+several screens deep in Settings and not where anyone looks. Dates, distances,
+currency and number formatting keep following your region, because "what language
+do you read" and "what units do you think in" are different questions.
+
+Traditional Chinese is not claimed. It is a different script, and showing it
+simplified characters would be worse than showing it English.
+
+If you find an English string on a Chinese screen, tell me which one — some text
+is assembled at runtime from numbers and units and has not been converted yet.
+
+THE SHARE BUTTON NO LONGER CRASHES
+
+Reported from a device, with a crash log that named the cause exactly. The poster
+was being built inside the share action rather than while the view was being
+drawn, and SwiftUI's environment is only valid during a draw — so on pages whose
+content reads it, tapping share killed the app. Please try share on every page it
+appears on.
+
+AND IT IS FASTER
+
+The home screen fetched its two map images one after the other, each a round trip
+to Apple's tile servers. They now run at the same time, and neither can hang: if a
+tile server is slow, the poster arrives with a plain panel where the map would be
+rather than not arriving at all.
+
+FIXED FROM A DIAGNOSTICS EXPORT
+
+Three problems, all found by reading a real export from a real drive:
+
+- The file was not valid JSON. Redacted coordinates were written as a bare token,
+  which broke every recorded event body in it. The export exists to be read by
+  something.
+- Long numbers were being redacted as if they were VINs. Seventeen digits look
+  exactly like a VIN to a pattern that only counts characters, so timings came out
+  as "0.[REDACTED]".
+- Recording live events pushed everything else out of the log. An export arrived
+  holding 394 stream readings, six requests, and not a single state change or
+  failure — which are the entries you turn recording on to find. Live events now
+  have their own share of the log and stop evicting the diagnosis.

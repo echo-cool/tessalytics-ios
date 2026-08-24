@@ -1,6 +1,11 @@
 name: Tessalytics
 options:
   bundleIdPrefix: com.echocool
+  # The languages the app ships. Without these Xcode can strip every .lproj but
+  # the development region, and the Chinese bundle would be absent from the
+  # archive while working perfectly in a debug build.
+  developmentLanguage: en
+  knownRegions: [en, zh-Hans, Base]
   deploymentTarget:
     iOS: "18.0"
   createIntermediateGroups: true
@@ -9,8 +14,8 @@ settings:
     SWIFT_VERSION: 6.0
     DEVELOPMENT_TEAM: P8FYZDZ6AA
     CODE_SIGN_STYLE: Automatic
-    CURRENT_PROJECT_VERSION: 202608231544
-    MARKETING_VERSION: 1.8.8
+    CURRENT_PROJECT_VERSION: 202608231725
+    MARKETING_VERSION: 1.8.9
     ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS: YES
 targets:
   Tessalytics:

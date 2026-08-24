@@ -13,6 +13,7 @@ import SwiftUI
 /// navigation is already running.
 struct DestinationsCard: View {
     @Environment(AppEnvironment.self) private var environment
+    @Environment(\.locale) private var locale
 
     let places: [VisitedPlace]
 
@@ -104,7 +105,7 @@ struct DestinationsCard: View {
         VStack(spacing: 10) {
             Picker("Order", selection: $order) {
                 ForEach(DestinationOrder.allCases) { option in
-                    Label(option.rawValue, systemImage: option.symbol).tag(option)
+                    Label(locale.appString(option.rawValue), systemImage: option.symbol).tag(option)
                 }
             }
             .pickerStyle(.segmented)

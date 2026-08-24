@@ -76,6 +76,28 @@ final class AppEnvironment {
     private(set) var isLiveDriving = false
     /// Whether the car is on a charger right now.
     private(set) var isLiveCharging = false
+
+    /// The language the app is shown in.
+    ///
+    /// Applied by putting a locale in the SwiftUI environment at the root, which
+    /// makes every `Text` literal and every component that reads the environment
+    /// re-resolve — so the change lands immediately rather than at the next
+    /// launch. Overriding `AppleLanguages` would need a restart to take effect,
+    /// and a settings toggle that does nothing until you kill the app reads as
+    /// broken.
+    var language: AppLanguage = .system {
+        didSet {
+            guard language != oldValue else { return }
+            userDefaults.set(language.rawValue, forKey: AppLanguage.storageKey)
+            AppText.locale = languageLocale ?? .autoupdatingCurrent
+        }
+    }
+
+    /// The locale to hand the interface, or `nil` to leave the phone's in place.
+    var languageLocale: Locale? {
+        guard let code = language.localizationCode else { return nil }
+        return Locale(identifier: code)
+    }
     private var lastDrivingReadingAt: Date?
     private var lastChargingReadingAt: Date?
 
@@ -208,6 +230,20 @@ final class AppEnvironment {
         self.keychain = keychain
         self.userDefaults = userDefaults
         ownerAPI = OwnerAPISession(store: ownerCredentialStore, transport: ownerTransport)
+        if let stored = userDefaults.string(forKey: AppLanguage.storageKey),
+           let restored = AppLanguage(rawValue: stored) {
+            language = restored
+        }
+        // A UI test asserts on English text. Without this, a language chosen by
+        // hand on the device persists into the next test run and fails every
+        // assertion in the suite — which is a test harness problem masquerading
+        // as a hundred broken screens. A test that wants another language passes
+        // `-appLanguage` explicitly and keeps it.
+        let arguments = ProcessInfo.processInfo.arguments
+        if arguments.contains(where: { $0.hasPrefix("-ui-") }), !arguments.contains("-appLanguage") {
+            language = .english
+        }
+        AppText.locale = languageLocale ?? .autoupdatingCurrent
     }
 
     func start() async {

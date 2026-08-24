@@ -57,8 +57,21 @@ extension SharePage {
 struct SharePoster<Content: View>: View {
     @Environment(\.colorScheme) private var colorScheme
 
+    init(page: SharePage, @ViewBuilder content: @escaping () -> Content) {
+        self.page = page
+        self.content = content
+    }
+
+
     let page: SharePage
-    @ViewBuilder let content: Content
+    /// Held as a closure and called from `body`, not stored as a built view.
+    ///
+    /// Building it eagerly meant the page's view was constructed inside
+    /// `share()` — in a `Task`, outside any SwiftUI update. A struct's
+    /// `@Environment` wrappers are only valid while the graph is updating that
+    /// view, so reading one there trapped in `EnvironmentValues.subscript`, and
+    /// tapping share crashed the app.
+    let content: () -> Content
 
     /// The width the poster is laid out at, in points. Wide enough that two
     /// metric cards sit side by side, which is the layout the app was designed
@@ -69,7 +82,7 @@ struct SharePoster<Content: View>: View {
         VStack(alignment: .leading, spacing: 16) {
             header
             if !page.highlights.isEmpty { highlights }
-            content
+            content()
             footer
         }
         .padding(20)

@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct SettingsView: View {
+    @Environment(\.locale) private var locale
     @Environment(AppEnvironment.self) private var environment
     @State private var presentedSheet: SettingsSheet?
     @State private var confirmsDemo = false
@@ -157,6 +158,24 @@ struct SettingsView: View {
                             Text("Affects this iPhone only. Your TeslaMate server keeps everything.")
                         }
                         .disabled(isWorking)
+                    }
+
+                    // Outside the demo/real branch on purpose: someone exploring
+                    // the demo in Chinese should not have to configure a server
+                    // before the app will speak to them in it.
+                    Section {
+                        Picker(selection: $environment.language) {
+                            ForEach(AppLanguage.allCases) { option in
+                                Text(locale.appString(option.title)).tag(option)
+                            }
+                        } label: {
+                            Label("Language", systemImage: "globe")
+                        }
+                        .accessibilityIdentifier("language-picker")
+                    } header: {
+                        Label("Language", systemImage: "character.bubble")
+                    } footer: {
+                        Text("Applies to Tessalytics only, and takes effect straight away. Dates, distances and numbers keep following your region settings.")
                     }
 
                     Section("Privacy & support") {

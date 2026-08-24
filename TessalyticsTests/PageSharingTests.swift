@@ -152,3 +152,31 @@ final class RoutePosterSnapshotTests: XCTestCase {
         try XCTUnwrap(image.pngData()).write(to: directory.appending(path: "route.png"))
     }
 }
+
+/// Reported from a real device: tapping share on the home screen crashed the app
+/// in `EnvironmentValues.subscript` while `ImageRenderer` was laying the poster
+/// out.
+///
+/// The cause was that `SharePoster` stored a *built* view. Building it happened
+/// inside `share()` — in a `Task`, outside any SwiftUI update — and a struct's
+/// `@Environment` wrappers are only valid while the graph is updating that view.
+@MainActor
+final class SharePosterConstructionTests: XCTestCase {
+    func testTheContentIsNotBuiltUntilThePosterIsRendered() {
+        final class Counter: @unchecked Sendable { var built = 0 }
+        let counter = Counter()
+
+        let poster = SharePoster(page: SharePage(title: "A", subtitle: "B")) { () -> AnyView in
+            counter.built += 1
+            return AnyView(Text("content"))
+        }
+
+        XCTAssertEqual(
+            counter.built, 0,
+            "Constructing the poster must not build the page — that happens off the view update, where @Environment traps"
+        )
+
+        _ = PageShareRenderer.image(of: poster)
+        XCTAssertGreaterThan(counter.built, 0, "Rendering it must build it")
+    }
+}

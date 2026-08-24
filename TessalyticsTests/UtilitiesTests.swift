@@ -2,6 +2,13 @@ import XCTest
 @testable import Tessalytics
 
 final class UtilitiesTests: XCTestCase {
+    override func setUp() {
+        super.setUp()
+        // These assert on English strings, and the host app carries whatever
+        // language was last chosen on the device.
+        AppText.locale = Locale(identifier: "en")
+    }
+
     func testMetricFormattingAlwaysIncludesConfiguredUnits() {
         let imperial = UnitsDTO(unitOfLength: "mi", unitOfPressure: "psi", unitOfTemperature: "F")
         let metric = UnitsDTO(unitOfLength: "km", unitOfPressure: "bar", unitOfTemperature: "°C")

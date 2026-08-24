@@ -1,4 +1,5 @@
 import LinkPresentation
+import SwiftData
 import SwiftUI
 import UIKit
 
@@ -20,10 +21,16 @@ enum PageShareRenderer {
     /// device. Pages cap what they put in a poster; this is the backstop.
     static let maximumHeight: CGFloat = 6_000
 
-    static func image<Content: View>(of poster: SharePoster<Content>) -> UIImage? {
+    /// Renders a poster, already carrying whatever environment it needs.
+    ///
+    /// Generic over the whole view rather than over `SharePoster`'s content, so
+    /// the caller can wrap it in `.environment(...)` first: `ImageRenderer` builds
+    /// a detached view graph that inherits nothing from the screen, and any child
+    /// reading an observable out of the environment traps if it was not put there.
+    static func image(of poster: some View) -> UIImage? {
         let renderer = ImageRenderer(content: poster)
         renderer.scale = scale
-        renderer.proposedSize = ProposedViewSize(width: SharePoster<Content>.width, height: nil)
+        renderer.proposedSize = ProposedViewSize(width: SharePoster<AnyView>.width, height: nil)
         renderer.isOpaque = true
         return renderer.uiImage
     }
@@ -122,6 +129,14 @@ private final class SharePosterSource: NSObject, UIActivityItemSource {
 /// layout at three times scale, and doing that for every screen the owner merely
 /// visits would be work nobody asked for.
 struct ShareablePageModifier<PosterContent: View>: ViewModifier {
+    // Re-injected into the rendered poster. ImageRenderer's view graph is
+    // detached from the screen's, so anything the page's own views read out of
+    // the environment has to be put back or they trap on a missing value.
+    @Environment(AppEnvironment.self) private var appEnvironment
+    @Environment(\.locale) private var locale
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.modelContext) private var modelContext
+
     let page: () -> SharePage
     /// Work the poster needs done before it can be drawn — in practice, fetching
     /// map tiles. Run on the tap rather than when the screen appears: a page nobody
@@ -169,7 +184,11 @@ struct ShareablePageModifier<PosterContent: View>: ViewModifier {
             defer { isRendering = false }
             await prepare()
             let described = page()
-            let poster = SharePoster(page: described) { posterContent() }
+            let poster = SharePoster(page: described, content: posterContent)
+                .environment(appEnvironment)
+                .environment(\.locale, locale)
+                .environment(\.colorScheme, colorScheme)
+                .modelContext(modelContext)
             guard let image = PageShareRenderer.image(of: poster) else {
                 failure = "This page could not be drawn as an image."
                 return

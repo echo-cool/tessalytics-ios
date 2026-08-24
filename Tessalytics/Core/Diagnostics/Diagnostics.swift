@@ -47,6 +47,15 @@ struct DiagnosticEntry: Identifiable, Sendable {
 final class Diagnostics {
     /// How many entries are kept. A few minutes of a streaming drive.
     static let entryCapacity = 400
+    /// The most of that capacity live events may occupy.
+    ///
+    /// A stream publishes about a reading a second, so with recording on the
+    /// bodies fill a single shared ring in minutes and evict everything else. A
+    /// real export came back holding 394 live events, six requests, and not one
+    /// state change, stream event or failure — which are the entries somebody
+    /// turns recording on to find. The bodies are the bulk; the rest is the
+    /// diagnosis, and it gets a reserved share.
+    static let liveEventCapacity = 300
     /// The longest a single entry's detail is kept at. A `/state` body is about
     /// 1.5 kB pretty-printed; this leaves room for a much chattier server
     /// without letting one reply eat the whole log.
@@ -145,6 +154,17 @@ final class Diagnostics {
 
     private func append(_ entry: DiagnosticEntry) {
         entries.insert(entry, at: 0)
+
+        // Live events are trimmed to their own share first, so a busy stream
+        // spends its own budget rather than everyone else's.
+        var liveEvents = entries.count { $0.kind == .liveEvent }
+        while liveEvents > Self.liveEventCapacity,
+              let oldest = entries.lastIndex(where: { $0.kind == .liveEvent }) {
+            entries.remove(at: oldest)
+            liveEvents -= 1
+            discardedEntries += 1
+        }
+
         guard entries.count > Self.entryCapacity else { return }
         discardedEntries += entries.count - Self.entryCapacity
         entries.removeLast(entries.count - Self.entryCapacity)

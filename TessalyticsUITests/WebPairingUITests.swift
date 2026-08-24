@@ -47,8 +47,12 @@ final class WebPairingUITests: XCTestCase {
         let app = launch("-ui-demo")
         XCTAssertTrue(app.otherElements["dashboard-screen"].waitForExistence(timeout: 5))
         app.buttons["Settings"].tap()
-        XCTAssertTrue(app.descendants(matching: .any)["settings-achievements"].waitForExistence(timeout: 5))
-
+        // Scrolled to, not merely waited for. Settings has grown a section since
+        // this was written and the achievements row now starts below the fold —
+        // and a row a lazy list has not laid out yet does not exist to a query.
+        let achievements = app.descendants(matching: .any)["settings-achievements"]
+        for _ in 0..<10 where !achievements.exists { app.swipeUp() }
+        XCTAssertTrue(achievements.exists, "Settings should reach the achievements row")
 
         for _ in 0..<8 {
             XCTAssertFalse(

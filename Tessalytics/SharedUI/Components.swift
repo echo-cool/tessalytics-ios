@@ -310,6 +310,8 @@ struct TessalyticsHeroSurface<Content: View>: View {
 }
 
 struct SectionCard<Content: View>: View {
+    @Environment(\.locale) private var locale
+
     let title: String
     var subtitle: String?
     let symbol: String
@@ -339,13 +341,13 @@ struct SectionCard<Content: View>: View {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     VStack(alignment: .leading, spacing: 3) {
-                        Label(title, systemImage: symbol)
+                        Label(locale.appString(title), systemImage: symbol)
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(.primary)
                             .symbolRenderingMode(.hierarchical)
                             .tint(tint)
                         if let subtitle {
-                            Text(subtitle)
+                            Text(locale.appString(subtitle))
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                                 .lineLimit(2)
@@ -370,6 +372,8 @@ struct SectionCard<Content: View>: View {
 /// A `SectionCard` that pushes a destination. Used on the dashboard so each
 /// summary card leads to the screen that explains it.
 struct NavigationSectionCard<Destination: View, Content: View>: View {
+    @Environment(\.locale) private var locale
+
     /// A stable identifier from the title, so a test can tap the card by name.
     /// Guessing at button indices makes a test that passes for the wrong reason.
     static func identifier(for title: String) -> String {
@@ -416,6 +420,7 @@ struct NavigationSectionCard<Destination: View, Content: View>: View {
 /// Square-ish shortcut tile for the dashboard's navigation row.
 struct QuickLinkTile<Destination: View>: View {
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.locale) private var locale
     let title: String
     let symbol: String
     var tint: Color = TessalyticsTheme.accent
@@ -443,7 +448,7 @@ struct QuickLinkTile<Destination: View>: View {
                     .symbolRenderingMode(.hierarchical)
                     .foregroundStyle(tint)
                     .accessibilityHidden(true)
-                Text(title)
+                Text(locale.appString(title))
                     .font(.caption2.weight(.medium))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
@@ -466,11 +471,13 @@ struct QuickLinkTile<Destination: View>: View {
 }
 
 struct StatusBadge: View {
+    @Environment(\.locale) private var locale
+
     let text: String
     let color: Color
 
     var body: some View {
-        Text(text)
+        Text(locale.appString(text))
             .font(.caption.weight(.semibold))
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
@@ -487,6 +494,7 @@ struct StatusBadge: View {
 /// `maxHeight: .infinity` every tile in a grid row renders at exactly the same
 /// height and the values line up, whether or not a neighbour carries a detail.
 struct MetricCard: View {
+    @Environment(\.locale) private var locale
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let title: String
@@ -501,7 +509,7 @@ struct MetricCard: View {
         VStack(alignment: .leading, spacing: 6) {
             header
             Spacer(minLength: 2)
-            Text(value)
+            Text(locale.appString(value))
                 .font(.callout.weight(.semibold))
                 .monospacedDigit()
                 .lineLimit(1)
@@ -510,7 +518,7 @@ struct MetricCard: View {
             // The detail row is always laid out, even when empty: without it a
             // card that has no detail centres its value differently from the one
             // beside it, and a row of cards stops lining up.
-            Text(detail ?? " ")
+            Text(detail.map(locale.appString) ?? " ")
                 .font(.caption2.weight(.medium))
                 .foregroundStyle(tint)
                 .lineLimit(1)
@@ -554,7 +562,7 @@ struct MetricCard: View {
     }
 
     private var titleText: some View {
-        Text(title)
+        Text(locale.appString(title))
             .font(.caption2)
             .foregroundStyle(.secondary)
             .lineLimit(2)
@@ -565,6 +573,7 @@ struct MetricCard: View {
 }
 
 struct DashboardHeroCard: View {
+    @Environment(\.locale) private var locale
     let eyebrow: String
     let title: String
     let subtitle: String
@@ -592,10 +601,10 @@ struct DashboardHeroCard: View {
                                 .background(tint.opacity(0.12), in: .capsule)
                         }
                     }
-                    Text(title)
+                    Text(locale.appString(title))
                         .font(.title3.bold())
                         .foregroundStyle(.primary)
-                    Text(subtitle)
+                    Text(locale.appString(subtitle))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
@@ -617,6 +626,7 @@ struct DashboardHeroCard: View {
 }
 
 struct CompactStat: View {
+    @Environment(\.locale) private var locale
     let title: String
     let value: String
     var detail: String?
@@ -631,17 +641,17 @@ struct CompactStat: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(value)
+            Text(locale.appString(value))
                 .font(.subheadline.weight(.semibold))
                 .monospacedDigit()
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
-            Text(title)
+            Text(locale.appString(title))
                 .font(.caption2)
                 .foregroundStyle(.secondary)
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
-            Text(detail ?? " ")
+            Text(detail.map(locale.appString) ?? " ")
                 .font(.caption2.weight(.medium))
                 .foregroundStyle(tint)
                 .lineLimit(1)
@@ -659,6 +669,8 @@ struct CompactStat: View {
 }
 
 struct DetailRow: View {
+    @Environment(\.locale) private var locale
+
     let title: String
     let value: String
     var symbol: String?
@@ -671,10 +683,10 @@ struct DetailRow: View {
                     .frame(width: 20)
                     .accessibilityHidden(true)
             }
-            Text(title)
+            Text(locale.appString(title))
                 .foregroundStyle(.secondary)
             Spacer(minLength: 12)
-            Text(value)
+            Text(locale.appString(value))
                 .fontWeight(.medium)
                 .multilineTextAlignment(.trailing)
         }
@@ -709,12 +721,14 @@ struct TessalyticsDismissButton: View {
 }
 
 struct EmptyState: View {
+    @Environment(\.locale) private var locale
+
     let title: String
     let message: String
     let symbol: String
 
     var body: some View {
-        ContentUnavailableView(title, systemImage: symbol, description: Text(message))
+        ContentUnavailableView(locale.appString(title), systemImage: symbol, description: Text(locale.appString(message)))
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .padding()
     }
@@ -729,6 +743,8 @@ struct EmptyState: View {
 /// missing, how much there is so far, and that the fix is time rather than a
 /// setting they have not found.
 struct ChartNeedsMoreHistory: View {
+    @Environment(\.locale) private var locale
+
     /// What the chart is waiting for, as a noun phrase: "4 charges with a range
     /// reading", "three weeks of range readings".
     let needs: String
@@ -765,6 +781,8 @@ struct ChartNeedsMoreHistory: View {
 }
 
 struct LoadingPanel: View {
+    @Environment(\.locale) private var locale
+
     let title: String
     var symbol = "arrow.triangle.2.circlepath"
 
@@ -774,7 +792,7 @@ struct LoadingPanel: View {
                 ProgressView()
                     .controlSize(.regular)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(title)
+                    Text(locale.appString(title))
                         .font(.headline)
                     Text("This can take a moment on a private network.")
                         .font(.caption)
