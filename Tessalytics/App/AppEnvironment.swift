@@ -15,7 +15,27 @@ final class AppEnvironment {
     var vehicles: [Vehicle] = []
     var selectedVehicle: Vehicle?
     var status: VehicleStatus?
-    var statusUnits: UnitsDTO?
+    /// What the server said the car reports in.
+    private(set) var serverUnits: UnitsDTO?
+
+    /// What to show, which is the server's units carried together with the
+    /// owner's choice. Everything that formats a value reads this, so the choice
+    /// reaches every screen without a second argument threaded through them.
+    var statusUnits: UnitsDTO? {
+        get { serverUnits?.with(preference: unitPreference) }
+        set { serverUnits = newValue }
+    }
+
+    /// Which units the owner asked to read.
+    var unitPreference: UnitPreference = .automatic {
+        didSet {
+            guard unitPreference != oldValue else { return }
+            userDefaults.set(unitPreference.rawValue, forKey: UnitPreference.storageKey)
+            // Health, capacity and every derived total are computed in the
+            // display units, so they are stale the moment this changes.
+            recomputeFleetStatistics()
+        }
+    }
     var statusFetchedAt: Date?
     /// The last status seen while the car was awake, and when.
     ///
@@ -234,14 +254,24 @@ final class AppEnvironment {
            let restored = AppLanguage(rawValue: stored) {
             language = restored
         }
+        if let stored = userDefaults.string(forKey: UnitPreference.storageKey),
+           let restored = UnitPreference(rawValue: stored) {
+            unitPreference = restored
+        }
         // A UI test asserts on English text. Without this, a language chosen by
         // hand on the device persists into the next test run and fails every
         // assertion in the suite — which is a test harness problem masquerading
         // as a hundred broken screens. A test that wants another language passes
         // `-appLanguage` explicitly and keeps it.
+        // A UI test asserts on English text and on the figures the car reports, so
+        // both the language and the unit choice have to be pinned. Either one left
+        // over from a hand-made launch fails the suite everywhere — which is a
+        // harness problem wearing the costume of a hundred broken screens. A test
+        // that wants something else passes the argument explicitly and keeps it.
         let arguments = ProcessInfo.processInfo.arguments
-        if arguments.contains(where: { $0.hasPrefix("-ui-") }), !arguments.contains("-appLanguage") {
-            language = .english
+        if arguments.contains(where: { $0.hasPrefix("-ui-") }) {
+            if !arguments.contains("-appLanguage") { language = .english }
+            if !arguments.contains("-unitPreference") { unitPreference = .automatic }
         }
         AppText.locale = languageLocale ?? .autoupdatingCurrent
     }

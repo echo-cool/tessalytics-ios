@@ -146,7 +146,7 @@ struct DiagnosticsView: View {
             Label("Log", systemImage: "list.bullet.rectangle")
         } footer: {
             if diagnostics.discardedEntries > 0 {
-                Text("\(diagnostics.discardedEntries) older entries have been discarded to stay inside the log's capacity.")
+                Text(AppText.format("%@ older entries have been discarded to stay inside the log's capacity.", "\(diagnostics.discardedEntries)"))
             }
         }
     }

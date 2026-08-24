@@ -1,14 +1,43 @@
-/* Tessalytics — English. Every value is its own key, so English is a real
-   localization in the bundle and the in-app switch can put it back. */
+/* Tessalytics — English
+   The English text is the key. Anything without an entry here falls back
+   to English, which is what makes translating incrementally safe.
 
-"%" = "%";
+   Deliberately absent: place names, demo addresses, vehicle names, bare
+   units and version strings. A key here would translate a data value that
+   merely happens to match it. */
+
+"%1$@ drive and %2$@ charge observations analyzed" = "%1$@ drive and %2$@ charge observations analyzed";
+"%1$@ drives · %2$@ charges" = "%1$@ drives · %2$@ charges";
+"%1$@ of %2$@" = "%1$@ of %2$@";
+"%1$@ · %2$@ days" = "%1$@ · %2$@ days";
+"%1$@%% · %2$@ away" = "%1$@%% · %2$@ away";
+"%@ / 7 days" = "%@ / 7 days";
+"%@ average" = "%@ average";
+"%@ battery is low" = "%@ battery is low";
+"%@ drives" = "%@ drives";
+"%@ is on the car's navigation." = "%@ is on the car's navigation.";
+"%@ is signed in" = "%@ is signed in";
+"%@ lost" = "%@ lost";
+"%@ min" = "%@ min";
+"%@ observations" = "%@ observations";
+"%@ of as-new" = "%@ of as-new";
+"%@ of as-new capacity" = "%@ of as-new capacity";
+"%@ older entries have been discarded to stay inside the log's capacity." = "%@ older entries have been discarded to stay inside the log's capacity.";
+"%@ on the odometer" = "%@ on the odometer";
+"%@ per kWh" = "%@ per kWh";
+"%@ per trip" = "%@ per trip";
+"%@ places" = "%@ places";
+"%@ pt cold buffer" = "%@ pt cold buffer";
+"%@ pts to target" = "%@ pts to target";
+"%@ should be ready" = "%@ should be ready";
+"+%1$@ points from %2$@%%" = "+%1$@ points from %2$@%%";
 "4 charges that each report a range" = "4 charges that each report a range";
 "7 days" = "7 days";
+"7 days · %@" = "7 days · %@";
 "A Debug section is now at the bottom of Settings. Turn it off from there when you are finished." = "A Debug section is now at the bottom of Settings. Turn it off from there when you are finished.";
 "A Open Source TeslaMate Client" = "A Open Source TeslaMate Client";
 "A label for this iPhone only. The server is not contacted." = "A label for this iPhone only. The server is not contacted.";
 "A lower-cost charging pattern is available" = "A lower-cost charging pattern is available";
-"ABCD-EFGH" = "ABCD-EFGH";
 "AWD" = "AWD";
 "About" = "About";
 "About Tessalytics" = "About Tessalytics";
@@ -47,6 +76,7 @@
 "Asleep" = "Asleep";
 "At 100% when new" = "At 100% when new";
 "At the rate it is charging now" = "At the rate it is charging now";
+"At the rate it is charging now · the car says %@" = "At the rate it is charging now · the car says %@";
 "Austin, Texas" = "Austin, Texas";
 "Authentication" = "Authentication";
 "Authentication failed. Check the configured credentials." = "Authentication failed. Check the configured credentials.";
@@ -106,6 +136,7 @@
 "Charging efficiency" = "Charging efficiency";
 "Charging energy" = "Charging energy";
 "Charging energy by day in kilowatt-hours" = "Charging energy by day in kilowatt-hours";
+"Charging more often at %1$@ could save about %2$@%% per kWh versus your costliest regular location." = "Charging more often at %1$@ could save about %2$@%% per kWh versus your costliest regular location.";
 "Charging now" = "Charging now";
 "Charging price increased" = "Charging price increased";
 "Charging progress" = "Charging progress";
@@ -188,8 +219,10 @@
 "Direct controls" = "Direct controls";
 "Direct live" = "Direct live";
 "Disconnect" = "Disconnect";
+"Displayed %@%%" = "Displayed %@%%";
 "Distance" = "Distance";
 "Distance by day" = "Distance by day";
+"Distance driven each day over the last %@ days" = "Distance driven each day over the last %@ days";
 "Distance per day, last 7 days" = "Distance per day, last 7 days";
 "Distance travelled" = "Distance travelled";
 "Done" = "Done";
@@ -226,6 +259,7 @@
 "Energy use is trending higher" = "Energy use is trending higher";
 "Energy used" = "Energy used";
 "Enter a pack size between 1 and 400 kWh." = "Enter a pack size between 1 and 400 kWh.";
+"Enter a range between 1 and 2000 %@." = "Enter a range between 1 and 2000 %@.";
 "Enter a valid server URL. HTTPS is recommended; HTTP must be explicitly enabled." = "Enter a valid server URL. HTTPS is recommended; HTTP must be explicitly enabled.";
 "Enter code" = "Enter code";
 "Enter the address of Tessalytics Backend, not of TeslaMate or Grafana. HTTPS is strongly recommended. Insecure HTTP can be enabled for compatibility, including a public IP and port, but bearer tokens and vehicle data then travel without encryption. TLS validation is never disabled." = "Enter the address of Tessalytics Backend, not of TeslaMate or Grafana. HTTPS is strongly recommended. Insecure HTTP can be enabled for compatibility, including a public IP and port, but bearer tokens and vehicle data then travel without encryption. TLS validation is never disabled.";
@@ -240,6 +274,7 @@
 "Estimated health trend" = "Estimated health trend";
 "Estimated maximum and current battery capacity" = "Estimated maximum and current battery capacity";
 "Estimated range" = "Estimated range";
+"Estimated, %@" = "Estimated, %@";
 "Estimated, kWh" = "Estimated, kWh";
 "Estimated, not measured" = "Estimated, not measured";
 "Estimates from local history — not guarantees." = "Estimates from local history — not guarantees.";
@@ -248,6 +283,7 @@
 "Every Day This Week" = "Every Day This Week";
 "Every as-new figure the app derives is the best your recorded history can support, which is wrong when logging began after the pack had aged. Stating the manufacturer's rating corrects health, capacity lost and equivalent cycles together." = "Every as-new figure the app derives is the best your recorded history can support, which is wrong when logging began after the pack had aged. Stating the manufacturer's rating corrects health, capacity lost and equivalent cycles together.";
 "Expected travel over the next seven days" = "Expected travel over the next seven days";
+"Expires %@" = "Expires %@";
 "Expires in" = "Expires in";
 "Explore Demo" = "Explore Demo";
 "Explore demo data" = "Explore demo data";
@@ -258,10 +294,12 @@
 "Filter places" = "Filter places";
 "Find pairing" = "Find pairing";
 "Follow the vehicle" = "Follow the vehicle";
+"Follow the vehicle's own setting" = "Follow the vehicle's own setting";
 "Forecast" = "Forecast";
 "Forecast help" = "Forecast help";
 "Fremont, California" = "Fremont, California";
 "From" = "From";
+"From the car" = "From the car";
 "From this car's own charging history" = "From this car's own charging history";
 "From your VIN" = "From your VIN";
 "Front left" = "Front left";
@@ -287,6 +325,7 @@
 "How predictions work" = "How predictions work";
 "If these do not match, the code did not come from your dashboard. Deny it." = "If these do not match, the code did not come from your dashboard. Deny it.";
 "If this fails, check that Tessalytics Backend is deployed beside TeslaMate, running, and reachable from this iPhone, and that the token is correct. A TeslaMate or Grafana address will not work here." = "If this fails, check that Tessalytics Backend is deployed beside TeslaMate, running, and reachable from this iPhone, and that the token is correct. A TeslaMate or Grafana address will not work here.";
+"Imperial" = "Imperial";
 "Important anomalies" = "Important anomalies";
 "In an hour" = "In an hour";
 "In neutral" = "In neutral";
@@ -296,6 +335,10 @@
 "Its synchronized data and credentials are deleted from this iPhone." = "Its synchronized data and credentials are deleted from this iPhone.";
 "Keeps the body of every event the server sends, so a reading can be compared with what the app made of it. It costs memory while a car is streaming — leave it off unless you are chasing something." = "Keeps the body of every event the server sends, so a reading can be compared with what the app made of it. It costs memory while a car is streaming — leave it off unless you are chasing something.";
 "Language" = "Language";
+"Language & units" = "Language & units";
+"Language applies to Tessalytics only and takes effect straight away." = "Language applies to Tessalytics only and takes effect straight away.";
+"Last %@" = "Last %@";
+"Last %@ days" = "Last %@ days";
 "Last 7 days" = "Last 7 days";
 "Last charge" = "Last charge";
 "Last drive" = "Last drive";
@@ -303,8 +346,10 @@
 "Last known state" = "Last known state";
 "Last month" = "Last month";
 "Last seen" = "Last seen";
+"Last seen %@" = "Last seen %@";
 "Later" = "Later";
 "Latest" = "Latest";
+"Latest activity %@" = "Latest activity %@";
 "Latest drive" = "Latest drive";
 "Lathrop, California" = "Lathrop, California";
 "Learning" = "Learning";
@@ -352,9 +397,11 @@
 "Median consumption across recent drives" = "Median consumption across recent drives";
 "Megawatt Hour" = "Megawatt Hour";
 "Method" = "Method";
+"Metric" = "Metric";
 "Minimum" = "Minimum";
 "Missing values are excluded, not counted as zero." = "Missing values are excluded, not counted as zero.";
 "Model" = "Model";
+"Model %@" = "Model %@";
 "Model year" = "Model year";
 "Modeled battery capacity against odometer" = "Modeled battery capacity against odometer";
 "Modeled per charge" = "Modeled per charge";
@@ -497,6 +544,7 @@
 "Re-sync" = "Re-sync";
 "Re-sync history" = "Re-sync history";
 "Reached the pack" = "Reached the pack";
+"Read-only access until %@." = "Read-only access until %@.";
 "Reading" = "Reading";
 "Readings are kept in memory for fifteen minutes and are discarded when the drive ends." = "Readings are kept in memory for fifteen minutes and are discarded when the drive ends.";
 "Rear left" = "Rear left";
@@ -504,6 +552,7 @@
 "Recent" = "Recent";
 "Recent driving" = "Recent driving";
 "Recent patterns look stable" = "Recent patterns look stable";
+"Recent reported consumption is about %@%% above your prior baseline." = "Recent reported consumption is about %@%% above your prior baseline.";
 "Record 100 charging sessions" = "Record 100 charging sessions";
 "Record live events" = "Record live events";
 "Recording" = "Recording";
@@ -559,12 +608,14 @@
 "Share" = "Share";
 "Share this page" = "Share this page";
 "Show" = "Show";
+"Showing the %@ most recent versions. The full history is listed below." = "Showing the %@ most recent versions. The full history is listed below.";
 "Sign in a browser" = "Sign in a browser";
 "Sign in to Game Center" = "Sign in to Game Center";
 "Signals and opportunities" = "Signals and opportunities";
 "Signed in" = "Signed in";
 "Six Figures" = "Six Figures";
 "Six most-used locations" = "Six most-used locations";
+"So far · %@" = "So far · %@";
 "Software" = "Software";
 "Software & details" = "Software & details";
 "Software update available" = "Software update available";
@@ -602,6 +653,7 @@
 "Taken" = "Taken";
 "Tap a server to rename it, switch to it, or remove it." = "Tap a server to rename it, switch to it, or remove it.";
 "Tap five times to turn on debug mode" = "Tap five times to turn on debug mode";
+"Tap to read values · %@ samples" = "Tap to read values · %@ samples";
 "Tapping this fills the capacity field above. Nothing is applied until you save, and your own figure always wins." = "Tapping this fills the capacity field above. Nothing is applied until you save, and your own figure always wins.";
 "Target charge" = "Target charge";
 "Tesla could not be reached. Check the network connection." = "Tesla could not be reached. Check the network connection.";
@@ -633,6 +685,7 @@
 "The command could not be completed." = "The command could not be completed.";
 "The dashboard should be showing your vehicle within a couple of seconds." = "The dashboard should be showing your vehicle within a couple of seconds.";
 "The exported file is redacted: tokens, VINs and coordinates are removed before it leaves this device." = "The exported file is redacted: tokens, VINs and coordinates are removed before it leaves this device.";
+"The last reported battery level is %@%% and the vehicle is not plugged in." = "The last reported battery level is %@%% and the vehicle is not plugged in.";
 "The licence covers the code. The Tessalytics name and icon are covered by the trademark policy." = "The licence covers the code. The Tessalytics name and icon are covered by the trademark policy.";
 "The list below is computed on this device and does not need it." = "The list below is computed on this device and does not need it.";
 "The name and model come from TeslaMate. Rename the car in the Tesla app and it follows here." = "The name and model come from TeslaMate. Rename the car in the Tesla app and it follows here.";
@@ -684,6 +737,8 @@
 "URL" = "URL";
 "Unavailable" = "Unavailable";
 "Understand every drive." = "Understand every drive.";
+"Units" = "Units";
+"Units follow the vehicle's own setting." = "Units follow the vehicle's own setting.";
 "Unknown" = "Unknown";
 "Unknown browser" = "Unknown browser";
 "Unlock" = "Unlock";
@@ -692,6 +747,7 @@
 "Unnamed place" = "Unnamed place";
 "Unreported" = "Unreported";
 "Update waiting" = "Update waiting";
+"Updated %@" = "Updated %@";
 "Updates" = "Updates";
 "Updates recorded" = "Updates recorded";
 "Usable capacity" = "Usable capacity";
@@ -702,6 +758,7 @@
 "Use only on a trusted private network or VPN. Anyone who can reach the server may be able to view location history." = "Use only on a trusted private network or VPN. Anyone who can reach the server may be able to view location history.";
 "Username" = "Username";
 "Values" = "Values";
+"Values reported by the car are converted for display; the car's own setting is unchanged." = "Values reported by the car are converted for display; the car's own setting is unchanged.";
 "Variant" = "Variant";
 "Vehicle" = "Vehicle";
 "Vehicle alerts" = "Vehicle alerts";
@@ -733,20 +790,27 @@
 "Your existing server settings and credentials will remain saved." = "Your existing server settings and credentials will remain saved.";
 "Your iPhone connects straight to the server you choose." = "Your iPhone connects straight to the server you choose.";
 "Your mobility, clearly explained" = "Your mobility, clearly explained";
+"Your recent average price per kWh is %@%% above the preceding 30 days." = "Your recent average price per kWh is %@%% above the preceding 30 days.";
 "Your server" = "Your server";
 "a charging session that reports coordinates" = "a charging session that reports coordinates";
 "a new version" = "a new version";
+"and %@ more" = "and %@ more";
+"at %@%%" = "at %@%%";
 "estimated range" = "estimated range";
 "front left" = "front left";
 "front right" = "front right";
 "health" = "health";
 "iPhone app" = "iPhone app";
 "ideal range" = "ideal range";
+"in %@" = "in %@";
 "kWh" = "kWh";
+"km · °C · bar" = "km · °C · bar";
+"mi · °F · psi" = "mi · °F · psi";
 "my Tesla" = "my Tesla";
 "of as-new" = "of as-new";
 "on the odometer" = "on the odometer";
 "one synced drive with coordinates" = "one synced drive with coordinates";
+"plugged in %@" = "plugged in %@";
 "prev. range" = "prev. range";
 "range unavailable" = "range unavailable";
 "rated range" = "rated range";
@@ -754,3 +818,4 @@
 "rear right" = "rear right";
 "the stream is up but nothing is arriving" = "the stream is up but nothing is arriving";
 "three weeks of range readings" = "three weeks of range readings";
+"updated at %@" = "updated at %@";

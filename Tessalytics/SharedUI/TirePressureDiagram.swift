@@ -64,6 +64,15 @@ struct TirePressureDiagram: View {
         var isFront: Bool { self == .frontLeft || self == .frontRight }
     }
 
+    /// Converted into whatever the owner reads in.
+    ///
+    /// The symbol below already respected the preference; the number did not, so
+    /// a car reporting psi showed "42.1 bar" — a reading in one unit wearing
+    /// another's name, which is worse than showing neither.
+    private func displayValue(for corner: Corner) -> Double? {
+        (units ?? .metricDefaults).displayPressure(value(for: corner))
+    }
+
     private func value(for corner: Corner) -> Double? {
         switch corner {
         case .frontLeft: TPMSDTO.reported(pressures?.tpmsPressureFl)
@@ -89,7 +98,7 @@ struct TirePressureDiagram: View {
     }
 
     private func reading(for corner: Corner) -> some View {
-        let value = value(for: corner)
+        let value = displayValue(for: corner)
         let warns = isWarning(corner)
         return VStack(spacing: -1) {
             HStack(spacing: 2) {
@@ -115,7 +124,7 @@ struct TirePressureDiagram: View {
 
     private var accessibilityValue: String {
         let readings = Corner.allCases.compactMap { corner -> String? in
-            guard let value = value(for: corner) else { return nil }
+            guard let value = displayValue(for: corner) else { return nil }
             let name: String = switch corner {
             case .frontLeft: "front left"
             case .frontRight: "front right"

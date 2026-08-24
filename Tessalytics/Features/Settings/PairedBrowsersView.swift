@@ -89,10 +89,10 @@ struct PairedBrowsersView: View {
             }
             HStack(spacing: 10) {
                 if let lastSeenAt = session.lastSeenAt {
-                    Text("Last seen \(lastSeenAt.formatted(.relative(presentation: .named)))")
+                    Text(AppText.format("Last seen %@", lastSeenAt.formatted(.relative(presentation: .named))))
                 }
                 if let expiresAt = session.expiresAt {
-                    Text("Expires \(expiresAt.formatted(date: .abbreviated, time: .omitted))")
+                    Text(AppText.format("Expires %@", expiresAt.formatted(date: .abbreviated, time: .omitted)))
                 }
             }
             .font(.caption2)

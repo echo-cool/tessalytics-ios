@@ -216,7 +216,7 @@ struct SoftwareVersionTimelineChart: View {
             }
 
             if periods.count > Self.maximumRows {
-                Text("Showing the \(Self.maximumRows) most recent versions. The full history is listed below.")
+                Text(AppText.format("Showing the %@ most recent versions. The full history is listed below.", "\(Self.maximumRows)"))
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }

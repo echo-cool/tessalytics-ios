@@ -144,7 +144,7 @@ struct LiveMapScreen: View {
     }
 
     private var footnote: String {
-        let updated = environment.statusFetchedAt.map { "updated at \(ValueFormatting.readingTime($0))" }
+        let updated = environment.statusFetchedAt.map { AppText.format("updated at %@", ValueFormatting.readingTime($0)) }
         let span = environment.liveTelemetry.span
             .map { "driving for \(ValueFormatting.duration(minutes: max(Int($0 / 60), 1)))" }
         let parts = [span, updated].compactMap { $0 }

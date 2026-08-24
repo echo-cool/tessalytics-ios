@@ -309,7 +309,7 @@ struct VehicleIntelligenceEngine {
                 VehicleInsight(
                     id: "low-battery",
                     title: "Low battery needs attention",
-                    message: "The last reported battery level is \(battery)% and the vehicle is not plugged in.",
+                    message: AppText.format("The last reported battery level is %@%% and the vehicle is not plugged in.", "\(battery)"),
                     recommendation: "Plan a charge before your next longer drive.",
                     symbol: "battery.25percent",
                     severity: battery <= 10 ? .critical : .warning
@@ -326,7 +326,7 @@ struct VehicleIntelligenceEngine {
                 VehicleInsight(
                     id: "efficiency-change",
                     title: "Energy use is trending higher",
-                    message: "Recent reported consumption is about \(Int(increase.rounded()))% above your prior baseline.",
+                    message: AppText.format("Recent reported consumption is about %@%% above your prior baseline.", "\(Int(increase.rounded()))"),
                     recommendation: "Check tire pressure, temperature, speed, and climate use on recent trips.",
                     symbol: "bolt.trianglebadge.exclamationmark.fill",
                     severity: .warning
@@ -347,7 +347,7 @@ struct VehicleIntelligenceEngine {
                 VehicleInsight(
                     id: "charging-cost-change",
                     title: "Charging price increased",
-                    message: "Your recent average price per kWh is \(Int(increase.rounded()))% above the preceding 30 days.",
+                    message: AppText.format("Your recent average price per kWh is %@%% above the preceding 30 days.", "\(Int(increase.rounded()))"),
                     recommendation: "Compare locations and shift flexible charging to the lowest-cost option.",
                     symbol: "dollarsign.arrow.trianglehead.counterclockwise.rotate.90",
                     severity: .opportunity
@@ -360,7 +360,7 @@ struct VehicleIntelligenceEngine {
                 VehicleInsight(
                     id: "charging-location-savings",
                     title: "A lower-cost charging pattern is available",
-                    message: "Charging more often at \(savings.location) could save about \(savings.percent)% per kWh versus your costliest regular location.",
+                    message: AppText.format("Charging more often at %1$@ could save about %2$@%% per kWh versus your costliest regular location.", savings.location, "\(savings.percent)"),
                     recommendation: "Use this as a planning signal when location and timing are flexible.",
                     symbol: "leaf.circle.fill",
                     severity: .opportunity

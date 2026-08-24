@@ -1,19 +1,43 @@
 /* Tessalytics — 简体中文
-   The English text is the key. Anything without an entry falls back to
-   English, which is what makes translating incrementally safe.
+   The English text is the key. Anything without an entry here falls back
+   to English, which is what makes translating incrementally safe.
 
    Deliberately absent: place names, demo addresses, vehicle names, bare
    units and version strings. A key here would translate a data value that
-   merely happens to match it — a place called "Home" is not the word. */
+   merely happens to match it. */
 
-"%" = "%";
+"%1$@ drive and %2$@ charge observations analyzed" = "已分析 %1$@ 段行程与 %2$@ 次充电";
+"%1$@ drives · %2$@ charges" = "%1$@ 段行程 · %2$@ 次充电";
+"%1$@ of %2$@" = "%1$@ / %2$@";
+"%1$@ · %2$@ days" = "%1$@ · %2$@ 天";
+"%1$@%% · %2$@ away" = "%1$@%% · 还有 %2$@";
+"%@ / 7 days" = "%@ / 7 天";
+"%@ average" = "平均 %@";
+"%@ battery is low" = "%@ 电量偏低";
+"%@ drives" = "%@ 段行程";
+"%@ is on the car's navigation." = "%@ 已发送到车辆导航。";
+"%@ is signed in" = "%@ 已登录";
+"%@ lost" = "已损失 %@";
+"%@ min" = "%@ 分钟";
+"%@ observations" = "%@ 个观测点";
+"%@ of as-new" = "为全新时的 %@";
+"%@ of as-new capacity" = "为全新容量的 %@";
+"%@ older entries have been discarded to stay inside the log's capacity." = "为不超出日志容量，已丢弃 %@ 条较早的记录。";
+"%@ on the odometer" = "%@ 总里程";
+"%@ per kWh" = "%@ / kWh";
+"%@ per trip" = "每程 %@";
+"%@ places" = "%@ 个地点";
+"%@ pt cold buffer" = "%@ 个百分点的低温缓冲";
+"%@ pts to target" = "距目标还有 %@ 个百分点";
+"%@ should be ready" = "%@ 应该已就绪";
+"+%1$@ points from %2$@%%" = "从 %2$@%% 起 +%1$@ 个百分点";
 "4 charges that each report a range" = "4 次都带有续航读数的充电";
 "7 days" = "7 天";
+"7 days · %@" = "7 天 · %@";
 "A Debug section is now at the bottom of Settings. Turn it off from there when you are finished." = "“调试”一栏已出现在设置底部。用完后可从那里关闭。";
 "A Open Source TeslaMate Client" = "开源的 TeslaMate 客户端";
 "A label for this iPhone only. The server is not contacted." = "仅用于本 iPhone 的标签，不会联系服务器。";
 "A lower-cost charging pattern is available" = "存在成本更低的充电方式";
-"ABCD-EFGH" = "ABCD-EFGH";
 "AWD" = "全轮驱动";
 "About" = "关于";
 "About Tessalytics" = "关于 Tessalytics";
@@ -52,6 +76,7 @@
 "Asleep" = "休眠中";
 "At 100% when new" = "全新时充至 100%";
 "At the rate it is charging now" = "按当前充电速率";
+"At the rate it is charging now · the car says %@" = "按当前充电速率 · 车辆预计 %@";
 "Austin, Texas" = "美国得州奥斯汀";
 "Authentication" = "认证";
 "Authentication failed. Check the configured credentials." = "认证失败。请检查所配置的凭据。";
@@ -111,6 +136,7 @@
 "Charging efficiency" = "充电效率";
 "Charging energy" = "充电电量";
 "Charging energy by day in kilowatt-hours" = "按日统计的充电电量（千瓦时）";
+"Charging more often at %1$@ could save about %2$@%% per kWh versus your costliest regular location." = "相比您最贵的常用地点，多在 %1$@ 充电每千瓦时约可节省 %2$@%%。";
 "Charging now" = "正在充电";
 "Charging price increased" = "充电价格上涨";
 "Charging progress" = "充电进度";
@@ -193,8 +219,10 @@
 "Direct controls" = "直接控制";
 "Direct live" = "直连实时";
 "Disconnect" = "断开连接";
+"Displayed %@%%" = "显示为 %@%%";
 "Distance" = "里程";
 "Distance by day" = "每日里程";
+"Distance driven each day over the last %@ days" = "最近 %@ 天每日行驶里程";
 "Distance per day, last 7 days" = "近 7 天每日里程";
 "Distance travelled" = "行驶里程";
 "Done" = "完成";
@@ -231,6 +259,7 @@
 "Energy use is trending higher" = "能耗呈上升趋势";
 "Energy used" = "耗电量";
 "Enter a pack size between 1 and 400 kWh." = "请输入 1 至 400 kWh 之间的电池容量。";
+"Enter a range between 1 and 2000 %@." = "请输入 1 至 2000 %@ 之间的续航值。";
 "Enter a valid server URL. HTTPS is recommended; HTTP must be explicitly enabled." = "请输入有效的服务器地址。建议使用 HTTPS；使用 HTTP 需要显式启用。";
 "Enter code" = "输入验证码";
 "Enter the address of Tessalytics Backend, not of TeslaMate or Grafana. HTTPS is strongly recommended. Insecure HTTP can be enabled for compatibility, including a public IP and port, but bearer tokens and vehicle data then travel without encryption. TLS validation is never disabled." = "请填写 Tessalytics 后端的地址，而不是 TeslaMate 或 Grafana 的地址。强烈建议使用 HTTPS。为兼容性可以启用不安全的 HTTP（包括公网 IP 和端口），但此时令牌与车辆数据将以明文传输。TLS 证书校验始终不会被关闭。";
@@ -245,6 +274,7 @@
 "Estimated health trend" = "健康度估算趋势";
 "Estimated maximum and current battery capacity" = "电池最大容量与当前容量估算";
 "Estimated range" = "预估续航";
+"Estimated, %@" = "估算值（%@）";
 "Estimated, kWh" = "估算值（kWh）";
 "Estimated, not measured" = "为估算值，非实测值";
 "Estimates from local history — not guarantees." = "依据本地历史推算 — 并非保证。";
@@ -253,6 +283,7 @@
 "Every Day This Week" = "整周不辍";
 "Every as-new figure the app derives is the best your recorded history can support, which is wrong when logging began after the pack had aged. Stating the manufacturer's rating corrects health, capacity lost and equivalent cycles together." = "应用推算的“全新时”数值只能取自您已记录的历史，若记录开始时电池已有衰减，结果就会偏低。填入厂商标称值可同时修正健康度、已损失容量与等效循环次数。";
 "Expected travel over the next seven days" = "未来七天的预计行驶里程";
+"Expires %@" = "有效期至 %@";
 "Expires in" = "有效期";
 "Explore Demo" = "体验演示";
 "Explore demo data" = "体验演示数据";
@@ -263,10 +294,12 @@
 "Filter places" = "筛选地点";
 "Find pairing" = "查找配对";
 "Follow the vehicle" = "跟随车辆";
+"Follow the vehicle's own setting" = "跟随车辆自身的设置";
 "Forecast" = "预测";
 "Forecast help" = "预测说明";
 "Fremont, California" = "美国加州弗里蒙特";
 "From" = "起始";
+"From the car" = "跟随车辆";
 "From this car's own charging history" = "来自本车自己的充电历史";
 "From your VIN" = "来自您的 VIN";
 "Front left" = "左前";
@@ -292,6 +325,7 @@
 "How predictions work" = "预测的原理";
 "If these do not match, the code did not come from your dashboard. Deny it." = "若两者不一致，说明该请求并非来自您的面板，请拒绝。";
 "If this fails, check that Tessalytics Backend is deployed beside TeslaMate, running, and reachable from this iPhone, and that the token is correct. A TeslaMate or Grafana address will not work here." = "若验证失败，请检查 Tessalytics 后端是否与 TeslaMate 部署在一起、是否正在运行、本 iPhone 能否访问，以及令牌是否正确。填写 TeslaMate 或 Grafana 的地址在这里无法使用。";
+"Imperial" = "英制";
 "Important anomalies" = "重要异常";
 "In an hour" = "一小时后";
 "In neutral" = "空挡";
@@ -301,6 +335,10 @@
 "Its synchronized data and credentials are deleted from this iPhone." = "其已同步的数据与凭据将从本 iPhone 删除。";
 "Keeps the body of every event the server sends, so a reading can be compared with what the app made of it. It costs memory while a car is streaming — leave it off unless you are chasing something." = "保存服务器推送的每条事件原文，便于将原始读数与应用的解读对照。车辆推流时会占用内存 — 除非正在排查问题，否则请保持关闭。";
 "Language" = "语言";
+"Language & units" = "语言与单位";
+"Language applies to Tessalytics only and takes effect straight away." = "语言设置仅作用于 Tessalytics，且立即生效。";
+"Last %@" = "最近 %@";
+"Last %@ days" = "最近 %@ 天";
 "Last 7 days" = "近 7 天";
 "Last charge" = "上次充电";
 "Last drive" = "上次行程";
@@ -308,8 +346,10 @@
 "Last known state" = "最后已知状态";
 "Last month" = "上个月";
 "Last seen" = "最后出现";
+"Last seen %@" = "最后出现 %@";
 "Later" = "稍后";
 "Latest" = "最新";
+"Latest activity %@" = "最近活动 %@";
 "Latest drive" = "最近一次行程";
 "Lathrop, California" = "美国加州拉斯罗普";
 "Learning" = "学习中";
@@ -357,9 +397,11 @@
 "Median consumption across recent drives" = "近期行程能耗的中位数";
 "Megawatt Hour" = "兆瓦时";
 "Method" = "方式";
+"Metric" = "公制";
 "Minimum" = "最小值";
 "Missing values are excluded, not counted as zero." = "缺失的数值会被排除，而不是按零计算。";
 "Model" = "车型";
+"Model %@" = "车型 %@";
 "Model year" = "车型年份";
 "Modeled battery capacity against odometer" = "电池容量随里程的推算曲线";
 "Modeled per charge" = "按每次充电推算";
@@ -502,6 +544,7 @@
 "Re-sync" = "重新同步";
 "Re-sync history" = "重新同步历史";
 "Reached the pack" = "实际进入电池";
+"Read-only access until %@." = "只读访问权限有效至 %@。";
 "Reading" = "读数";
 "Readings are kept in memory for fifteen minutes and are discarded when the drive ends." = "读数在内存中保留十五分钟，行程结束后即丢弃。";
 "Rear left" = "左后";
@@ -509,6 +552,7 @@
 "Recent" = "最近去过";
 "Recent driving" = "近期行驶";
 "Recent patterns look stable" = "近期数据表现平稳";
+"Recent reported consumption is about %@%% above your prior baseline." = "近期上报的能耗比此前基准高约 %@%%。";
 "Record 100 charging sessions" = "记录 100 次充电";
 "Record live events" = "记录实时事件";
 "Recording" = "记录中";
@@ -564,12 +608,14 @@
 "Share" = "分享";
 "Share this page" = "分享此页面";
 "Show" = "显示";
+"Showing the %@ most recent versions. The full history is listed below." = "显示最近 %@ 个版本。完整历史见下方列表。";
 "Sign in a browser" = "为浏览器登录";
 "Sign in to Game Center" = "登录 Game Center";
 "Signals and opportunities" = "信号与机会";
 "Signed in" = "已登录";
 "Six Figures" = "六位数";
 "Six most-used locations" = "最常用的六个地点";
+"So far · %@" = "已进行 · %@";
 "Software" = "软件";
 "Software & details" = "软件与详情";
 "Software update available" = "有可用的软件更新";
@@ -607,6 +653,7 @@
 "Taken" = "读取时间";
 "Tap a server to rename it, switch to it, or remove it." = "点按服务器可重命名、切换或移除。";
 "Tap five times to turn on debug mode" = "连点五次开启调试模式";
+"Tap to read values · %@ samples" = "点按读取数值 · %@ 个采样点";
 "Tapping this fills the capacity field above. Nothing is applied until you save, and your own figure always wins." = "点按后会填入上方的容量字段。保存前不会生效，且您自己填写的数值始终优先。";
 "Target charge" = "目标电量";
 "Tesla could not be reached. Check the network connection." = "无法连接 Tesla。请检查网络连接。";
@@ -638,6 +685,7 @@
 "The command could not be completed." = "该指令未能完成。";
 "The dashboard should be showing your vehicle within a couple of seconds." = "面板应在几秒内显示您的车辆。";
 "The exported file is redacted: tokens, VINs and coordinates are removed before it leaves this device." = "导出的文件已脱敏：令牌、VIN 与坐标在离开本设备前都会被移除。";
+"The last reported battery level is %@%% and the vehicle is not plugged in." = "最后上报的电量为 %@%%，且车辆未插枪。";
 "The licence covers the code. The Tessalytics name and icon are covered by the trademark policy." = "许可证涵盖代码本身。Tessalytics 名称与图标另受商标政策约束。";
 "The list below is computed on this device and does not need it." = "下方列表在本设备上计算，无需 Game Center。";
 "The name and model come from TeslaMate. Rename the car in the Tesla app and it follows here." = "名称与车型来自 TeslaMate。在 Tesla 应用中重命名后，此处会随之更新。";
@@ -689,6 +737,8 @@
 "URL" = "网址";
 "Unavailable" = "不可用";
 "Understand every drive." = "读懂每一段行程。";
+"Units" = "单位";
+"Units follow the vehicle's own setting." = "单位跟随车辆自身的设置。";
 "Unknown" = "未知";
 "Unknown browser" = "未知浏览器";
 "Unlock" = "解锁";
@@ -697,6 +747,7 @@
 "Unnamed place" = "未命名地点";
 "Unreported" = "未上报";
 "Update waiting" = "有待安装的更新";
+"Updated %@" = "更新于 %@";
 "Updates" = "软件更新";
 "Updates recorded" = "已记录更新";
 "Usable capacity" = "可用容量";
@@ -707,6 +758,7 @@
 "Use only on a trusted private network or VPN. Anyone who can reach the server may be able to view location history." = "请仅在可信的专用网络或 VPN 中使用。任何能访问该服务器的人都可能查看位置历史。";
 "Username" = "用户名";
 "Values" = "数值";
+"Values reported by the car are converted for display; the car's own setting is unchanged." = "车辆上报的数值会换算后显示；车辆自身的设置不受影响。";
 "Variant" = "配置";
 "Vehicle" = "车辆";
 "Vehicle alerts" = "车辆提醒";
@@ -738,20 +790,27 @@
 "Your existing server settings and credentials will remain saved." = "您已有的服务器设置与凭据仍会保留。";
 "Your iPhone connects straight to the server you choose." = "您的 iPhone 直接连接您选择的服务器。";
 "Your mobility, clearly explained" = "把您的出行讲清楚";
+"Your recent average price per kWh is %@%% above the preceding 30 days." = "您近期每千瓦时的平均电价比之前 30 天高 %@%%。";
 "Your server" = "您的服务器";
 "a charging session that reports coordinates" = "一次带有坐标的充电记录";
 "a new version" = "新版本";
+"and %@ more" = "另有 %@ 项";
+"at %@%%" = "达到 %@%%";
 "estimated range" = "预估续航";
 "front left" = "左前";
 "front right" = "右前";
 "health" = "健康度";
 "iPhone app" = "iPhone 应用";
 "ideal range" = "理想续航";
+"in %@" = "%@ 后";
 "kWh" = "kWh";
+"km · °C · bar" = "km · °C · bar";
+"mi · °F · psi" = "mi · °F · psi";
 "my Tesla" = "我的 Tesla";
 "of as-new" = "（相对全新）";
 "on the odometer" = "总里程";
 "one synced drive with coordinates" = "一段带有坐标的已同步行程";
+"plugged in %@" = "%@ 插枪";
 "prev. range" = "上一区间";
 "range unavailable" = "暂无续航数据";
 "rated range" = "标称续航";
@@ -759,3 +818,4 @@
 "rear right" = "右后";
 "the stream is up but nothing is arriving" = "连接正常，但没有数据到达";
 "three weeks of range readings" = "三周的续航读数";
+"updated at %@" = "更新于 %@";

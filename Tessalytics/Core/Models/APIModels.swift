@@ -2,10 +2,53 @@ import Foundation
 
 struct Envelope<T: Decodable & Sendable>: Decodable, Sendable { let data: T }
 
+/// Which units the owner wants to read, whatever the car reports in.
+///
+/// The car's own setting is the sensible default, and for most people the only
+/// right answer. But a car delivered in one market and driven in another reports
+/// units its driver does not think in, and the setting lives behind a Tesla
+/// account rather than in this app.
+enum UnitPreference: String, CaseIterable, Identifiable, Sendable {
+    /// Whatever TeslaMate reports, which is whatever the car is set to.
+    case automatic
+    case metric
+    case imperial
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .automatic: "From the car"
+        case .metric: "Metric"
+        case .imperial: "Imperial"
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .automatic: "Follow the vehicle's own setting"
+        case .metric: "km · °C · bar"
+        case .imperial: "mi · °F · psi"
+        }
+    }
+
+    static let storageKey = "unitPreference"
+}
+
 struct UnitsDTO: Codable, Hashable, Sendable {
     let unitOfLength: String?
     let unitOfPressure: String?
     let unitOfTemperature: String?
+
+    /// What the owner asked to read in. Not part of the server's payload — it is
+    /// this app's choice, carried alongside so that every formatter has both ends
+    /// of the conversion without a second argument threaded through two hundred
+    /// call sites.
+    var preference: UnitPreference = .automatic
+
+    private enum CodingKeys: String, CodingKey {
+        case unitOfLength, unitOfPressure, unitOfTemperature
+    }
 }
 
 extension UnitsDTO {
@@ -15,40 +58,110 @@ extension UnitsDTO {
         unitOfTemperature: "C"
     )
 
-    var lengthSymbol: String {
-        unitOfLength?.lowercased() == "mi" ? "mi" : "km"
+    func with(preference: UnitPreference) -> UnitsDTO {
+        var copy = self
+        copy.preference = preference
+        return copy
     }
 
-    var speedSymbol: String {
-        lengthSymbol == "mi" ? "mph" : "km/h"
-    }
+    // MARK: - What the server sends
+    //
+    // Values arrive already converted into the car's units. The symbols below say
+    // which those are, and are what any conversion has to start from.
 
-    var temperatureSymbol: String {
+    var sourceLengthSymbol: String { unitOfLength?.lowercased() == "mi" ? "mi" : "km" }
+    var sourceTemperatureSymbol: String {
         unitOfTemperature?
             .replacingOccurrences(of: "°", with: "")
             .uppercased() == "F" ? "°F" : "°C"
     }
+    var sourcePressureSymbol: String { unitOfPressure?.lowercased() == "psi" ? "psi" : "bar" }
+
+    // MARK: - What the owner reads
+
+    var lengthSymbol: String {
+        switch preference {
+        case .automatic: sourceLengthSymbol
+        case .metric: "km"
+        case .imperial: "mi"
+        }
+    }
+
+    var speedSymbol: String { lengthSymbol == "mi" ? "mph" : "km/h" }
+
+    var temperatureSymbol: String {
+        switch preference {
+        case .automatic: sourceTemperatureSymbol
+        case .metric: "°C"
+        case .imperial: "°F"
+        }
+    }
 
     var pressureSymbol: String {
-        unitOfPressure?.lowercased() == "psi" ? "psi" : "bar"
+        switch preference {
+        case .automatic: sourcePressureSymbol
+        case .metric: "bar"
+        case .imperial: "psi"
+        }
     }
 
     var efficiencySymbol: String { "Wh/\(lengthSymbol)" }
 
-    func length(_ value: Double?) -> Measurement<UnitLength>? {
+    /// Whether anything has to be converted at all.
+    var isConverting: Bool {
+        lengthSymbol != sourceLengthSymbol
+            || temperatureSymbol != sourceTemperatureSymbol
+            || pressureSymbol != sourcePressureSymbol
+    }
+
+    // MARK: - Converting a reported value into the one to show
+
+    private static let milesPerKilometre = 0.621371192237334
+
+    func displayDistance(_ value: Double?) -> Double? {
         guard let value else { return nil }
+        guard lengthSymbol != sourceLengthSymbol else { return value }
+        return sourceLengthSymbol == "km" ? value * Self.milesPerKilometre : value / Self.milesPerKilometre
+    }
+
+    /// Speed converts by the same factor as distance: miles per hour and
+    /// kilometres per hour differ only in the distance.
+    func displaySpeed(_ value: Double?) -> Double? { displayDistance(value) }
+
+    func displayTemperature(_ value: Double?) -> Double? {
+        guard let value else { return nil }
+        guard temperatureSymbol != sourceTemperatureSymbol else { return value }
+        return sourceTemperatureSymbol == "°C" ? value * 9 / 5 + 32 : (value - 32) * 5 / 9
+    }
+
+    func displayPressure(_ value: Double?) -> Double? {
+        guard let value else { return nil }
+        guard pressureSymbol != sourcePressureSymbol else { return value }
+        return sourcePressureSymbol == "bar" ? value * 14.503773773 : value / 14.503773773
+    }
+
+    /// Energy *per* unit distance, so the factor inverts: fewer miles than
+    /// kilometres means more watt-hours in each of them.
+    func displayEfficiency(_ value: Double?) -> Double? {
+        guard let value else { return nil }
+        guard lengthSymbol != sourceLengthSymbol else { return value }
+        return sourceLengthSymbol == "km" ? value / Self.milesPerKilometre : value * Self.milesPerKilometre
+    }
+
+    func length(_ value: Double?) -> Measurement<UnitLength>? {
+        guard let value = displayDistance(value) else { return nil }
         return Measurement(value: value, unit: lengthSymbol == "mi" ? .miles : .kilometers)
     }
     func speed(_ value: Double?) -> Measurement<UnitSpeed>? {
-        guard let value else { return nil }
+        guard let value = displaySpeed(value) else { return nil }
         return Measurement(value: value, unit: speedSymbol == "mph" ? .milesPerHour : .kilometersPerHour)
     }
     func temperature(_ value: Double?) -> Measurement<UnitTemperature>? {
-        guard let value else { return nil }
+        guard let value = displayTemperature(value) else { return nil }
         return Measurement(value: value, unit: temperatureSymbol == "°F" ? .fahrenheit : .celsius)
     }
     func pressure(_ value: Double?) -> Measurement<UnitPressure>? {
-        guard let value else { return nil }
+        guard let value = displayPressure(value) else { return nil }
         return Measurement(value: value, unit: pressureSymbol == "psi" ? .poundsForcePerSquareInch : .bars)
     }
 }

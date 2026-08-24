@@ -66,7 +66,7 @@ struct VehicleSpecificationView: View {
                     }
                 }
                 if rangeIsRejected {
-                    Text("Enter a range between 1 and 2000 \(distanceUnit).")
+                    Text(AppText.format("Enter a range between 1 and 2000 %@.", distanceUnit))
                         .font(.caption)
                         .foregroundStyle(TessalyticsTheme.critical)
                 }
@@ -140,7 +140,7 @@ struct VehicleSpecificationView: View {
     @ViewBuilder private var packSection: some View {
         if let vin = environment.selectedVIN {
             Section {
-                LabeledContent("Model", value: "Model \(vin.model)")
+                LabeledContent("Model", value: AppText.format("Model %@", vin.model))
                 LabeledContent("Built at", value: vin.factory.displayName)
                 LabeledContent("Model year", value: String(vin.modelYear))
 

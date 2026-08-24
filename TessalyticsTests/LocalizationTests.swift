@@ -31,20 +31,63 @@ final class LocalizationTests: XCTestCase {
         XCTAssertEqual(chinese.appString(""), "")
     }
 
-    /// Traditional Chinese is a different script and is not translated. Serving
-    /// it simplified characters would be worse than serving it English.
-    func testTraditionalChineseIsNotServedSimplifiedCharacters() {
+    /// Traditional Chinese has its own catalogue, not the simplified one: the two
+    /// differ in script and in vocabulary, and serving one to readers of the other
+    /// is a worse answer than English.
+    func testTraditionalChineseGetsItsOwnCatalogue() {
         for identifier in ["zh-Hant", "zh-TW", "zh-HK", "zh-Hant-MO"] {
-            XCTAssertEqual(
-                Locale(identifier: identifier).appString("Settings"),
-                "Settings",
-                "\(identifier) is not a translation this app has"
+            let rendered = Locale(identifier: identifier).appString("Software updates")
+            XCTAssertEqual(rendered, "軟體更新", "\(identifier) should read traditional characters")
+            XCTAssertNotEqual(
+                rendered,
+                Locale(identifier: "zh-Hans").appString("Software updates"),
+                "\(identifier) is not simplified Chinese"
             )
         }
     }
 
+    func testEveryShippedLanguageResolves() {
+        let expected: [String: String] = [
+            "de": "Einstellungen", "fr": "Réglages", "ja": "設定",
+            "zh-Hans": "设置", "zh-Hant": "設定", "en": "Settings"
+        ]
+        for (code, settings) in expected {
+            XCTAssertEqual(Locale(identifier: code).appString("Settings"), settings, code)
+            XCTAssertNotNil(Bundle.main.path(forResource: code, ofType: "lproj"), code)
+        }
+    }
+
+    /// A format string whose placeholders were lost or reordered in translation
+    /// crashes or prints the wrong value, so every catalogue is checked against
+    /// its key rather than spot-checked.
+    func testEveryTranslationKeepsItsFormatPlaceholders() throws {
+        let pattern = try NSRegularExpression(pattern: "%(?:\\d+\\$)?[@%]")
+        func placeholders(_ text: String) -> [String] {
+            let range = NSRange(text.startIndex..., in: text)
+            return pattern.matches(in: text, range: range).compactMap {
+                Range($0.range, in: text).map { String(text[$0]) }
+            }.sorted()
+        }
+
+        for code in ["de", "fr", "ja", "zh-Hans", "zh-Hant"] {
+            let path = try XCTUnwrap(Bundle.main.path(forResource: code, ofType: "lproj"))
+            let bundle = try XCTUnwrap(Bundle(path: path))
+            let table = try XCTUnwrap(
+                NSDictionary(contentsOfFile: path + "/Localizable.strings") as? [String: String]
+            )
+            XCTAssertGreaterThan(table.count, 700, "\(code) should be a full catalogue")
+            for (key, _) in table where key.contains("%") {
+                let translated = bundle.localizedString(forKey: key, value: key, table: nil)
+                XCTAssertEqual(
+                    placeholders(translated), placeholders(key),
+                    "\(code): placeholders changed in \"\(key)\""
+                )
+            }
+        }
+    }
+
     func testAnUnrelatedLanguageGetsEnglishRatherThanWhateverIsNearest() {
-        for identifier in ["fr-FR", "de-DE", "ja-JP"] {
+        for identifier in ["es-ES", "it-IT", "ko-KR"] {
             XCTAssertEqual(Locale(identifier: identifier).appString("Settings"), "Settings")
         }
     }
@@ -72,6 +115,9 @@ final class LocalizationTests: XCTestCase {
     func testEveryLanguageOffersItselfByItsOwnName() {
         // A reader looking for their language finds it written in it.
         XCTAssertEqual(AppLanguage.simplifiedChinese.title, "简体中文")
+        XCTAssertEqual(AppLanguage.traditionalChinese.title, "繁體中文")
+        XCTAssertEqual(AppLanguage.german.title, "Deutsch")
+        XCTAssertEqual(AppLanguage.japanese.title, "日本語")
         XCTAssertEqual(AppLanguage.english.title, "English")
         XCTAssertEqual(chinese.appString(AppLanguage.system.title), "系统")
     }

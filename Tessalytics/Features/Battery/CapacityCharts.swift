@@ -147,9 +147,9 @@ struct CapacityByMileageChart: View {
 
     private var retentionSummary: String {
         guard let latest = medians.last?.capacity, let capacityNew, capacityNew > 0 else {
-            return "\(observations.count) observations"
+            return AppText.format("%@ observations", "\(observations.count)")
         }
-        return "\(ValueFormatting.percentage(latest / capacityNew, digits: 1)) of as-new capacity"
+        return AppText.format("%@ of as-new capacity", ValueFormatting.percentage(latest / capacityNew, digits: 1))
     }
 
 }

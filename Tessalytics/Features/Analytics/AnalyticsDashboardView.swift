@@ -248,7 +248,7 @@ private struct AnalyticsHero: View {
 
     private var title: String {
         guard let snapshot, snapshot.coverage.drives + snapshot.coverage.charges > 0 else { return "Your mobility, clearly explained" }
-        return "\(snapshot.coverage.drives) drives · \(snapshot.coverage.charges) charges"
+        return AppText.format("%1$@ drives · %2$@ charges", "\(snapshot.coverage.drives)", "\(snapshot.coverage.charges)")
     }
 
     var body: some View {
@@ -414,7 +414,7 @@ private struct DrivingAnalyticsDashboard: View {
     private var averageTripDuration: String {
         guard snapshot.summary.driveCount > 0 else { return "No trips recorded" }
         let minutes = snapshot.summary.drivingMinutes / snapshot.summary.driveCount
-        return "\(ValueFormatting.duration(minutes: minutes)) per trip"
+        return AppText.format("%@ per trip", ValueFormatting.duration(minutes: minutes))
     }
 }
 
@@ -671,7 +671,7 @@ private struct EfficiencyTrendChart: View {
     let unit: String
 
     var body: some View {
-        SectionCard("Efficiency trend", subtitle: "\(points.count) drives", symbol: "leaf.fill", tint: TessalyticsTheme.warning) {
+        SectionCard("Efficiency trend", subtitle: AppText.format("%@ drives", "\(points.count)"), symbol: "leaf.fill", tint: TessalyticsTheme.warning) {
             if points.count < 8 {
                 ChartEmptyState(message: "At least eight drives with efficiency data are needed for a meaningful trend. \(points.count) available.")
             } else {
@@ -953,7 +953,7 @@ private struct CoverageRow: View {
             HStack {
                 Text(title).font(.subheadline.weight(.medium))
                 Spacer(minLength: 12)
-                Text("\(available) of \(total)")
+                Text(AppText.format("%1$@ of %2$@", "\(available)", "\(total)"))
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
             }
@@ -1028,7 +1028,7 @@ private struct AnalyticsSourceNote: View {
                 .font(.caption2)
                 .foregroundStyle(.secondary)
             if let date = coverage?.latestActivity {
-                Text("Latest activity \(date.formatted(date: .abbreviated, time: .shortened))")
+                Text(AppText.format("Latest activity %@", date.formatted(date: .abbreviated, time: .shortened)))
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }

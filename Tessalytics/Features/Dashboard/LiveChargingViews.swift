@@ -88,7 +88,7 @@ struct LiveChargeSection: View {
         guard let projection else { return nil }
         let gain = projection.level(after: 3_600) - projection.level
         guard gain >= 0.5 else { return "Already at the limit" }
-        return "+\(Int(gain.rounded())) points from \(Int(projection.level.rounded()))%"
+        return AppText.format("+%1$@ points from %2$@%%", "\(Int(gain.rounded()))", "\(Int(projection.level.rounded()))")
     }
 
     /// The measured rate, said plainly, and whether it is falling.
@@ -118,12 +118,12 @@ struct LiveChargeSection: View {
     private var completesDetail: String? {
         guard let projection, let date = projection.completesAt else { return nil }
         let minutes = max(Int(date.timeIntervalSince(projection.start) / 60), 1)
-        return "\(Int(projection.limit.rounded()))% · \(ValueFormatting.duration(minutes: minutes)) away"
+        return AppText.format("%1$@%% · %2$@ away", "\(Int(projection.limit.rounded()))", ValueFormatting.duration(minutes: minutes))
     }
 
     private var spanLabel: String {
         guard let elapsed = session.duration, elapsed >= 60 else { return "Waiting for readings" }
-        return "So far · \(ValueFormatting.duration(minutes: max(Int(elapsed / 60), 1)))"
+        return AppText.format("So far · %@", ValueFormatting.duration(minutes: max(Int(elapsed / 60), 1)))
     }
 }
 
@@ -171,7 +171,7 @@ struct ChargeMilestoneList: View {
         // The car's own estimate is on this screen too, in the progress row. When
         // the two differ by enough to notice, the screen has to say so rather than
         // print two finishing times and let the reader wonder which is broken.
-        return "At the rate it is charging now · the car says \(disagreement)"
+        return AppText.format("At the rate it is charging now · the car says %@", disagreement)
     }
 
     /// The car's finishing time, when it is far enough from the forecast to be
@@ -213,7 +213,7 @@ struct ChargeMilestoneList: View {
     private func waitLabel(_ milestone: ChargeProjection.Milestone) -> String {
         let minutes = max(Int(milestone.date.timeIntervalSince(projection.start) / 60), 0)
         if minutes < 1 { return "now" }
-        return "in \(ValueFormatting.duration(minutes: minutes))"
+        return AppText.format("in %@", ValueFormatting.duration(minutes: minutes))
     }
 }
 
@@ -376,7 +376,7 @@ struct HeroChargeForecast: View {
                 Divider().frame(height: 26)
                 figure(
                     value: completes.formatted(date: .omitted, time: .shortened),
-                    label: "at \(Int(projection.limit.rounded()))%"
+                    label: AppText.format("at %@%%", "\(Int(projection.limit.rounded()))")
                 )
             }
             Spacer(minLength: 0)
@@ -479,7 +479,7 @@ struct HeroChargeForecast: View {
                     // Along the bottom, where "now" is not: leading-aligned at the
                     // top the two labels sat on each other and read as one word.
                     .annotation(position: .bottom, alignment: .leading, spacing: 1) {
-                        Text("plugged in \(began.formatted(date: .omitted, time: .shortened))")
+                        Text(AppText.format("plugged in %@", began.formatted(date: .omitted, time: .shortened)))
                             .font(.system(size: 8))
                             .foregroundStyle(.secondary)
                     }

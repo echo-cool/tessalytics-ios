@@ -93,7 +93,7 @@ struct AnalyticsTimeWindow: Sendable {
             return Self(
                 current: start..<end,
                 previous: previousStart..<start,
-                label: "Last \(count) days",
+                label: AppText.format("Last %@ days", "\(count)"),
                 comparisonLabel: "prev. \(count)d"
             )
         }

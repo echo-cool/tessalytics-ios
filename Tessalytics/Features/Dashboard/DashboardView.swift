@@ -373,7 +373,7 @@ struct DashboardView: View {
                 if let status = environment.status {
                     NavigationSectionCard(
                         "Recent driving",
-                        subtitle: "7 days · \(ValueFormatting.distance(weeklyDistance, units: environment.statusUnits, digits: 0))",
+                        subtitle: AppText.format("7 days · %@", ValueFormatting.distance(weeklyDistance, units: environment.statusUnits, digits: 0)),
                         symbol: "chart.bar.fill",
                         tint: TessalyticsTheme.accent
                     ) {
@@ -487,7 +487,7 @@ struct DashboardView: View {
         guard let battery = environment.fleet.battery, let health = battery.healthPercent else {
             return "Modeled per charge"
         }
-        return "\(ValueFormatting.percentage(health / 100, digits: 1)) of as-new"
+        return AppText.format("%@ of as-new", ValueFormatting.percentage(health / 100, digits: 1))
     }
 
     /// Median consumption over the last thirty days of drives.
@@ -811,18 +811,18 @@ private struct VehicleTelemetryGrid: View {
     /// server computes it from whatever it has, so it can answer when this
     /// cannot.
     private var usableChargeDetail: String {
-        if let buffer = status.batteryDetails?.bufferLevel, buffer > 0 { return "\(buffer) pt cold buffer" }
+        if let buffer = status.batteryDetails?.bufferLevel, buffer > 0 { return AppText.format("%@ pt cold buffer", "\(buffer)") }
         guard let displayed = status.batteryDetails?.batteryLevel else { return "Usable capacity" }
-        guard let usable = status.batteryDetails?.usableBatteryLevel else { return "Displayed \(displayed)%" }
+        guard let usable = status.batteryDetails?.usableBatteryLevel else { return AppText.format("Displayed %@%%", "\(displayed)") }
         let difference = displayed - usable
-        return difference > 0 ? "\(difference) pt cold buffer" : "Displayed \(displayed)%"
+        return difference > 0 ? "\(difference) pt cold buffer" : AppText.format("Displayed %@%%", "\(displayed)")
     }
 
     private var chargeLimitDetail: String {
         guard let limit = status.chargingDetails?.reportedChargeLimit else { return "Not reported" }
         guard let level = status.batteryDetails?.batteryLevel else { return "Target charge" }
         let remaining = limit - level
-        if remaining > 0 { return "\(remaining) pts to target" }
+        if remaining > 0 { return AppText.format("%@ pts to target", "\(remaining)") }
         return remaining == 0 ? "At target" : "\(-remaining) pts above"
     }
 
@@ -846,7 +846,7 @@ private struct VehicleTelemetryGrid: View {
     private var weeklyAverageDetail: String {
         guard history.weeklyDrives > 0 else { return "Last 7 days" }
         let average = history.weeklyDistance / Double(history.weeklyDrives)
-        return "\(ValueFormatting.distance(average, units: units, digits: 1)) average"
+        return AppText.format("%@ average", ValueFormatting.distance(average, units: units, digits: 1))
     }
 
     private var lastChargeDetail: String {
@@ -913,7 +913,7 @@ private struct DriveStatsCard: View {
                     title: "Logged miles",
                     value: ValueFormatting.distance(stats.loggedDistance, units: units, digits: 0),
                     symbol: "checkmark.circle.fill",
-                    detail: "\(stats.driveCount.formatted()) drives",
+                    detail: AppText.format("%@ drives", stats.driveCount.formatted()),
                     tint: TessalyticsTheme.accent
                 )
                 MetricCard(
@@ -1025,7 +1025,7 @@ private struct ChargingSummaryCard: View {
         let lost = stats.energyUsed - stats.energyAdded
         guard lost > 0 else { return "No measurable loss" }
         _ = efficiency
-        return "\(ValueFormatting.energy(lost)) lost"
+        return AppText.format("%@ lost", ValueFormatting.energy(lost))
     }
 }
 
@@ -1312,7 +1312,7 @@ private struct VehicleHeroCard: View {
     /// How long the car has been driving or charging is news. How long it has
     /// been asleep is not, so only a notable state contributes its age.
     private var footnote: String {
-        let updated = updatedAt.map { "updated at \(Self.readingTime($0))" }
+        let updated = updatedAt.map { AppText.format("updated at %@", Self.readingTime($0)) }
         let age = summary.isNotable ? status?.stateDuration.map { duration in
             "\(summary.stateNoun) for \(duration.elapsedDescription)"
         } : nil
@@ -1324,6 +1324,7 @@ private struct VehicleHeroCard: View {
     static func readingTime(_ date: Date) -> String { ValueFormatting.readingTime(date) }
 
     private var distanceUnit: String { (units ?? .metricDefaults).lengthSymbol }
+    private var heroUnits: UnitsDTO { units ?? .metricDefaults }
 
     /// The odometer to a tenth.
     ///
@@ -1331,12 +1332,12 @@ private struct VehicleHeroCard: View {
     /// move. Rounded to the nearest unit, a short errand changes nothing on
     /// screen, which reads as a stale reading rather than a short drive.
     private var odometerValue: String {
-        guard let odometer = status?.odometer else { return "—" }
+        guard let odometer = heroUnits.displayDistance(status?.odometer) else { return "—" }
         return odometer.formatted(.number.precision(.fractionLength(1)))
     }
 
     private var odometerAccessibilityValue: String {
-        guard let odometer = status?.odometer else { return "Unavailable" }
+        guard let odometer = heroUnits.displayDistance(status?.odometer) else { return "Unavailable" }
         return "\(odometer.formatted(.number.precision(.fractionLength(0)))) \(distanceUnit)"
     }
 
@@ -1531,7 +1532,7 @@ private struct VehicleHeroCard: View {
                         Button { onOpen(.drives) } label: {
                             HeroFigure(
                                 value: odometerValue,
-                                label: "\(distanceUnit) on the odometer",
+                                label: AppText.format("%@ on the odometer", distanceUnit),
                                 symbol: "road.lanes",
                                 tint: TessalyticsTheme.steel
                             )
@@ -1679,12 +1680,12 @@ struct DashboardHistorySummary: Equatable {
 
     func lastDriveText(units: UnitsDTO?) -> String {
         guard let distance = lastDriveDistance else { return "No drives synced" }
-        return "Last \(ValueFormatting.distance(distance, units: units, digits: 1))"
+        return AppText.format("Last %@", ValueFormatting.distance(distance, units: units, digits: 1))
     }
 
     func weeklyText(units: UnitsDTO?) -> String {
         guard weeklyDrives > 0 else { return "No drives in 7 days" }
-        return "\(ValueFormatting.distance(weeklyDistance, units: units, digits: 0)) / 7 days"
+        return AppText.format("%@ / 7 days", ValueFormatting.distance(weeklyDistance, units: units, digits: 0))
     }
 
     func lastChargeText() -> String {
@@ -1896,7 +1897,8 @@ struct VehicleHeroSummary: Equatable {
         if let range = status?.batteryDetails?.displayRange {
             // Two decimals, because the server reports them and rounding them off
             // made a range that was visibly falling look like one that was stuck.
-            rangeValue = range.value.formatted(.number.precision(.fractionLength(2)))
+            rangeValue = (resolvedUnits.displayDistance(range.value) ?? range.value)
+                .formatted(.number.precision(.fractionLength(2)))
             rangeLabel = "\(resolvedUnits.lengthSymbol) \(AppText.string(range.label))"
             rangeAccessibilityValue = "\(rangeValue) \(resolvedUnits.lengthSymbol), \(range.label)"
         } else {
@@ -2232,6 +2234,7 @@ private struct VehicleDetailsCard: View {
 
 /// One headline figure beside the battery ring: a value, its unit, and an icon.
 private struct HeroFigure: View {
+    @Environment(\.locale) private var locale
     let value: String
     let label: String
     let symbol: String
@@ -2249,11 +2252,16 @@ private struct HeroFigure: View {
                     .monospacedDigit()
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
-                Text(label)
+                Text(locale.appString(label))
                     .font(.caption2)
                     .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+                    // Two lines, because a translation is not the same length as
+                    // its English. "mi estimated range" fits on one; "mi
+                    // geschätzte Reichweite" was being cut to "mi geschätzte
+                    // Reichw…", which is a label that has stopped saying what it
+                    // labels.
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.7)
             }
         }
     }
@@ -2317,10 +2325,14 @@ private struct HeroActivityStrip: View {
             .frame(height: 36)
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Distance driven each day over the last \(points.count) days")
+            .accessibilityLabel(AppText.format("Distance driven each day over the last %@ days", "\(points.count)"))
             .accessibilityValue(ValueFormatting.distance(total, units: resolvedUnits, digits: 0))
 
-            Text("\(ValueFormatting.distance(total, units: resolvedUnits, digits: 0)) · \(points.count) days")
+            Text(AppText.format(
+                "%1$@ · %2$@ days",
+                ValueFormatting.distance(total, units: resolvedUnits, digits: 0),
+                "\(points.count)"
+            ))
                 .font(.caption2)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)

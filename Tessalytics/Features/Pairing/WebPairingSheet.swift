@@ -209,11 +209,11 @@ struct WebPairingSheet: View {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 56))
                 .foregroundStyle(TessalyticsTheme.positive)
-            Text("\(session.label) is signed in")
+            Text(AppText.format("%@ is signed in", session.label))
                 .font(.title3.weight(.semibold))
                 .multilineTextAlignment(.center)
             if let expiresAt = session.expiresAt {
-                Text("Read-only access until \(expiresAt.formatted(date: .abbreviated, time: .shortened)).")
+                Text(AppText.format("Read-only access until %@.", expiresAt.formatted(date: .abbreviated, time: .shortened)))
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)

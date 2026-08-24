@@ -395,7 +395,7 @@ private struct BatteryRangeChart: View {
     }
 
     var body: some View {
-        SectionCard("Range comparison", subtitle: "Estimated, \(distanceUnit)", symbol: "point.bottomleft.forward.to.point.topright.scurvepath", tint: TessalyticsTheme.neutral) {
+        SectionCard("Range comparison", subtitle: AppText.format("Estimated, %@", distanceUnit), symbol: "point.bottomleft.forward.to.point.topright.scurvepath", tint: TessalyticsTheme.neutral) {
             if points.count < 2 {
                 Text("Needs both a maximum and a current estimate.")
                     .font(.subheadline)
@@ -485,7 +485,7 @@ private struct BatteryEstimateNote: View {
     let observedAt: Date
 
     var body: some View {
-        SectionCard("Estimated, not measured", subtitle: "Updated \(ValueFormatting.date(observedAt))", symbol: "info.circle.fill", tint: TessalyticsTheme.warning) {
+        SectionCard("Estimated, not measured", subtitle: AppText.format("Updated %@", ValueFormatting.date(observedAt)), symbol: "info.circle.fill", tint: TessalyticsTheme.warning) {
             Text("Derived from charging and range data. Temperature and calibration shift the numbers.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)

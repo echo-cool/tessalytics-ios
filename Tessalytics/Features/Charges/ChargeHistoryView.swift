@@ -59,7 +59,7 @@ struct ChargeHistoryView: View {
         VStack(spacing: 8) {
             ForEach(records.prefix(20), id: \.chargeID) { ChargeRow(record: $0) }
             if records.count > 20 {
-                Text("and \(records.count - 20) more")
+                Text(AppText.format("and %@ more", "\(records.count - 20)"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)

@@ -62,7 +62,7 @@ struct AchievementsView: View {
     private func sharePage() -> SharePage {
         let next = remaining.first
         var highlights: [ShareHighlight] = [
-            .init(label: "earned", value: "\(earned.count) of \(progress.count)")
+            .init(label: "earned", value: AppText.format("%1$@ of %2$@", "\(earned.count)", "\(progress.count)"))
         ]
         if let next {
             highlights.append(.init(label: "closest", value: next.achievement.title))
@@ -91,7 +91,7 @@ struct AchievementsView: View {
 
     private var summary: some View {
         SectionCard(
-            "\(earned.count) of \(progress.count)",
+            AppText.format("%1$@ of %2$@", "\(earned.count)", "\(progress.count)"),
             subtitle: environment.fleet.isComplete
                 ? "Judged against your whole synced history"
                 : "Judged against what has synced so far",
@@ -101,7 +101,7 @@ struct AchievementsView: View {
             ProgressView(value: Double(earned.count), total: Double(max(progress.count, 1)))
                 .tint(TessalyticsTheme.warning)
                 .accessibilityLabel("Achievements earned")
-                .accessibilityValue("\(earned.count) of \(progress.count)")
+                .accessibilityValue(AppText.format("%1$@ of %2$@", "\(earned.count)", "\(progress.count)"))
         }
     }
 

@@ -113,7 +113,7 @@ struct VisitedPlacesScreen: View {
             )
         } else {
             map
-            SectionCard("Most visited", subtitle: "\(places.count) places", symbol: "mappin.circle.fill") {
+            SectionCard("Most visited", subtitle: AppText.format("%@ places", "\(places.count)"), symbol: "mappin.circle.fill") {
                 VStack(spacing: 0) {
                     ForEach(Array(places.prefix(isRenderingPoster ? 10 : 25).enumerated()), id: \.element.id) { index, place in
                         if index > 0 { Divider() }

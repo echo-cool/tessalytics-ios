@@ -163,7 +163,7 @@ struct DestinationsCard: View {
                 if try await environment.sendDestinationToCar(destination) {
                     outcome = .init(
                         title: "Sent to the car",
-                        message: "\(destination.name) is on the car's navigation."
+                        message: AppText.format("%@ is on the car's navigation.", destination.name)
                     )
                     return
                 }

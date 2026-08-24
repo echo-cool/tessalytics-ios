@@ -64,7 +64,7 @@ struct IntelligenceNotificationPlanner {
             planned.append(
                 PlannedIntelligenceNotification(
                     id: "tessalytics.low-battery",
-                    title: "\(vehicleName) battery is low",
+                    title: AppText.format("%@ battery is low", vehicleName),
                     body: "The last reported level is \(level)%. Consider charging before your next drive.",
                     delay: nil,
                     fingerprint: "low-battery-\(level / 5)"
@@ -81,7 +81,7 @@ struct IntelligenceNotificationPlanner {
             planned.append(
                 PlannedIntelligenceNotification(
                     id: "tessalytics.charge-complete",
-                    title: "\(vehicleName) should be ready",
+                    title: AppText.format("%@ should be ready", vehicleName),
                     body: "Charging is predicted to reach the \(target)% target.",
                     delay: max(60, hours * 3_600),
                     fingerprint: "charge-complete-\(target)"

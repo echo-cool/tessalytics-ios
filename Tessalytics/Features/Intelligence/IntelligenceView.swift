@@ -466,10 +466,10 @@ private struct IntelligenceMethodology: View {
     var body: some View {
         SectionCard("How predictions work", symbol: "function", tint: TessalyticsTheme.neutral) {
             VStack(alignment: .leading, spacing: 12) {
-                Label("\(snapshot.driveObservations) drive and \(snapshot.chargeObservations) charge observations analyzed", systemImage: "externaldrive.fill.badge.checkmark")
+                Label(AppText.format("%1$@ drive and %2$@ charge observations analyzed", "\(snapshot.driveObservations)", "\(snapshot.chargeObservations)"), systemImage: "externaldrive.fill.badge.checkmark")
                 Label("Confidence falls when history is sparse", systemImage: "checkmark.shield.fill")
                 if let latest = snapshot.latestActivity {
-                    Label("Latest activity \(latest.formatted(.relative(presentation: .named)))", systemImage: "clock.fill")
+                    Label(AppText.format("Latest activity %@", latest.formatted(.relative(presentation: .named))), systemImage: "clock.fill")
                 }
                 Text("Estimates from local history — not guarantees.")
                     .font(.caption)

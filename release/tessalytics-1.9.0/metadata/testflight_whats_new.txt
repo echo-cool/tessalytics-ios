@@ -1,0 +1,42 @@
+Tessalytics 1.9.0 — five more languages, and units you can choose.
+
+LANGUAGES
+
+The app now speaks English, Deutsch, Français, 日本語, 简体中文 and 繁體中文.
+Settings → Language. The change lands immediately, no relaunch.
+
+Simplified and Traditional Chinese have separate translations, because they differ
+in vocabulary as well as script — 軟體 not 软件, 網路 not 网络.
+
+These translations are mine, not a native speaker's. If a phrase reads oddly or is
+plainly wrong, tell me which screen and what it should say — that is the most
+useful thing you can send back from this build.
+
+UNITS
+
+Settings → Units now offers "From the car", "Metric" and "Imperial".
+
+Values arrive from TeslaMate in whatever units your car is set to, so choosing
+another one *converts* them — it does not just change the label. A car reporting
+psi shows real bar, not the psi number with "bar" written under it. Your car's own
+setting is not touched.
+
+Please check the home card in particular: range, odometer and tyre pressures all
+convert, and those were the three that had to be fixed by hand after the first
+attempt showed 42.1 "bar".
+
+WORDS THAT WERE STILL ENGLISH
+
+About fifty phrases built their text at runtime — "131 mi · 7 days", "updated at
+5:58 PM", "mi on the odometer" — so there was no fixed phrase to translate and they
+stayed English on a translated screen. They are now proper format strings, which
+also lets a language put the number and the words in its own order.
+
+If you still find English on a translated screen, say where. Some of it is
+deliberate — bare units like kWh and Wh/km, and your own place and vehicle names,
+are left alone on purpose.
+
+ALSO
+
+German is longer than English, and the hero card's "mi estimated range" label was
+being cut to "mi geschätzte Reichw…". It wraps to two lines now.

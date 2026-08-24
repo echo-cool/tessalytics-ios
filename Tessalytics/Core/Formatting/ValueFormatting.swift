@@ -9,27 +9,37 @@ enum ValueFormatting {
 
     static func distance(_ value: Double?, units: UnitsDTO?, digits: Int = 1) -> String {
         let units = units ?? .metricDefaults
-        return number(value, unit: units.lengthSymbol, digits: digits)
+        // Converted first: the server sends values in the car's units, and the
+        // owner may have asked to read something else.
+        return number(units.displayDistance(value), unit: units.lengthSymbol, digits: digits)
     }
 
     static func speed(_ value: Double?, units: UnitsDTO?, digits: Int = 1) -> String {
         let units = units ?? .metricDefaults
-        return number(value, unit: units.speedSymbol, digits: digits)
+        // Converted first: the server sends values in the car's units, and the
+        // owner may have asked to read something else.
+        return number(units.displaySpeed(value), unit: units.speedSymbol, digits: digits)
     }
 
     static func temperature(_ value: Double?, units: UnitsDTO?, digits: Int = 1) -> String {
         let units = units ?? .metricDefaults
-        return number(value, unit: units.temperatureSymbol, digits: digits)
+        // Converted first: the server sends values in the car's units, and the
+        // owner may have asked to read something else.
+        return number(units.displayTemperature(value), unit: units.temperatureSymbol, digits: digits)
     }
 
     static func pressure(_ value: Double?, units: UnitsDTO?, digits: Int = 1) -> String {
         let units = units ?? .metricDefaults
-        return number(value, unit: units.pressureSymbol, digits: digits)
+        // Converted first: the server sends values in the car's units, and the
+        // owner may have asked to read something else.
+        return number(units.displayPressure(value), unit: units.pressureSymbol, digits: digits)
     }
 
     static func efficiency(_ value: Double?, units: UnitsDTO?, digits: Int = 1) -> String {
         let units = units ?? .metricDefaults
-        return number(value, unit: units.efficiencySymbol, digits: digits)
+        // Converted first: the server sends values in the car's units, and the
+        // owner may have asked to read something else.
+        return number(units.displayEfficiency(value), unit: units.efficiencySymbol, digits: digits)
     }
 
     static func date(_ date: Date?) -> String {

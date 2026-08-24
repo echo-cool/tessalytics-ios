@@ -208,7 +208,7 @@ struct ChargeDetailView: View {
             // same thing on both screens, or neither is discoverable.
             NavigationSectionCard(
                 title,
-                subtitle: "Tap to read values · \(values.count.formatted()) samples",
+                subtitle: AppText.format("Tap to read values · %@ samples", values.count.formatted()),
                 symbol: "chart.xyaxis.line",
                 tint: tint
             ) {
@@ -294,7 +294,7 @@ struct ChargeDetailView: View {
         guard let cost = detail.cost, let used = detail.chargeEnergyUsed, used > 0 else {
             return "No cost configured"
         }
-        return "\(ValueFormatting.currency(cost / used)) per kWh"
+        return AppText.format("%@ per kWh", ValueFormatting.currency(cost / used))
     }
 
     private func batteryGainDetail(_ detail: ChargeDetailDTO) -> String {

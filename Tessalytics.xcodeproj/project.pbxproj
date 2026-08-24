@@ -67,6 +67,7 @@
 		5B8F66A9F3512D66113AE62B /* LiveStateStreamTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 270F8D9FCC5F8800B5BFAD91 /* LiveStateStreamTests.swift */; };
 		5CB009978514DA946E6E3552 /* HistoryRepositories.swift in Sources */ = {isa = PBXBuildFile; fileRef = 736A99C71F59EF76B9A1A2CA /* HistoryRepositories.swift */; };
 		5D03304900DBC394899F7B67 /* KeychainAbstractionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB43F3834B7C5193D15AFA59 /* KeychainAbstractionTests.swift */; };
+		5E2FFEE7CD6F8009085DF691 /* UnitPreferenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF639B92093CF30EC4FE2A38 /* UnitPreferenceTests.swift */; };
 		5E864D9858530BD8D7442AFA /* DestinationsCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 610FF9F35CCDBAF304DE520B /* DestinationsCard.swift */; };
 		608EF2948A18F688BEB5C03A /* cars.json in Resources */ = {isa = PBXBuildFile; fileRef = E505EEDA32AFF8AD8938C27A /* cars.json */; };
 		616325FCDB89DE10CACDAEBA /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC8E2BBB853FCEEA2FE25424 /* DashboardView.swift */; };
@@ -188,6 +189,7 @@
 		02B2F3D853B92AC36FA76AC7 /* LiveDriveTotalsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveDriveTotalsTests.swift; sourceTree = "<group>"; };
 		0391D95748708137B54B1CD5 /* BatteryPackCatalogueTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatteryPackCatalogueTests.swift; sourceTree = "<group>"; };
 		04248C1E0250E6AD9699E1BC /* FleetHistorySyncTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FleetHistorySyncTests.swift; sourceTree = "<group>"; };
+		062E93C16E2DEEDB1E5F73D2 /* ja */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ja; path = ja.lproj/Localizable.strings; sourceTree = "<group>"; };
 		0732164F55C7C38CEB53324C /* LiveDrivingLatchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveDrivingLatchTests.swift; sourceTree = "<group>"; };
 		08A89399E7A14E5325B9538A /* PersistenceModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceModels.swift; sourceTree = "<group>"; };
 		08ACF2A0F37DC980E638FACB /* BatteryPackCatalogue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatteryPackCatalogue.swift; sourceTree = "<group>"; };
@@ -225,6 +227,7 @@
 		36F34E3CB5244FC61AE30744 /* RouteSnapshotView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RouteSnapshotView.swift; sourceTree = "<group>"; };
 		3796E1397AB56D8301C1342B /* SecretRedactor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecretRedactor.swift; sourceTree = "<group>"; };
 		398D3A521A8AB7475EBE15DA /* OwnerAPICredentials.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OwnerAPICredentials.swift; sourceTree = "<group>"; };
+		3DE014178FBA4DB3DD7B40B3 /* zh-Hant */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hant"; path = "zh-Hant.lproj/Localizable.strings"; sourceTree = "<group>"; };
 		406424B3135BFEEC4F899D19 /* BatteryRingGauge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatteryRingGauge.swift; sourceTree = "<group>"; };
 		40F230911E166C158E31B018 /* StatusInterpretation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusInterpretation.swift; sourceTree = "<group>"; };
 		415B42439C1E98208603B922 /* VehicleIntelligence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VehicleIntelligence.swift; sourceTree = "<group>"; };
@@ -303,12 +306,14 @@
 		B46B4AD9EBF4B99C3ACB2CAA /* AchievementsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AchievementsView.swift; sourceTree = "<group>"; };
 		B4FC28E80FCE4DFA1D1B2BC6 /* DiagnosticsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsTests.swift; sourceTree = "<group>"; };
 		B520968A8B9F779E8BEE8E59 /* HistoryCoverage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryCoverage.swift; sourceTree = "<group>"; };
+		B5A196E46CE9D324C08354FA /* fr */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = fr; path = fr.lproj/Localizable.strings; sourceTree = "<group>"; };
 		B92F07630474019681927473 /* ModelDecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelDecodingTests.swift; sourceTree = "<group>"; };
 		B9D86DAEB7008F166B621123 /* HistoryCoverageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryCoverageTests.swift; sourceTree = "<group>"; };
 		BB43F3834B7C5193D15AFA59 /* KeychainAbstractionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainAbstractionTests.swift; sourceTree = "<group>"; };
 		BC53AF54D07ED9D6E71B51FC /* WebPairingUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebPairingUITests.swift; sourceTree = "<group>"; };
 		BC61115DA5C3905E142D231E /* OwnerAPIConnectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OwnerAPIConnectionView.swift; sourceTree = "<group>"; };
 		BE3750D045C6785AB93EAE9E /* LiveStreamEndToEndTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveStreamEndToEndTests.swift; sourceTree = "<group>"; };
+		C1175C57A03308274A500E4C /* de */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = de; path = de.lproj/Localizable.strings; sourceTree = "<group>"; };
 		C1571B189CA924F7F1A07461 /* BatteryLevelHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatteryLevelHistory.swift; sourceTree = "<group>"; };
 		C2E177A9AD4627F417170B33 /* LiveMapCamera.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveMapCamera.swift; sourceTree = "<group>"; };
 		C3ABD23F98569F73CF1509BC /* LivePlaceName.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LivePlaceName.swift; sourceTree = "<group>"; };
@@ -319,6 +324,7 @@
 		CD2E3E9E560B072FA7AB7C6F /* LiveMapScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveMapScreen.swift; sourceTree = "<group>"; };
 		CDEEF6BBA94C3B7DAE5FB611 /* BackendClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendClientTests.swift; sourceTree = "<group>"; };
 		CF42BFB43015DC8F460CA7FA /* ChartDomainTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartDomainTests.swift; sourceTree = "<group>"; };
+		CF639B92093CF30EC4FE2A38 /* UnitPreferenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnitPreferenceTests.swift; sourceTree = "<group>"; };
 		D5E872FDD6FDA9D7DE38B03B /* CarDestinationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarDestinationTests.swift; sourceTree = "<group>"; };
 		D623744B95E716D3DDD85709 /* VisitedPlacesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisitedPlacesView.swift; sourceTree = "<group>"; };
 		D653E842B7FCAF08CA0FDF91 /* LiveTelemetryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveTelemetryTests.swift; sourceTree = "<group>"; };
@@ -843,6 +849,7 @@
 				229CA263425B523F022F660F /* SelfDrivingModeTests.swift */,
 				4DEDF91509021E9A4148A2A4 /* ServerURLSafetyTests.swift */,
 				54250E89E46E99ED30E20997 /* SoftwareTimelineTests.swift */,
+				CF639B92093CF30EC4FE2A38 /* UnitPreferenceTests.swift */,
 				E31E504FBBABA689C16A7479 /* UtilitiesTests.swift */,
 				763B2AFC981CBAD088D81546 /* VehicleHeroSummaryTests.swift */,
 				305C076A79E216503F26F2BB /* VisitedPlacesTests.swift */,
@@ -939,8 +946,12 @@
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				Base,
+				de,
 				en,
+				fr,
+				ja,
 				"zh-Hans",
+				"zh-Hant",
 			);
 			mainGroup = A5E834B129CC464AEDA96273;
 			minimizedProjectReferenceProxies = 1;
@@ -1025,6 +1036,7 @@
 				D5F2E134A5BDD8C7E97B6206 /* SelfDrivingModeTests.swift in Sources */,
 				CB28E96F723DFE4D88113F45 /* ServerURLSafetyTests.swift in Sources */,
 				13095B5F39E375C448CB2666 /* SoftwareTimelineTests.swift in Sources */,
+				5E2FFEE7CD6F8009085DF691 /* UnitPreferenceTests.swift in Sources */,
 				0E498FF594E7C44C2F8D8B1B /* UtilitiesTests.swift in Sources */,
 				ACD60CDDEF4297084B4FB903 /* VehicleHeroSummaryTests.swift in Sources */,
 				98B28CBAD6BFB2521DEF7460 /* VisitedPlacesTests.swift in Sources */,
@@ -1171,8 +1183,12 @@
 		A998DD674162508DC23939AD /* Localizable.strings */ = {
 			isa = PBXVariantGroup;
 			children = (
+				C1175C57A03308274A500E4C /* de */,
 				5ACB9B62773489CE083DD358 /* en */,
+				B5A196E46CE9D324C08354FA /* fr */,
+				062E93C16E2DEEDB1E5F73D2 /* ja */,
 				346B8F2534F8774BBBFD5B3B /* zh-Hans */,
+				3DE014178FBA4DB3DD7B40B3 /* zh-Hant */,
 			);
 			name = Localizable.strings;
 			sourceTree = "<group>";
@@ -1252,7 +1268,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 202608231544;
+				CURRENT_PROJECT_VERSION = 202608231725;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = P8FYZDZ6AA;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -1272,7 +1288,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
-				MARKETING_VERSION = 1.8.8;
+				MARKETING_VERSION = 1.8.9;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -1320,7 +1336,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 202608231544;
+				CURRENT_PROJECT_VERSION = 202608231725;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = P8FYZDZ6AA;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -1334,7 +1350,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
-				MARKETING_VERSION = 1.8.8;
+				MARKETING_VERSION = 1.8.9;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";

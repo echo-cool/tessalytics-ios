@@ -12,7 +12,11 @@ enum AppLanguage: String, CaseIterable, Identifiable, Sendable {
     /// should do.
     case system
     case english = "en"
+    case german = "de"
+    case french = "fr"
+    case japanese = "ja"
     case simplifiedChinese = "zh-Hans"
+    case traditionalChinese = "zh-Hant"
 
     var id: Self { self }
 
@@ -25,7 +29,11 @@ enum AppLanguage: String, CaseIterable, Identifiable, Sendable {
         // whichever language the rest of the screen is in.
         case .system: "System"
         case .english: "English"
+        case .german: "Deutsch"
+        case .french: "Français"
+        case .japanese: "日本語"
         case .simplifiedChinese: "简体中文"
+        case .traditionalChinese: "繁體中文"
         }
     }
 
@@ -50,6 +58,17 @@ extension Locale {
     func appString(_ key: String) -> String {
         guard !key.isEmpty else { return key }
         return Self.bundleCache.bundle(for: self).localizedString(forKey: key, value: key, table: nil)
+    }
+
+    /// The app's translation of a sentence that has values in it.
+    ///
+    /// Interpolating first and looking the result up cannot work: "3 places" and
+    /// "4 places" are different strings and neither is in any catalogue. The
+    /// format is the key, so the words around the values are what gets
+    /// translated — and a language that puts them in a different order can say so,
+    /// which is the reason this is `%1$@`-capable rather than string concatenation.
+    func appFormat(_ key: String, _ arguments: CVarArg...) -> String {
+        String(format: appString(key), locale: self, arguments: arguments)
     }
 
     /// Caching matters: this is called for every title, subtitle and label on
@@ -78,12 +97,17 @@ extension Locale {
         /// region happens to resolve to.
         private static func localizationCode(for locale: Locale) -> String {
             let identifier = locale.identifier.replacingOccurrences(of: "_", with: "-")
-            guard identifier.hasPrefix("zh") else { return "en" }
-            // zh-Hant, zh-TW and zh-HK are a different script and are not
-            // translated. Claiming them would show simplified characters to
-            // readers who do not use them.
-            let traditional = ["Hant", "TW", "HK", "MO"]
-            return traditional.contains(where: { identifier.contains($0) }) ? "en" : "zh-Hans"
+            if identifier.hasPrefix("zh") {
+                // Simplified and traditional are different scripts with different
+                // vocabulary, and each has its own catalogue. Region stands in for
+                // script where the identifier does not name one.
+                let traditional = ["Hant", "TW", "HK", "MO"]
+                return traditional.contains(where: { identifier.contains($0) }) ? "zh-Hant" : "zh-Hans"
+            }
+            for code in ["de", "fr", "ja"] where identifier.hasPrefix(code) { return code }
+            // Anything else reads English rather than whatever the development
+            // region happens to resolve to.
+            return "en"
         }
     }
 
@@ -122,4 +146,8 @@ enum AppText {
     }
 
     static func string(_ key: String) -> String { locale.appString(key) }
+
+    static func format(_ key: String, _ arguments: CVarArg...) -> String {
+        String(format: locale.appString(key), locale: locale, arguments: arguments)
+    }
 }

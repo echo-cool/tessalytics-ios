@@ -34,7 +34,7 @@ struct LiveChartSettingsView: View {
             Section {
                 Picker("Window", selection: windowBinding) {
                     ForEach(LiveChartPreferences.windowChoices, id: \.self) { minutes in
-                        Text("\(minutes) min").tag(minutes)
+                        Text(AppText.format("%@ min", "\(minutes)")).tag(minutes)
                     }
                 }
                 .pickerStyle(.segmented)

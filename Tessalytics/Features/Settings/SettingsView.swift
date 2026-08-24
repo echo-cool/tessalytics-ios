@@ -2,6 +2,22 @@ import SwiftUI
 
 struct SettingsView: View {
     @Environment(\.locale) private var locale
+
+    /// Says what each choice does, because "From the car" is the only one whose
+    /// meaning is not obvious from its name.
+    private var unitFooter: String {
+        let language = locale.appString("Language applies to Tessalytics only and takes effect straight away.")
+        let units: String
+        switch environment.unitPreference {
+        case .automatic:
+            units = locale.appString("Units follow the vehicle's own setting.")
+        case .metric, .imperial:
+            units = locale.appString(
+                "Values reported by the car are converted for display; the car's own setting is unchanged."
+            )
+        }
+        return "\(language) \(units)"
+    }
     @Environment(AppEnvironment.self) private var environment
     @State private var presentedSheet: SettingsSheet?
     @State private var confirmsDemo = false
@@ -172,10 +188,19 @@ struct SettingsView: View {
                             Label("Language", systemImage: "globe")
                         }
                         .accessibilityIdentifier("language-picker")
+
+                        Picker(selection: $environment.unitPreference) {
+                            ForEach(UnitPreference.allCases) { option in
+                                Text(locale.appString(option.title)).tag(option)
+                            }
+                        } label: {
+                            Label("Units", systemImage: "ruler")
+                        }
+                        .accessibilityIdentifier("unit-picker")
                     } header: {
-                        Label("Language", systemImage: "character.bubble")
+                        Label("Language & units", systemImage: "character.bubble")
                     } footer: {
-                        Text("Applies to Tessalytics only, and takes effect straight away. Dates, distances and numbers keep following your region settings.")
+                        Text(unitFooter)
                     }
 
                     Section("Privacy & support") {
