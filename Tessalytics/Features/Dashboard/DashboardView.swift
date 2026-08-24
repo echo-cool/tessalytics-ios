@@ -46,6 +46,21 @@ struct DashboardView: View {
             // useful in the one place that cannot show the rest.
             .navigationTitle("Tessalytics")
             .navigationBarTitleDisplayMode(.inline)
+            // Out here rather than on the hero card itself: the card is rendered
+            // inside a `LazyVStack`, which builds its children only as they come
+            // on screen, so a destination attached down there is invisible to the
+            // navigation stack unless the card happens to be realised.
+            .navigationDestination(item: $heroDestination) { destination in
+                switch destination {
+                case .batteryHealth: BatteryHealthView()
+                case .drives: DriveHistoryView()
+                case .tyres: TyrePressureView()
+                case .vehicle: VehicleSettingsView()
+                // The map is a cover rather than a push, and is handled
+                // before it ever reaches here.
+                case .map: EmptyView()
+                }
+            }
             .toolbar {
                 // Top left, where a car's screen sends people looking for it: the
                 // dashboard shows a code and this is the thing that reads it.
@@ -280,17 +295,6 @@ struct DashboardView: View {
                     placeName: environment.livePlace.name,
                     onOpen: open
                 )
-                .navigationDestination(item: $heroDestination) { destination in
-                    switch destination {
-                    case .batteryHealth: BatteryHealthView()
-                    case .drives: DriveHistoryView()
-                    case .tyres: TyrePressureView()
-                    case .vehicle: VehicleSettingsView()
-                    // The map is a cover rather than a push, and is handled
-                    // before it ever reaches here.
-                    case .map: EmptyView()
-                    }
-                }
 
                 historyNotice
 
