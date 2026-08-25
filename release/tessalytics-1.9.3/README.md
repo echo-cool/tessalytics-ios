@@ -6,8 +6,13 @@ nowhere for store copy to land until that submission clears.
 
     ASC_METADATA=release/tessalytics-1.9.3/metadata:app-store/metadata
 
-Uploaded 2026-08-24 23:0x from `main` at `dce73bf`, archived Release,
-`destination: upload`. The `metadata/` directory here holds beta notes only:
+Uploaded 2026-08-24 23:05:26 US/Pacific from `main` at `dce73bf`, archived
+Release, `destination: upload`. Build resource
+`f3b4dc44-7e38-455e-87cc-4494d2965247`, processed `VALID` with no errors or
+warnings, `internalBuildState IN_BETA_TESTING`, `externalBuildState
+READY_FOR_BETA_SUBMISSION` (not submitted). TestFlight expiry 2026-11-22.
+Export compliance exempt (`usesNonExemptEncryption = false`). Minimum iOS 18.0.
+Beta notes pushed to `betaBuildLocalization 25904769-6ac4-40aa-ac96-607a4a89078f`. The `metadata/` directory here holds beta notes only:
 `version.txt`, `build.txt` and `testflight_whats_new.txt`. Nothing in the store
 copy changed, and `scripts/asc.py` skips any field whose file is absent rather
 than overwriting a good description with a stale one.
