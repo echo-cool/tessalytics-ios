@@ -5,8 +5,14 @@ TestFlight build. 1.6.0 still holds the editable version record
 
     ASC_METADATA=release/tessalytics-1.9.5/metadata:app-store/metadata
 
-Archived Release from `main`, `destination: upload`. `metadata/` holds beta notes
-only — nothing in the store copy changed.
+Uploaded 2026-08-25 01:04:07 US/Pacific from `main` at `ee7e8a4`, archived
+Release, `destination: upload`. Build resource
+`12f7eb2f-1d67-42d3-a185-c8a0dbc2f15f`, processed `VALID` with no errors or
+warnings, `internalBuildState IN_BETA_TESTING`, `externalBuildState
+READY_FOR_BETA_SUBMISSION` (not submitted). TestFlight expiry 2026-11-23. Export
+compliance exempt (`usesNonExemptEncryption = false`). Minimum iOS 18.0. Beta
+notes pushed to `betaBuildLocalization 564a6b2d-a4c2-42b8-8ecc-5edc1563b8bf`.
+`metadata/` holds beta notes only — nothing in the store copy changed.
 
 ## What changed since 1.9.4
 
