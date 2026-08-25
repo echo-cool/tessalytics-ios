@@ -1,0 +1,41 @@
+Tessalytics 1.9.4 — the share button no longer makes you wait.
+
+One fix. If you tapped share on the home screen and sat watching the spinner,
+this is why.
+
+The poster carries a map, and the map is a round trip to Apple's tile servers.
+Timed on the home screen: fetching the tiles took 0.9 seconds, drawing the whole
+poster took 0.05, and encoding the PNG took 0.04. So the drawing was never the
+problem — the wait was the map, and two things made it much worse than 0.9
+seconds.
+
+The wait had no ceiling from your side. The fetch gave up after six seconds, but
+the share sheet waited out every one of them, so a weak signal meant six seconds
+of spinner with nothing to show for it.
+
+And the cached map was almost never reused. It was matched on exact coordinates,
+and a parked car's reported position drifts by centimetres between readings — so
+a map that had not moved was fetched again on every single share.
+
+Now the wait is capped at a second and a half. If the tiles arrive in that time
+they go in the poster as before. If they do not, you get your share sheet
+anyway, and the fetch keeps running in the background — so the next share has
+the map and is instant. Maps are matched to within about a metre, so a parked car
+reuses the one it already has.
+
+WHAT TO TEST
+
+The share button, top right of the home screen. It should open the sheet
+promptly. Try it on wifi, on cellular, and somewhere with a poor signal.
+
+Then share the same screen twice in a row: the second one should be immediate.
+
+The thing I would most like to know: on a first share, on your connection, does
+the poster have the map in it? If it is missing more often than not, the cap is
+set too low for real conditions and I would rather raise it than have you
+sharing mapless posters.
+
+Also worth a look — the same fix covers the share buttons on a drive, on the
+places map, and on the analysis screens. A poster that comes out with a grey
+"route not available" panel where a map should be is worth reporting, especially
+if a second attempt fixes it.
