@@ -1,0 +1,51 @@
+Tessalytics 1.10.0 — runs on iPad and Mac, follows your Apple Account, and no
+longer tells you to "drive more" while it downloads your drives.
+
+FIRST RUN WAS TELLING YOU SOMETHING FALSE
+
+If you connected a server with a real history behind it, the app went straight to
+the dashboard and started fetching underneath it. Every card showed its own
+version of "not enough data yet — drive more and check back", while those very
+drives were downloading. The app was describing an empty database instead of a
+busy one, and the more history you had, the more wrong it was.
+
+There is now a screen that shows what it is doing: finding your vehicles, reading
+the status, downloading drives and charges with a live count as pages land, then
+modelling battery health. No percentage bar — the API reports no total, and a bar
+with an invented denominator would be a second untruth. "Continue without
+waiting" appears after six seconds if you would rather not.
+
+IPAD AND MAC
+
+The app now runs on iPad properly and on Apple Silicon Macs as the iPad app. The
+tab bar becomes a sidebar on a wide screen, and the cards stop stretching.
+
+YOUR SERVERS AND TOKENS FOLLOW YOUR APPLE ACCOUNT
+
+Add a server on your iPhone and your iPad already has it. Server profiles travel
+through iCloud key-value storage; credentials and Owner API tokens travel through
+iCloud Keychain, which is end-to-end encrypted — Apple cannot read it and neither
+can anyone but your own signed-in devices.
+
+Stated plainly, because it is a change and not only a feature: before this
+release those tokens were marked "this device only" and could not leave the
+device at all. That is the guarantee being traded for not having to set up each
+device by hand. If you would rather keep it, turn off iCloud Keychain in iOS
+Settings and the items stay local. Cached history does not sync — it stays on the
+device that fetched it, and is re-fetched from your own server elsewhere.
+
+WHAT TO TEST
+
+The first-run screen is the one I most want eyes on, and it needs a real server
+with real history. Connect one and watch: do the counts climb, does it land on a
+dashboard with your data already in it, and does the whole thing feel like
+progress rather than a hang? If you have a large history, roughly how long?
+
+Then sign in on a second device with the same Apple Account. The server should
+already be listed, and it should connect without you pasting a token again. If it
+does not, tell me — iCloud Keychain propagation is not instant, and I would like
+to know how long it actually took for you.
+
+On iPad and on a Mac: anything stretched, clipped, or unreachable. The app has
+been checked on an iPad Pro 13 and looks right there, which is not the same as
+every size being right.
