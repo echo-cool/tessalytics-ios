@@ -41,7 +41,10 @@ final class LiveChargingUITests: XCTestCase {
     func testTheSevenDayBatteryChartStandsAsideWhileCharging() {
         let app = launchCharging()
         XCTAssertTrue(app.otherElements["vehicle-snapshot-card"].waitForExistence(timeout: 10))
-        XCTAssertFalse(app.staticTexts["Battery level · 7 days"].exists)
+        XCTAssertFalse(
+            app.descendants(matching: .any)["hero-battery-level-chart"].exists,
+            "The week chart stands aside for the charge forecast"
+        )
     }
 
     func testTheSevenDayBatteryChartIsBackWhenTheCarIsNotCharging() {
@@ -49,7 +52,10 @@ final class LiveChargingUITests: XCTestCase {
         app.launchArguments = ["-ui-demo"]
         app.launch()
         XCTAssertTrue(app.otherElements["vehicle-snapshot-card"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.staticTexts["Battery level · 7 days"].waitForExistence(timeout: 5))
+        XCTAssertTrue(
+            app.descendants(matching: .any)["hero-battery-level-chart"].waitForExistence(timeout: 5),
+            "A parked car gets the week back"
+        )
         XCTAssertFalse(app.descendants(matching: .any)["hero-charge-forecast"].exists)
     }
 

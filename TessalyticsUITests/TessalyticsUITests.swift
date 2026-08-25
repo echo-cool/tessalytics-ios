@@ -55,7 +55,9 @@ final class TessalyticsUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["78"].exists, "Battery ring shows the level")
         XCTAssertTrue(app.staticTexts["18,642.0"].exists, "Odometer sits beside the range, to a tenth")
         XCTAssertTrue(app.staticTexts["42.1"].exists, "A tyre pressure is shown at its corner")
-        XCTAssertTrue(app.staticTexts["Battery level · 7 days"].exists)
+        // The caption names the odometer axis when there is one, so the chart is
+        // asserted by identifier rather than by a string that depends on data.
+        XCTAssertTrue(app.descendants(matching: .any)["hero-battery-level-chart"].exists)
         assertScrollingReveals(app, identifiers: ["home-driving-chart"])
 
         // Every telemetry tile lives in a lazy grid below the fold, so none of

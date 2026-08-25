@@ -32,12 +32,20 @@ final class RoutePosterSnapshot {
     /// fetch and its deadline gets there first.
     private var waiters: [UUID: CheckedContinuation<Void, Never>] = [:]
 
-    /// How long a share is willing to wait for tiles before going without them.
+    /// How long a share waits when there is no map at all to fall back on.
     ///
-    /// Comfortably longer than a snapshot takes on a working connection, and far
-    /// short of the fetch's own six-second ceiling — that ceiling bounds the
-    /// request, this bounds the person watching a spinner.
-    static let budget: Duration = .milliseconds(1_500)
+    /// Long, deliberately. A poster with a grey panel reading "route not
+    /// available" is a worse outcome than a slow one — that panel is the whole
+    /// point of the picture missing. Bounded only so a dead tile server cannot
+    /// hang the button forever; the fetch's own ceiling is a second beyond it.
+    static let coldBudget: Duration = .seconds(5)
+
+    /// How long it waits when a usable map is already in hand.
+    ///
+    /// Short, equally deliberately. Something correct is already available to
+    /// draw, so there is nothing worth waiting for: the refreshed map lands in
+    /// the cache and the next share uses it.
+    static let warmBudget: Duration = .milliseconds(400)
 
     /// Fetches the tiles for this route, unless they are already in hand.
     func load(route: [CoordinateDTO], size: CGSize, colorScheme: ColorScheme) async {
@@ -54,38 +62,71 @@ final class RoutePosterSnapshot {
         colorScheme: ColorScheme,
         marksEndpoints: Bool = false
     ) async {
-        guard !segments.flatMap({ $0 }).isEmpty || !pins.isEmpty else { return }
+        guard startFetch(
+            segments: segments, pins: pins, size: size,
+            colorScheme: colorScheme, marksEndpoints: marksEndpoints
+        ) else { return }
+        await waitForFetch(upTo: image == nil ? Self.coldBudget : Self.warmBudget)
+    }
+
+    /// Warms the cache without waiting for it.
+    ///
+    /// Called from the screen rather than from the share button, so that by the
+    /// time anyone taps share the tiles are already here. This is the only way to
+    /// have both halves of what a share should be — immediate, and with the map
+    /// in it — and it costs one small snapshot per distinct map.
+    func prefetch(
+        segments: [[CoordinateDTO]],
+        pins: [CoordinateDTO],
+        size: CGSize,
+        colorScheme: ColorScheme,
+        marksEndpoints: Bool = false
+    ) {
+        _ = startFetch(
+            segments: segments, pins: pins, size: size,
+            colorScheme: colorScheme, marksEndpoints: marksEndpoints
+        )
+    }
+
+    /// Starts the fetch if one is needed. False when the map is already drawn,
+    /// so there is nothing to wait for.
+    private func startFetch(
+        segments: [[CoordinateDTO]],
+        pins: [CoordinateDTO],
+        size: CGSize,
+        colorScheme: ColorScheme,
+        marksEndpoints: Bool
+    ) -> Bool {
+        guard !segments.flatMap({ $0 }).isEmpty || !pins.isEmpty else { return false }
         let key = Self.key(segments: segments, pins: pins, size: size, colorScheme: colorScheme)
-        if key == renderedKey, image != nil { return }
+        if key == renderedKey, image != nil { return false }
 
         // One request per map: a second caller for the same key parks on the
         // fetch already running rather than starting another.
-        if inFlightKey != key || inFlight == nil {
-            inFlight = Task { @MainActor [weak self] in
-                let produced = await Self.snapshot(
-                    segments: segments,
-                    pins: pins,
-                    size: size,
-                    colorScheme: colorScheme,
-                    marksEndpoints: marksEndpoints
-                )
-                guard let self, self.inFlightKey == key else { return produced }
-                self.inFlight = nil
-                self.inFlightKey = nil
-                // A failed fetch leaves the last good map in place rather than
-                // blanking it. A slightly older picture of where the car is
-                // beats a grey panel saying there isn't one.
-                if let produced {
-                    self.image = produced
-                    self.renderedKey = key
-                }
-                self.releaseWaiters()
-                return produced
+        guard inFlightKey != key || inFlight == nil else { return true }
+        inFlight = Task { @MainActor [weak self] in
+            let produced = await Self.snapshot(
+                segments: segments,
+                pins: pins,
+                size: size,
+                colorScheme: colorScheme,
+                marksEndpoints: marksEndpoints
+            )
+            guard let self, self.inFlightKey == key else { return produced }
+            self.inFlight = nil
+            self.inFlightKey = nil
+            // A failed fetch leaves the last good map in place rather than
+            // blanking it. A slightly older picture of where the car is
+            // beats a grey panel saying there isn't one.
+            if let produced {
+                self.image = produced
+                self.renderedKey = key
             }
-            inFlightKey = key
+            self.releaseWaiters()
+            return produced
         }
-
-        await waitForFetch(upTo: Self.budget)
+        inFlightKey = key
+        return true
     }
 
     /// Returns when the fetch lands or when the budget runs out, whichever comes

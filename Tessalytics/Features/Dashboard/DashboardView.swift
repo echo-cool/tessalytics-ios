@@ -14,6 +14,7 @@ struct DashboardView: View {
     @State private var visitedPlaces: [VisitedPlace] = []
     @State private var visitedSegments: [[CoordinateDTO]] = []
     @State private var batteryLevels: [BatteryLevelPoint] = []
+    @State private var odometerReadings: [OdometerReadingPoint] = []
     /// Kept out of the way once read: it is a first-week explanation, not a
     /// standing warning.
     @AppStorage("dismissedHistoryNotice") private var dismissedHistoryNotice = false
@@ -84,6 +85,16 @@ struct DashboardView: View {
             }
             // History syncs replace the cached rows underneath this screen.
             .task(id: environment.historyRevision) { loadCachedHistory() }
+            // Warm the poster maps so a share does not have to fetch tiles on
+            // the tap. Settled inputs only — the sleep is cancelled and restarted
+            // whenever the signature changes — and never while the car is
+            // driving, where the trail moves with every reading and a fetch per
+            // reading would be spent on a map nobody has asked for.
+            .task(id: posterMapSignature) {
+                guard !environment.isLiveDriving else { return }
+                try? await Task.sleep(for: .seconds(2))
+                prefetchMapSnapshots()
+            }
             .onChange(of: scenePhase) { _, phase in
                 switch phase {
                 case .active:
@@ -177,6 +188,7 @@ struct DashboardView: View {
             activity: recentDrivePoints,
             efficiency: recentEfficiency,
             batteryLevels: batteryLevels,
+            odometerReadings: odometerReadings,
             tyres: environment.status?.tpmsDetails?.hasAnyReading == true
                 ? environment.status?.tpmsDetails
                 : environment.lastLiveStatus?.tpmsDetails,
@@ -201,33 +213,91 @@ struct DashboardView: View {
     /// made the share button sit and spin for twice as long as it needed to —
     /// which on the home screen, the page most likely to be shared, is the whole
     /// of the delay somebody notices.
-    private func prepareMapSnapshots() async {
+    /// The two maps a home-screen poster carries, and what each is drawn from.
+    private var posterMapInputs: (
+        hero: (segments: [[CoordinateDTO]], pins: [CoordinateDTO], size: CGSize)?,
+        places: (segments: [[CoordinateDTO]], pins: [CoordinateDTO], size: CGSize)?
+    ) {
         let width = SharePoster<AnyView>.width - 64
         let coordinate = environment.liveCoordinate ?? environment.status?.carGeodata?.location
         let trail = environment.liveMapRoute.coordinates
         let places = visitedPlaces
-        let segments = visitedSegments
+
+        let hero = coordinate.map { location in
+            (
+                segments: trail.count > 1 ? [trail] : [],
+                pins: [CoordinateDTO(latitude: location.latitude, longitude: location.longitude)],
+                size: CGSize(width: width, height: 128)
+            )
+        }
+        let placesMap = places.isEmpty ? nil : (
+            segments: visitedSegments,
+            pins: places.map { CoordinateDTO(latitude: $0.latitude, longitude: $0.longitude) },
+            size: CGSize(width: width, height: 190)
+        )
+        return (hero, placesMap)
+    }
+
+    /// Changes worth fetching a new map for.
+    ///
+    /// Coarse on purpose: the point count stands in for the trail itself, so a
+    /// reading that adds a metre to it does not start a download.
+    private var posterMapSignature: String {
+        let coordinate = environment.liveCoordinate ?? environment.status?.carGeodata?.location
+        let pin = coordinate.map { String(format: "%.4f,%.4f", $0.latitude, $0.longitude) } ?? "none"
+        return [
+            pin,
+            "\(environment.liveMapRoute.coordinates.count)",
+            "\(visitedPlaces.count)",
+            colorScheme == .dark ? "dark" : "light",
+        ].joined(separator: "|")
+    }
+
+    /// Fetches both maps at once and waits for them, for the share button.
+    ///
+    /// Each is a round trip to Apple's tile servers, and awaiting them in turn
+    /// made the share button sit and spin for twice as long as it needed to —
+    /// which on the home screen, the page most likely to be shared, is the whole
+    /// of the delay somebody notices. Usually there is nothing left to wait for
+    /// by the time this runs, because `prefetchMapSnapshots` has already been.
+    private func prepareMapSnapshots() async {
+        let inputs = posterMapInputs
         let scheme = colorScheme
 
         async let hero: Void = {
-            guard let coordinate else { return }
+            guard let hero = inputs.hero else { return }
             await heroSnapshot.load(
-                segments: trail.count > 1 ? [trail] : [],
-                pins: [CoordinateDTO(latitude: coordinate.latitude, longitude: coordinate.longitude)],
-                size: CGSize(width: width, height: 128),
-                colorScheme: scheme
+                segments: hero.segments, pins: hero.pins, size: hero.size, colorScheme: scheme
             )
         }()
         async let map: Void = {
-            guard !places.isEmpty else { return }
+            guard let places = inputs.places else { return }
             await placesSnapshot.load(
-                segments: segments,
-                pins: places.map { CoordinateDTO(latitude: $0.latitude, longitude: $0.longitude) },
-                size: CGSize(width: width, height: 190),
-                colorScheme: scheme
+                segments: places.segments, pins: places.pins, size: places.size, colorScheme: scheme
             )
         }()
         _ = await (hero, map)
+    }
+
+    /// The same two maps, fetched without waiting.
+    ///
+    /// The share button used to pay for these on the tap, which meant either a
+    /// spinner or a poster with a grey panel where the map belonged. Fetching
+    /// them while the screen is simply being read costs one small snapshot per
+    /// distinct map and makes the tap immediate *with* the map — the two things
+    /// that could not both be true before.
+    private func prefetchMapSnapshots() {
+        let inputs = posterMapInputs
+        if let hero = inputs.hero {
+            heroSnapshot.prefetch(
+                segments: hero.segments, pins: hero.pins, size: hero.size, colorScheme: colorScheme
+            )
+        }
+        if let places = inputs.places {
+            placesSnapshot.prefetch(
+                segments: places.segments, pins: places.pins, size: places.size, colorScheme: colorScheme
+            )
+        }
     }
 
     private func sharePage() -> SharePage {
@@ -280,6 +350,7 @@ struct DashboardView: View {
                     activity: recentDrivePoints,
                     efficiency: recentEfficiency,
                     batteryLevels: batteryLevels,
+            odometerReadings: odometerReadings,
                     chargeProjection: environment.chargeProjection,
                     chargeSession: environment.liveChargeSession,
                     // A sleeping car reports 0 psi at every corner, so fall
@@ -465,6 +536,7 @@ struct DashboardView: View {
             visitedPlaces = []
             visitedSegments = []
             batteryLevels = []
+            odometerReadings = []
             return
         }
         recentDrives = DriveRepository(context: context).cached(serverID: profile.id, carID: vehicle.id)
@@ -479,11 +551,18 @@ struct DashboardView: View {
 
         visitedPlaces = VisitedPlacesModel.places(from: recentDrives.flatMap(\.visitedEndpoints))
         visitedSegments = cachedTrackSegments(serverID: profile.id, carID: vehicle.id, context: context)
+        let weekAgo = Calendar.current.date(byAdding: .day, value: -7, to: .now) ?? .distantPast
         batteryLevels = BatteryLevelHistory.points(
             drives: recentDrives,
             charges: recentCharges,
-            since: Calendar.current.date(byAdding: .day, value: -7, to: .now) ?? .distantPast,
+            since: weekAgo,
             currentLevel: environment.status?.batteryDetails?.batteryLevel
+        )
+        odometerReadings = OdometerHistory.points(
+            drives: recentDrives,
+            charges: recentCharges,
+            since: weekAgo,
+            currentOdometer: environment.status?.odometer
         )
     }
 
@@ -1261,6 +1340,7 @@ private struct VehicleHeroCard: View {
     let efficiency: Double?
     /// Battery level over the last week, rebuilt from drives and charges.
     let batteryLevels: [BatteryLevelPoint]
+    let odometerReadings: [OdometerReadingPoint]
     /// Where the charge is heading, when the car is on a charger.
     var chargeProjection: ChargeProjection?
     /// What the charger has done so far, for the measured half of the forecast.
@@ -1603,7 +1683,12 @@ private struct VehicleHeroCard: View {
                 } else if !batteryLevels.isEmpty {
                     Divider()
                     Button { onOpen(.batteryHealth) } label: {
-                        HeroBatteryLevelChart(points: batteryLevels).contentShape(.rect)
+                        HeroBatteryLevelChart(
+                            points: batteryLevels,
+                            odometer: odometerReadings,
+                            units: units
+                        )
+                        .contentShape(.rect)
                     }
                     .buttonStyle(.plain)
                     .accessibilityHint("Opens battery health")
@@ -2411,8 +2496,18 @@ private struct HeroActivityStrip: View {
 /// distance, the last charge — where the shape of the week says more: how deep
 /// the car is run down, how often it is plugged in, and whether it is being
 /// charged to the same level each time.
+/// The week in two readings: what the battery did, and how far the car went.
+///
+/// Two axes, because the two are read against each other and neither belongs on
+/// the other's scale — a percentage and an odometer share nothing. Swift Charts
+/// has one y scale per plot, so the odometer is mapped onto the battery's domain
+/// to be drawn and the trailing axis is labelled with the reading that position
+/// corresponds to. The mapping is linear and its inverse exact, so a label always
+/// names the value under it.
 private struct HeroBatteryLevelChart: View {
     let points: [BatteryLevelPoint]
+    let odometer: [OdometerReadingPoint]
+    let units: UnitsDTO?
 
     private var domain: ClosedRange<Double> {
         let levels = points.map(\.level)
@@ -2421,28 +2516,88 @@ private struct HeroBatteryLevelChart: View {
         return max(low - 8, 0)...min(high + 8, 100)
     }
 
+    /// The span the odometer covers over the window, or nil when there is not
+    /// enough of it to draw a line — a week with no driving in it.
+    private var odometerSpan: (low: Double, high: Double)? {
+        let readings = odometer.map(\.odometer)
+        guard readings.count > 1, let low = readings.min(), let high = readings.max(),
+              high - low > 0.5 else { return nil }
+        return (low, high)
+    }
+
+    /// The slice of the battery axis the odometer is drawn into.
+    ///
+    /// Inset from both ends: mapped to the full height, the line's stroke sits
+    /// half off the top of the plot at the newest reading and half off the bottom
+    /// at the oldest.
+    private var band: ClosedRange<Double> {
+        let height = domain.upperBound - domain.lowerBound
+        let inset = height * 0.08
+        return (domain.lowerBound + inset)...(domain.upperBound - inset)
+    }
+
+    /// An odometer reading placed on the battery axis.
+    private func mapped(_ reading: Double) -> Double {
+        guard let span = odometerSpan else { return band.lowerBound }
+        let fraction = (reading - span.low) / (span.high - span.low)
+        return band.lowerBound + fraction * (band.upperBound - band.lowerBound)
+    }
+
+    /// The odometer reading a position on the battery axis stands for.
+    ///
+    /// The exact inverse of `mapped`, so a trailing label always names the value
+    /// the dashed line is at where the label sits. Positions outside the band —
+    /// the axis can offer marks anywhere on the scale — have no reading, and are
+    /// left unlabelled rather than extrapolated into an odometer the car never
+    /// showed.
+    private func unmapped(_ position: Double) -> Double? {
+        guard let span = odometerSpan else { return nil }
+        let height = band.upperBound - band.lowerBound
+        guard height > 0, position >= band.lowerBound - 0.001, position <= band.upperBound + 0.001 else {
+            return nil
+        }
+        let fraction = (position - band.lowerBound) / height
+        return span.low + fraction * (span.high - span.low)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
-            Chart(points) { point in
-                AreaMark(
-                    x: .value("Time", point.date),
-                    y: .value("Battery", point.level),
-                    stacking: .unstacked
-                )
-                .interpolationMethod(.monotone)
-                .foregroundStyle(
-                    .linearGradient(
-                        colors: [TessalyticsTheme.positive.opacity(0.22), .clear],
-                        startPoint: .top,
-                        endPoint: .bottom
+            Chart {
+                ForEach(points) { point in
+                    AreaMark(
+                        x: .value("Time", point.date),
+                        y: .value("Battery", point.level),
+                        stacking: .unstacked
                     )
-                )
-                LineMark(
-                    x: .value("Time", point.date),
-                    y: .value("Battery", point.level)
-                )
-                .interpolationMethod(.monotone)
-                .foregroundStyle(TessalyticsTheme.positive)
+                    .interpolationMethod(.monotone)
+                    .foregroundStyle(
+                        .linearGradient(
+                            colors: [TessalyticsTheme.positive.opacity(0.22), .clear],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    LineMark(
+                        x: .value("Time", point.date),
+                        y: .value("Battery", point.level),
+                        series: .value("Series", "Battery")
+                    )
+                    .interpolationMethod(.monotone)
+                    .foregroundStyle(TessalyticsTheme.positive)
+                }
+                if odometerSpan != nil {
+                    ForEach(odometer) { reading in
+                        LineMark(
+                            x: .value("Time", reading.date),
+                            y: .value("Odometer", mapped(reading.odometer)),
+                            series: .value("Series", "Odometer")
+                        )
+                        // Straight, not smoothed: an odometer only climbs, and a
+                        // monotone curve through it invents dips between readings.
+                        .foregroundStyle(TessalyticsTheme.chartNeutral)
+                        .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [3, 2]))
+                    }
+                }
             }
             .chartYScale(domain: domain)
             .chartYAxis {
@@ -2452,6 +2607,21 @@ private struct HeroBatteryLevelChart: View {
                         if let level = value.as(Double.self) {
                             Text("\(level.formatted(.number.precision(.fractionLength(0))))%")
                                 .font(.system(size: 9).monospacedDigit())
+                                .foregroundStyle(TessalyticsTheme.positive)
+                        }
+                    }
+                }
+                // The odometer's own axis. Coloured to match its line, which is
+                // what says which side belongs to which series without a legend
+                // taking a third of the card.
+                if odometerSpan != nil {
+                    AxisMarks(position: .trailing, values: .automatic(desiredCount: 3)) { value in
+                        AxisValueLabel {
+                            if let position = value.as(Double.self), let reading = unmapped(position) {
+                                Text(reading.formatted(.number.precision(.fractionLength(0))))
+                                    .font(.system(size: 9).monospacedDigit())
+                                    .foregroundStyle(TessalyticsTheme.chartNeutral)
+                            }
                         }
                     }
                 }
@@ -2465,14 +2635,21 @@ private struct HeroBatteryLevelChart: View {
             }
             .frame(height: 62)
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Battery level over the last seven days")
+            .accessibilityLabel("Battery level and odometer over the last seven days")
             .accessibilityValue(accessibilityValue)
             .accessibilityIdentifier("hero-battery-level-chart")
 
-            Text("Battery level · 7 days")
+            Text(caption)
                 .font(.caption2)
                 .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
         }
+    }
+
+    private var caption: String {
+        guard odometerSpan != nil else { return "Battery level · 7 days" }
+        return AppText.format("Battery and odometer · 7 days · %@", (units ?? .metricDefaults).lengthSymbol)
     }
 
     private var accessibilityValue: String {
@@ -2480,7 +2657,12 @@ private struct HeroBatteryLevelChart: View {
         guard let low = levels.min(), let high = levels.max(), let latest = points.last?.level else {
             return "No readings"
         }
-        return "now \(Int(latest)) percent, between \(Int(low)) and \(Int(high)) percent"
+        var value = "now \(Int(latest)) percent, between \(Int(low)) and \(Int(high)) percent"
+        if let span = odometerSpan {
+            value += ", odometer \(ValueFormatting.distance(span.high, units: units, digits: 0))"
+            value += ", \(ValueFormatting.distance(span.high - span.low, units: units, digits: 0)) this week"
+        }
+        return value
     }
 }
 

@@ -1,0 +1,52 @@
+Tessalytics 1.9.5 — the shared image gets its map back, and the home chart gains
+a second axis.
+
+THE MAP IN THE SHARED IMAGE
+
+1.9.4 made the share button quick by refusing to wait more than a second and a
+half for map tiles. On a slower connection that turned out to mean the poster came
+out with a grey "route not available" panel where the map belongs. Quick, and
+wrong.
+
+That was one number doing two jobs, so it is now two. When there is no map to
+fall back on, a share waits — up to five seconds, because a poster missing its
+picture is a worse outcome than a slow one. When a usable map is already in hand,
+it waits four tenths of a second, uses what it has, and refreshes behind.
+
+More to the point, the maps are now fetched while you are simply reading the home
+screen, so by the time you tap share they are already here. That is what makes
+the share both immediate and complete, which no single timeout could manage.
+
+The cost, stated plainly: the app now fetches one small map snapshot per distinct
+location while the home screen is open, whether or not you ever share it. It is
+skipped while the car is driving. If you would rather it did not, say so — the
+share works correctly without it, just more slowly the first time.
+
+THE HOME SCREEN CHART HAS TWO AXES
+
+The seven-day battery trace now carries the odometer over the same week: battery
+percentage on the left in green, odometer on the right in grey, dashed. The axis
+labels are coloured to match their lines, so which side belongs to which is
+readable without a legend.
+
+The odometer reading is taken from the ends of each drive and from charging
+sessions, because that is the only place TeslaMate records it. A reading that
+would take the line backwards is discarded — an odometer only climbs.
+
+WHAT TO TEST
+
+Share the home screen. First, straight after opening the app; then again after
+sitting on the screen for a few seconds. Both should give you a poster with the
+map in it, and the second should be instant.
+
+The case I most want to hear about is the first one on a poor connection. If a
+poster still comes out with a grey panel where the map should be, that is the bug
+from 1.9.4 not fully fixed, and I would like to know.
+
+Then the chart at the top of the home screen. The odometer line should climb left
+to right and never dip. Check the right-hand numbers look like your actual
+odometer over the last week — if they are wrong, the two scales are out of step
+and the chart is lying, which matters more than it looks.
+
+Sharing a drive, the places map and the analysis screens all use the same
+machinery, so they are worth a look too.

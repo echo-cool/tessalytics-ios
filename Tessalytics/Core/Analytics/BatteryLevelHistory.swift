@@ -66,3 +66,68 @@ enum BatteryLevelHistory {
         }
     }
 }
+
+/// One odometer reading, and when the car reached it.
+struct OdometerReadingPoint: Identifiable, Equatable, Sendable {
+    let id: Int
+    let date: Date
+    /// In the server's length unit, exactly as reported.
+    let odometer: Double
+}
+
+/// The odometer over the same window the battery level is drawn for.
+///
+/// Read from the end of each drive rather than from a series of its own, because
+/// TeslaMate keeps no odometer series either — the reading at the end of a drive
+/// is the only place the number is recorded.
+enum OdometerHistory {
+    static func points(
+        drives: [DriveRecord],
+        charges: [ChargeRecord] = [],
+        since cutoff: Date,
+        currentOdometer: Double? = nil,
+        now: Date = .now
+    ) -> [OdometerReadingPoint] {
+        var readings: [(date: Date, odometer: Double)] = []
+
+        for drive in drives {
+            guard let start = drive.startDate, start >= cutoff else { continue }
+            // Both ends: a single long drive inside the window would otherwise
+            // contribute one point and draw as a step rather than a climb.
+            if let odometer = drive.odometerStart { readings.append((start, odometer)) }
+            if let odometer = drive.odometerEnd { readings.append((drive.endDate ?? start, odometer)) }
+        }
+        // A charge records an odometer too, and on a week with little driving it
+        // is what keeps the line from having gaps days wide.
+        for charge in charges {
+            guard let start = charge.startDate, start >= cutoff, let odometer = charge.odometer else { continue }
+            readings.append((start, odometer))
+        }
+        // The live reading closes the series, so it reaches "now" rather than
+        // stopping at whatever happened last.
+        if let currentOdometer { readings.append((now, currentOdometer)) }
+
+        let ordered = readings
+            .filter { $0.odometer > 0 }
+            .sorted { $0.date < $1.date }
+
+        // Collapse readings sharing an instant, and drop any that would take the
+        // line backwards — an odometer only ever climbs, and a stale cached row
+        // that disagrees should not draw a dip.
+        var collapsed: [(date: Date, odometer: Double)] = []
+        for reading in ordered {
+            if let last = collapsed.last {
+                if abs(last.date.timeIntervalSince(reading.date)) < 30 {
+                    collapsed[collapsed.count - 1] = (reading.date, max(last.odometer, reading.odometer))
+                    continue
+                }
+                guard reading.odometer >= last.odometer else { continue }
+            }
+            collapsed.append(reading)
+        }
+
+        return collapsed.enumerated().map {
+            OdometerReadingPoint(id: $0.offset, date: $0.element.date, odometer: $0.element.odometer)
+        }
+    }
+}
