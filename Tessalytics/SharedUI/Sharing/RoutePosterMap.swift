@@ -11,19 +11,38 @@ import SwiftUI
 ///
 /// Asynchronous, and deliberately so — the snapshot is fetched while the share
 /// button spins, not while the page is being read.
+///
+/// The wait is bounded separately from the fetch. `MKMapSnapshotter` is a round
+/// trip to Apple's tile servers, and this one sits between a tap on the share
+/// button and a share sheet: whatever the network is doing, the owner should get
+/// their sheet. So `load` waits `budget` and then returns, while the fetch it
+/// started carries on in the background and fills the cache — which is why the
+/// tap after a slow one is instant rather than slow again.
 @MainActor
 @Observable
 final class RoutePosterSnapshot {
     private(set) var image: UIImage?
-    private var rendered: [CoordinateDTO] = []
+    /// What `image` was drawn for, so an unchanged map is not fetched twice.
+    private var renderedKey: String?
+    /// The fetch in flight and the key it is for, so two `load` calls for the
+    /// same map wait on one request rather than racing two.
+    private var inFlight: Task<UIImage?, Never>?
+    private var inFlightKey: String?
+    /// Callers parked on the current fetch, each released by whichever of the
+    /// fetch and its deadline gets there first.
+    private var waiters: [UUID: CheckedContinuation<Void, Never>] = [:]
 
-    private var renderedPins: [CoordinateDTO] = []
+    /// How long a share is willing to wait for tiles before going without them.
+    ///
+    /// Comfortably longer than a snapshot takes on a working connection, and far
+    /// short of the fetch's own six-second ceiling — that ceiling bounds the
+    /// request, this bounds the person watching a spinner.
+    static let budget: Duration = .milliseconds(1_500)
 
     /// Fetches the tiles for this route, unless they are already in hand.
     func load(route: [CoordinateDTO], size: CGSize, colorScheme: ColorScheme) async {
-        guard route.count > 1, route != rendered else { return }
-        rendered = route
-        image = await Self.snapshot(route: route, size: size, colorScheme: colorScheme)
+        guard route.count > 1 else { return }
+        await load(segments: [route], pins: [], size: size, colorScheme: colorScheme, marksEndpoints: true)
     }
 
     /// The same, for a map of many journeys rather than one — the places screen,
@@ -32,19 +51,99 @@ final class RoutePosterSnapshot {
         segments: [[CoordinateDTO]],
         pins: [CoordinateDTO],
         size: CGSize,
-        colorScheme: ColorScheme
+        colorScheme: ColorScheme,
+        marksEndpoints: Bool = false
     ) async {
-        let flattened = segments.flatMap { $0 }
-        guard !flattened.isEmpty || !pins.isEmpty else { return }
-        guard flattened != rendered || pins != renderedPins else { return }
-        rendered = flattened
-        renderedPins = pins
-        image = await Self.snapshot(
-            segments: segments,
-            pins: pins,
-            size: size,
-            colorScheme: colorScheme
-        )
+        guard !segments.flatMap({ $0 }).isEmpty || !pins.isEmpty else { return }
+        let key = Self.key(segments: segments, pins: pins, size: size, colorScheme: colorScheme)
+        if key == renderedKey, image != nil { return }
+
+        // One request per map: a second caller for the same key parks on the
+        // fetch already running rather than starting another.
+        if inFlightKey != key || inFlight == nil {
+            inFlight = Task { @MainActor [weak self] in
+                let produced = await Self.snapshot(
+                    segments: segments,
+                    pins: pins,
+                    size: size,
+                    colorScheme: colorScheme,
+                    marksEndpoints: marksEndpoints
+                )
+                guard let self, self.inFlightKey == key else { return produced }
+                self.inFlight = nil
+                self.inFlightKey = nil
+                // A failed fetch leaves the last good map in place rather than
+                // blanking it. A slightly older picture of where the car is
+                // beats a grey panel saying there isn't one.
+                if let produced {
+                    self.image = produced
+                    self.renderedKey = key
+                }
+                self.releaseWaiters()
+                return produced
+            }
+            inFlightKey = key
+        }
+
+        await waitForFetch(upTo: Self.budget)
+    }
+
+    /// Returns when the fetch lands or when the budget runs out, whichever comes
+    /// first — and leaves the fetch running either way.
+    ///
+    /// Not a `TaskGroup` race against `task.value`. A `Task<_, Never>` cannot be
+    /// interrupted by cancelling whoever is awaiting it, so the group waited out
+    /// the whole fetch and the budget did nothing at all. A continuation the
+    /// fetch resumes, with a timer that resumes it instead if the fetch is slow,
+    /// actually lets go — which is the entire point, because the fetch has to
+    /// carry on and fill the cache for the next tap.
+    private func waitForFetch(upTo budget: Duration) async {
+        let id = UUID()
+        let timeout = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: budget)
+            self?.release(id)
+        }
+        await withCheckedContinuation { continuation in
+            waiters[id] = continuation
+        }
+        timeout.cancel()
+    }
+
+    /// Resumes one waiter, exactly once — removal from the dictionary is what
+    /// makes the timer and the fetch safe to race.
+    private func release(_ id: UUID) {
+        waiters.removeValue(forKey: id)?.resume()
+    }
+
+    private func releaseWaiters() {
+        let pending = waiters
+        waiters.removeAll()
+        for continuation in pending.values { continuation.resume() }
+    }
+
+    /// Identifies a map closely enough to reuse one, loosely enough to keep
+    /// reusing it.
+    ///
+    /// Coordinates are rounded to about a metre. A parked car's reported position
+    /// wanders by less than that between readings, and comparing the raw values
+    /// meant every share refetched tiles for a map that had not moved.
+    private static func key(
+        segments: [[CoordinateDTO]],
+        pins: [CoordinateDTO],
+        size: CGSize,
+        colorScheme: ColorScheme
+    ) -> String {
+        func rounded(_ coordinates: [CoordinateDTO]) -> String {
+            coordinates
+                .map { String(format: "%.5f,%.5f", $0.latitude, $0.longitude) }
+                .joined(separator: ";")
+        }
+        return [
+            segments.map(rounded).joined(separator: "|"),
+            rounded(pins),
+            "\(Int(size.width))x\(Int(size.height))",
+            colorScheme == .dark ? "dark" : "light",
+        ].joined(separator: "#")
     }
 
     /// The tiles for a route, with the route drawn over them.
