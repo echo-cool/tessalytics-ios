@@ -379,7 +379,7 @@ private struct BatteryCapacityChart: View {
     }
 
     var body: some View {
-        SectionCard("Capacity comparison", subtitle: "Estimated, kWh", symbol: "battery.100percent", tint: TessalyticsTheme.positive) {
+        SectionCard("Capacity comparison", symbol: "battery.100percent", tint: TessalyticsTheme.positive) {
             if points.count < 2 {
                 ChartEmptyState(message: "Needs both a maximum and a current estimate.")
             } else {
@@ -434,7 +434,7 @@ private struct BatteryRangeChart: View {
     }
 
     var body: some View {
-        SectionCard("Range comparison", subtitle: AppText.format("Estimated, %@", distanceUnit), symbol: "point.bottomleft.forward.to.point.topright.scurvepath", tint: TessalyticsTheme.neutral) {
+        SectionCard("Range comparison", symbol: "point.bottomleft.forward.to.point.topright.scurvepath", tint: TessalyticsTheme.neutral) {
             if points.count < 2 {
                 ChartEmptyState(message: "Needs both a maximum and a current estimate.")
             } else {
@@ -478,7 +478,7 @@ private struct BatteryHealthTrendChart: View {
     let observations: [BatteryHealthRecord]
 
     var body: some View {
-        SectionCard("Estimated health trend", subtitle: "Daily", symbol: "chart.xyaxis.line", tint: TessalyticsTheme.positive) {
+        SectionCard("Estimated health trend", symbol: "chart.xyaxis.line", tint: TessalyticsTheme.positive) {
             Chart(observations, id: \.cacheKey) { value in
                 if let health = value.healthPercent {
                     LineMark(x: .value("Date", value.observedAt), y: .value("Estimated health", health))
@@ -507,12 +507,10 @@ private struct BatteryHealthTrendChart: View {
                     }
                 }
             }
-            .tessalyticsChartAxes(x: "Observation date", y: "Estimated health (%)")
+            .tessalyticsChartAxes(x: "", y: "Estimated health (%)")
             .tessalyticsChartStyle()
             .frame(height: 220)
             .accessibilityLabel("Estimated battery health trend over \(observations.count) observations")
-
-            ChartLegend("Estimated health", color: TessalyticsTheme.positive)
         }
     }
 }
@@ -544,7 +542,7 @@ private struct StandbyDrainChart: View {
     private var median: Double? { StandbyDrainModel.medianPercentPerDay(periods) }
 
     var body: some View {
-        SectionCard("Standby drain", subtitle: "While parked", symbol: "moon.zzz.fill", tint: TessalyticsTheme.steel) {
+        SectionCard("Standby drain", symbol: "moon.zzz.fill", tint: TessalyticsTheme.steel) {
             if periods.count < 3 {
                 ChartEmptyState(message: "Needs three parked spells of six hours or more.")
             } else {
@@ -581,7 +579,7 @@ private struct StandbyDrainChart: View {
                     }
                 }
                 .chartYScale(domain: 0...max(1, (periods.map(\.percentPerDay).max() ?? 1) * 1.15))
-                .tessalyticsChartAxes(x: "Parked from", y: "Charge lost (% per day)")
+                .tessalyticsChartAxes(x: "", y: "Charge lost (% per day)")
                 .tessalyticsChartStyle()
                 .frame(height: 220)
                 .accessibilityLabel("Charge lost per day while parked, across \(periods.count) spells")

@@ -21,7 +21,7 @@ struct PairedBrowsersView: View {
                 Section {
                     Label(
                         environment.isDemoMode
-                            ? "Demo mode has no server, so there is nothing signed in to it."
+                            ? "Demo mode has no server to sign in to."
                             : "Connect your Tessalytics Backend to sign a browser in.",
                         systemImage: "info.circle"
                     )
@@ -58,7 +58,7 @@ struct PairedBrowsersView: View {
                 } footer: {
                     // Worth saying plainly: it explains both a disappearing list
                     // and why nothing here is a long-term grant.
-                    Text("Sessions live in the server's memory, so restarting the server signs every browser out.")
+                    Text("Restarting the server signs every browser out.")
                 }
 
                 if let message {

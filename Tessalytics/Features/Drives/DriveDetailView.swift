@@ -270,12 +270,11 @@ struct DriveDetailView: View {
                 }
             }
         }
-        .tessalyticsChartAxes(x: "Time of day", y: "\(title) (\(unit))")
+        .tessalyticsChartAxes(x: "", y: "\(title) (\(unit))")
         .tessalyticsChartStyle()
         .frame(height: 160)
         .accessibilityLabel("\(title) chart with \(values.count) samples in \(unit)")
 
-        ChartLegend("\(title) (\(unit))", color: tint)
     }
 
     private func load() async {

@@ -58,8 +58,6 @@ struct SettingsView: View {
                             .accessibilityIdentifier("leave-demo")
                         } header: {
                             Label("Demo experience", systemImage: "play.circle.fill")
-                        } footer: {
-                            Text("Everything shown is generated on this device.")
                         }
 
                         Section {
@@ -81,8 +79,6 @@ struct SettingsView: View {
                             .accessibilityIdentifier("live-charts-settings")
                         } header: {
                             Label("Live data", systemImage: "dot.radiowaves.left.and.right")
-                        } footer: {
-                            Text("Charts drawn from the live stream.")
                         }
                     } else {
                         ServerListSection(editing: $editingProfile) {
@@ -149,7 +145,7 @@ struct SettingsView: View {
                             }
                             .accessibilityIdentifier("enter-demo-settings")
                         } footer: {
-                            Text("Your configured servers remain saved while you explore generated sample data.")
+                            Text("Your servers stay saved.")
                         }
 
                         Section {
@@ -249,13 +245,13 @@ struct SettingsView: View {
                 }
                 Button("Cancel", role: .cancel) { profilePendingRemoval = nil }
             } message: {
-                Text("Deletes this server's synchronized history and credentials from this iPhone.")
+                Text("Deletes this server's history and credentials from this iPhone.")
             }
             .confirmationDialog("Re-sync history?", isPresented: $confirmsResync, titleVisibility: .visible) {
                 Button("Re-sync") { perform { await environment.resyncFromScratch() } }
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("Clears the cached history and downloads it again. The server stays configured.")
+                Text("Clears the cached history and downloads it again.")
             }
             .confirmationDialog("Erase all data?", isPresented: $confirmsErase, titleVisibility: .visible) {
                 Button("Erase Everything", role: .destructive) {

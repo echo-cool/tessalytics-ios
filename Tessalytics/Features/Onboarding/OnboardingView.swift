@@ -62,7 +62,7 @@ struct OnboardingView: View {
                         Text("Understand every drive.")
                             .font(.largeTitle.bold())
                             .multilineTextAlignment(.center)
-                        Text("Connect your Tessalytics Backend, or explore instantly with generated sample data.")
+                        Text("Connect your backend, or explore the demo.")
                             .font(.title3)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
@@ -71,30 +71,27 @@ struct OnboardingView: View {
 
                 SurfaceCard {
                     VStack(spacing: 18) {
+                        // Three rows, not four. "Your server" and "Direct and
+                        // private" were one point told twice, and the first
+                        // screen of an app is the worst place to say anything
+                        // twice.
                         OnboardingFeatureRow(
                             title: "Deploy the backend first",
-                            detail: "Run Tessalytics Backend beside TeslaMate — the same Docker Compose file is fine — and enter its address here.",
+                            detail: "Run Tessalytics Backend beside TeslaMate, then enter its address.",
                             symbol: "shippingbox.fill",
                             tint: TessalyticsTheme.accent
                         )
                         Divider()
                         OnboardingFeatureRow(
-                            title: "Your server",
-                            detail: "Your TeslaMate data stays under your control.",
-                            symbol: "server.rack",
-                            tint: TessalyticsTheme.neutral
-                        )
-                        Divider()
-                        OnboardingFeatureRow(
                             title: "Direct and private",
-                            detail: "Your iPhone connects straight to the server you choose.",
+                            detail: "Your iPhone connects straight to your own server.",
                             symbol: "lock.shield.fill",
                             tint: TessalyticsTheme.positive
                         )
                         Divider()
                         OnboardingFeatureRow(
                             title: "Controls stay optional",
-                            detail: "Direct Tesla commands require Owner API tokens and device confirmation.",
+                            detail: "Tesla commands need Owner API tokens and confirmation.",
                             symbol: "hand.raised.fill",
                             tint: TessalyticsTheme.warning
                         )

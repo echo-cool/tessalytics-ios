@@ -42,7 +42,7 @@ struct LiveChartSettingsView: View {
             } header: {
                 Label("How far back", systemImage: "clock.arrow.circlepath")
             } footer: {
-                Text("Readings are kept in memory for fifteen minutes and are discarded when the drive ends.")
+                Text("Kept in memory for fifteen minutes, then discarded.")
             }
         }
         .navigationTitle("Live charts")

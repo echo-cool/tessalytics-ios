@@ -484,7 +484,6 @@ private struct DrivingAnalyticsDashboard: View {
             TimeOfDayMixChart(points: snapshot.timeOfDayMix)
             RankedCategoryChart(
                 title: "Common destinations",
-                subtitle: "Most visited",
                 symbol: "flag.checkered",
                 tint: TessalyticsTheme.accent,
                 points: snapshot.destinations,
@@ -573,7 +572,6 @@ private struct ChargingAnalyticsDashboard: View {
             ChargeCostRelationshipChart(points: snapshot.chargeRelationships)
             RankedCategoryChart(
                 title: "Charging by location",
-                subtitle: "Most used",
                 symbol: "mappin.and.ellipse",
                 tint: TessalyticsTheme.positive,
                 points: snapshot.chargingLocations,
@@ -650,14 +648,12 @@ private struct DailyDistanceChart: View {
                     }
                 }
                 .chartYScale(domain: 0...max(1, (points.map(\.distance).max() ?? 1) * 1.12))
-                .tessalyticsChartAxes(x: "Day", y: "Distance (\(distanceUnit))")
+                .tessalyticsChartAxes(x: "", y: "Distance (\(distanceUnit))")
                 .tessalyticsChartStyle()
                 .frame(height: 230)
                 .accessibilityLabel("Daily driving distance")
                 .accessibilityIdentifier("daily-distance-chart")
                 .sensoryFeedback(.selection, trigger: selectedDate)
-
-                ChartLegend("Distance driven", color: TessalyticsTheme.accent)
             }
         }
     }
@@ -714,13 +710,11 @@ private struct ChargingEnergyChart: View {
                     }
                 }
                 .chartYScale(domain: 0...max(1, (points.map(\.energy).max() ?? 1) * 1.12))
-                .tessalyticsChartAxes(x: "Day", y: "Energy (kWh)")
+                .tessalyticsChartAxes(x: "", y: "Energy (kWh)")
                 .tessalyticsChartStyle()
                 .frame(height: 230)
                 .accessibilityLabel("Charging energy by day in kilowatt-hours")
                 .sensoryFeedback(.selection, trigger: selectedDate)
-
-                ChartLegend("Energy added", color: TessalyticsTheme.positive)
             }
         }
     }
@@ -766,12 +760,10 @@ private struct ChargingCostChart: View {
                     }
                 }
                 .chartYScale(domain: 0...max(1, (points.map(\.cost).max() ?? 1) * 1.12))
-                .tessalyticsChartAxes(x: "Day", y: "Cost (\(Self.currencyLabel))")
+                .tessalyticsChartAxes(x: "", y: "Cost (\(Self.currencyLabel))")
                 .tessalyticsChartStyle()
                 .frame(height: 220)
                 .accessibilityLabel("Charging cost trend over \(points.count) charging days")
-
-                ChartLegend("Reported cost per charging day", color: TessalyticsTheme.chartNeutral)
             }
         }
     }
@@ -813,12 +805,10 @@ private struct EfficiencyTrendChart: View {
                         }
                     }
                 }
-                .tessalyticsChartAxes(x: "Drive date", y: "Consumption (\(unit))")
+                .tessalyticsChartAxes(x: "", y: "Consumption (\(unit))")
                 .tessalyticsChartStyle()
                 .frame(height: 230)
                 .accessibilityLabel("Reported drive efficiency trend in \(unit)")
-
-                ChartLegend("Consumption per drive", color: TessalyticsTheme.warning)
             }
         }
     }
@@ -857,12 +847,10 @@ private struct WeekdayActivityChart: View {
                     }
                 }
                 .chartYScale(domain: 0...max(1, (points.map(\.value).max() ?? 1) * 1.12))
-                .tessalyticsChartAxes(x: "Weekday", y: "Distance (\(resolvedDistanceUnit))")
+                .tessalyticsChartAxes(x: "", y: "Distance (\(resolvedDistanceUnit))")
                 .tessalyticsChartStyle()
                 .frame(height: 220)
                 .accessibilityLabel("Distance by weekday in \(resolvedDistanceUnit)")
-
-                ChartLegend("Total distance", color: TessalyticsTheme.chartNeutral)
             }
         }
     }
@@ -986,7 +974,7 @@ private struct ChargeCostRelationshipChart: View {
 
 private struct RankedCategoryChart: View {
     let title: String
-    let subtitle: String
+    var subtitle: String?
     let symbol: String
     let tint: Color
     let points: [AnalyticsCategoryPoint]
@@ -1029,8 +1017,6 @@ private struct RankedCategoryChart: View {
                 .tessalyticsChartStyle()
                 .frame(height: max(170, CGFloat(points.count) * 42))
                 .accessibilityLabel("\(title), values in \(unit)")
-
-                ChartLegend("\(valueLabel) (\(unit))", color: tint)
             }
         }
     }
@@ -1040,7 +1026,7 @@ private struct AnalyticsCoverageCard: View {
     let coverage: AnalyticsCoverage
 
     var body: some View {
-        SectionCard("Data coverage", subtitle: "Fields reported", symbol: "checkmark.seal.fill", tint: TessalyticsTheme.neutral) {
+        SectionCard("Data coverage", symbol: "checkmark.seal.fill", tint: TessalyticsTheme.neutral) {
             VStack(spacing: 14) {
                 CoverageRow(title: "Drive distance", available: coverage.drivesWithDistance, total: coverage.drives, tint: TessalyticsTheme.accent)
                 CoverageRow(title: "Drive efficiency", available: coverage.drivesWithEfficiency, total: coverage.drives, tint: TessalyticsTheme.warning)

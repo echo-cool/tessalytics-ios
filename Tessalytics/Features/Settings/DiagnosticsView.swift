@@ -72,7 +72,7 @@ struct DiagnosticsView: View {
             Label("Recording", systemImage: "waveform")
         } footer: {
             Text(
-                "Keeps the body of every event the server sends, so a reading can be compared with what the app made of it. It costs memory while a car is streaming — leave it off unless you are chasing something."
+                "Keeps every event body the server sends. Costs memory while streaming — leave it off unless you are chasing something."
             )
         }
     }
@@ -177,7 +177,7 @@ struct DiagnosticsView: View {
         } header: {
             Label("Export", systemImage: "square.and.arrow.up")
         } footer: {
-            Text("The exported file is redacted: tokens, VINs and coordinates are removed before it leaves this device.")
+            Text("Tokens, VINs and coordinates are removed before export.")
         }
     }
 
@@ -193,7 +193,7 @@ struct DiagnosticsView: View {
             }
             .accessibilityIdentifier("diagnostics-lock")
         } footer: {
-            Text("Clears the log and hides these screens again. Tap the version number five times to come back.")
+            Text("Clears the log and hides these screens. Tap the version five times to return.")
         }
     }
 

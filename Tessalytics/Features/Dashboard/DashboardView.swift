@@ -1185,14 +1185,13 @@ private struct RecentDrivingChart: View {
                     }
                 }
             }
-            .tessalyticsChartAxes(x: "Last 7 days", y: "Distance (\(resolvedUnits.lengthSymbol))")
+            .tessalyticsChartAxes(x: "", y: "Distance (\(resolvedUnits.lengthSymbol))")
             .tessalyticsChartStyle()
             .frame(height: 128)
             .accessibilityLabel("Distance driven over the last seven days in \(resolvedUnits.lengthSymbol)")
             .accessibilityValue("Total \(ValueFormatting.distance(total, units: resolvedUnits))")
             .accessibilityIdentifier("home-driving-chart")
 
-            ChartLegend("Distance per day", color: TessalyticsTheme.accent)
         }
     }
 }

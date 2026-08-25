@@ -246,12 +246,11 @@ struct ChargeDetailView: View {
                         }
                     }
                 }
-                .tessalyticsChartAxes(x: "Time of day", y: "\(title) (\(unit))")
+                .tessalyticsChartAxes(x: "", y: "\(title) (\(unit))")
                 .tessalyticsChartStyle()
                 .frame(height: 170)
                 .accessibilityLabel("\(title) chart with \(values.count) samples in \(unit)")
 
-                ChartLegend("\(title) (\(unit))", color: tint)
             }
         }
     }

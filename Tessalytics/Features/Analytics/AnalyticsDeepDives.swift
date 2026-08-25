@@ -213,12 +213,10 @@ private struct MonthlyConsumptionChart: View {
                         }
                     }
                 }
-                .tessalyticsChartAxes(x: "Month", y: "Consumption (\(consumptionUnit))")
+                .tessalyticsChartAxes(x: "", y: "Consumption (\(consumptionUnit))")
                 .tessalyticsChartStyle()
                 .frame(height: 220)
                 .accessibilityLabel("Average consumption by month")
-
-                ChartLegend("Monthly consumption", color: TessalyticsTheme.accent)
             }
         }
     }
@@ -232,7 +230,6 @@ private struct ConsumptionByDistanceChart: View {
     var body: some View {
         SectionCard(
             "Consumption by trip length",
-            subtitle: "One point per drive",
             symbol: "circle.hexagongrid.fill",
             tint: TessalyticsTheme.neutral
         ) {
@@ -271,8 +268,6 @@ private struct ConsumptionByDistanceChart: View {
                 .tessalyticsChartStyle()
                 .frame(height: 240)
                 .accessibilityLabel("Consumption against trip distance across \(points.count) drives")
-
-                ChartLegend("One drive", color: TessalyticsTheme.chartNeutral)
             }
         }
     }
@@ -392,12 +387,10 @@ private struct OdometerTrailChart: View {
                 // A focused scale: an odometer sits far from zero and a zero
                 // baseline would flatten a year of driving into a level line.
                 .chartYScale(domain: domain)
-                .tessalyticsChartAxes(x: "Date", y: "Odometer (\(distanceUnit))")
+                .tessalyticsChartAxes(x: "", y: "Odometer (\(distanceUnit))")
                 .tessalyticsChartStyle()
                 .frame(height: 220)
                 .accessibilityLabel("Odometer over time in \(distanceUnit)")
-
-                ChartLegend("Odometer", color: TessalyticsTheme.chartNeutral)
             }
         }
     }
@@ -416,7 +409,7 @@ private struct MonthlyDistanceChart: View {
     let distanceUnit: String
 
     var body: some View {
-        SectionCard("Distance by month", subtitle: "Completed drives", symbol: "chart.bar.fill") {
+        SectionCard("Distance by month", symbol: "chart.bar.fill") {
             if points.isEmpty {
                 ChartEmptyState(message: "No drives in this period.")
             } else {
@@ -445,12 +438,10 @@ private struct MonthlyDistanceChart: View {
                     }
                 }
                 .chartYScale(domain: 0...max(1, (points.map(\.distance).max() ?? 1) * 1.12))
-                .tessalyticsChartAxes(x: "Month", y: "Distance (\(distanceUnit))")
+                .tessalyticsChartAxes(x: "", y: "Distance (\(distanceUnit))")
                 .tessalyticsChartStyle()
                 .frame(height: 220)
                 .accessibilityLabel("Distance driven by month in \(distanceUnit)")
-
-                ChartLegend("Distance", color: TessalyticsTheme.accent)
             }
         }
     }
@@ -462,7 +453,7 @@ private struct MonthlyEnergyChart: View {
     private var priced: [AnalyticsMonthlyPoint] { points.filter { $0.chargingCost > 0 } }
 
     var body: some View {
-        SectionCard("Charging by month", subtitle: "Energy added", symbol: "bolt.fill", tint: TessalyticsTheme.positive) {
+        SectionCard("Charging by month", symbol: "bolt.fill", tint: TessalyticsTheme.positive) {
             if points.allSatisfy({ $0.chargingEnergy == 0 }) {
                 ChartEmptyState(message: "No charging sessions in this period.")
             } else {
@@ -491,7 +482,7 @@ private struct MonthlyEnergyChart: View {
                     }
                 }
                 .chartYScale(domain: 0...max(1, (points.map(\.chargingEnergy).max() ?? 1) * 1.12))
-                .tessalyticsChartAxes(x: "Month", y: "Energy (kWh)")
+                .tessalyticsChartAxes(x: "", y: "Energy (kWh)")
                 .tessalyticsChartStyle()
                 .frame(height: 220)
                 .accessibilityLabel("Charging energy by month in kilowatt-hours")
@@ -528,7 +519,7 @@ private struct TimeSplitCard: View {
     }
 
     var body: some View {
-        SectionCard("Where the time went", subtitle: "Across the period", symbol: "clock.badge.checkmark", tint: TessalyticsTheme.steel) {
+        SectionCard("Where the time went", symbol: "clock.badge.checkmark", tint: TessalyticsTheme.steel) {
             if !split.isMeasurable {
                 ChartEmptyState(message: "No activity in this period.")
             } else {

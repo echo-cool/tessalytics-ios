@@ -32,7 +32,7 @@ struct IntelligenceView: View {
                     } else {
                         EmptyState(
                             title: "Not enough synchronized history",
-                            message: "Sync completed drives and charging sessions to create predictions and personalized signals.",
+                            message: "Sync some drives and charges first.",
                             symbol: "chart.line.downtrend.xyaxis"
                         )
                     }
@@ -259,7 +259,7 @@ private struct DistancePredictionChart: View {
     var body: some View {
         SectionCard(
             "Travel forecast",
-            subtitle: "Daily distance vs. seven-day pattern",
+            subtitle: "Against your seven-day pattern",
             symbol: "chart.line.uptrend.xyaxis",
             tint: TessalyticsTheme.accent
         ) {
@@ -328,7 +328,7 @@ private struct DistancePredictionChart: View {
             }
             .chartYScale(domain: 0...(maximum * 1.1))
             .chartLegend(position: .bottom, alignment: .leading, spacing: 8)
-            .tessalyticsChartAxes(x: "Date", y: "Daily distance (\(resolvedDistanceUnit))")
+            .tessalyticsChartAxes(x: "", y: "Daily distance (\(resolvedDistanceUnit))")
             .tessalyticsChartStyle()
             .frame(height: 280)
             .accessibilityLabel("Observed and forecast daily driving distance")
@@ -341,7 +341,7 @@ private struct DistancePredictionChart: View {
                 .init("Likely range", color: TessalyticsTheme.accent.opacity(0.25))
             ])
 
-            Label("Shaded band shows the historical variability for matching weekdays.", systemImage: "info.circle")
+            Label("The band is the usual spread for that weekday.", systemImage: "info.circle")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -446,7 +446,7 @@ private struct NotificationCallout: View {
                         .accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Turn insight into action").font(.headline)
-                        Text("Get local alerts for low battery, predicted charging completion, updates, and important anomalies.")
+                        Text("Local alerts for low battery, charging completion, updates and anomalies.")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }

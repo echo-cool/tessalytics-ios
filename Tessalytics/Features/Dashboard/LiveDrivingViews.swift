@@ -435,7 +435,7 @@ private struct LiveMetricChart: View {
                             }
                         }
                     }
-                    .tessalyticsChartAxes(x: "Time", y: "\(metric.title) (\(unitSymbol))")
+                    .tessalyticsChartAxes(x: "", y: "\(metric.title) (\(unitSymbol))")
                     .tessalyticsChartStyle()
                     .frame(height: 150)
                     .accessibilityLabel("\(metric.title) over the last \(windowMinutes) minutes")

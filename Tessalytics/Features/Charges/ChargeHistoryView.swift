@@ -30,7 +30,7 @@ struct ChargeHistoryView: View {
                     LoadingPanel(title: "Synchronizing charging sessions", symbol: "bolt.car")
                         .padding()
                 } else if records.isEmpty {
-                    EmptyState(title: "No charging sessions", message: message ?? "Completed sessions appear once your server has recorded them.", symbol: "bolt.car")
+                    EmptyState(title: "No charging sessions", message: message ?? "Sessions appear once your server records them.", symbol: "bolt.car")
                 } else {
                     list
                 }

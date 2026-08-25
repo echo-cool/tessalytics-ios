@@ -124,7 +124,7 @@ struct VehicleIntelligenceEngine {
                     lowerBound: distance.forecast.lowerBound,
                     upperBound: distance.forecast.upperBound,
                     unit: distanceUnit,
-                    detail: "Expected travel over the next seven days",
+                    detail: "From your seven-day pattern",
                     confidence: distance.forecast.confidence
                 ),
                 nextCharge,
@@ -193,7 +193,7 @@ struct VehicleIntelligenceEngine {
             lowerBound: low,
             upperBound: high,
             unit: "",
-            detail: "Expected travel over the next seven days",
+            detail: "From your seven-day pattern",
             confidence: confidence
         )
         return (forecast, observed + predictions)
@@ -217,7 +217,7 @@ struct VehicleIntelligenceEngine {
                 lowerBound: nil,
                 upperBound: nil,
                 unit: "",
-                detail: "More completed charging sessions are needed",
+                detail: "Needs more charging sessions",
                 confidence: .low
             )
         }
@@ -241,7 +241,7 @@ struct VehicleIntelligenceEngine {
             lowerBound: nil,
             upperBound: nil,
             unit: "",
-            detail: "Based on your median charging interval",
+            detail: "From your median interval",
             confidence: confidence
         )
     }
@@ -257,7 +257,7 @@ struct VehicleIntelligenceEngine {
                 lowerBound: nil,
                 upperBound: nil,
                 unit: "",
-                detail: "Add charging costs to unlock this forecast",
+                detail: "Needs charging costs",
                 confidence: .low
             )
         }
@@ -272,7 +272,7 @@ struct VehicleIntelligenceEngine {
             lowerBound: projection * 0.8,
             upperBound: projection * 1.2,
             unit: "",
-            detail: "Projected cost for the next 30 days",
+            detail: "From the last 60 days",
             confidence: confidence
         )
     }
@@ -289,7 +289,7 @@ struct VehicleIntelligenceEngine {
             lowerBound: nil,
             upperBound: nil,
             unit: distanceUnit.isEmpty ? "reported" : "Wh/\(distanceUnit)",
-            detail: "Median consumption across recent drives",
+            detail: "Median of recent drives",
             confidence: confidence
         )
     }

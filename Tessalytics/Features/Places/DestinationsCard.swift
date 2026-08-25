@@ -59,7 +59,7 @@ struct DestinationsCard: View {
                 if destinations.isEmpty {
                     Text(
                         filter.isEmpty
-                            ? "Places appear here once drives with coordinates have synced."
+                            ? "Places appear once drives with coordinates sync."
                             : "No place matches “\(filter)”."
                     )
                     .font(.footnote)
@@ -98,7 +98,7 @@ struct DestinationsCard: View {
     private var subtitle: String {
         canSendDirectly
             ? "Straight to the car's navigation"
-            : "Opens the share sheet — pick Tesla"
+            : "Via the share sheet"
     }
 
     private var controls: some View {

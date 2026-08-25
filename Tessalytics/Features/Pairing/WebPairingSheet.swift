@@ -80,7 +80,7 @@ struct WebPairingSheet: View {
             EmptyState(
                 title: "No server connected",
                 message: environment.isDemoMode
-                    ? "Demo mode has no server to sign a browser in to. Connect your Tessalytics Backend first."
+                    ? "Demo mode has no server to sign a browser in to."
                     : "Add your Tessalytics Backend in Settings, then come back to sign a browser in.",
                 symbol: "qrcode.viewfinder"
             )
@@ -101,7 +101,7 @@ struct WebPairingSheet: View {
             ScannerReticle()
             VStack {
                 Spacer()
-                Text("Open the dashboard in the car's browser, then point the camera at the code on screen.")
+                Text("Point the camera at the code on the dashboard.")
                     .font(.callout)
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.white)
@@ -218,7 +218,7 @@ struct WebPairingSheet: View {
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
-            Text("The dashboard should be showing your vehicle within a couple of seconds.")
+            Text("The dashboard will show your vehicle in a moment.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

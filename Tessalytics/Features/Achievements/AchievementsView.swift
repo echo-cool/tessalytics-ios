@@ -125,7 +125,7 @@ struct AchievementsView: View {
             SectionCard("Game Center", symbol: "gamecontroller", tint: TessalyticsTheme.steel) {
                 VStack(alignment: .leading, spacing: 10) {
                     Text(reason).font(.caption).foregroundStyle(.secondary)
-                    Text("The list below is computed on this device and does not need it.")
+                    Text("The list below is computed on this device.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     if environment.gameCenter.canPresentSignIn {

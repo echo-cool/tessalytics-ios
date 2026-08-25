@@ -873,6 +873,12 @@ struct ChartLegend: View {
 ///
 /// Swift Charts renders bare numbers by default, so a "230" on the y-axis could
 /// be miles, kilowatt-hours, or minutes. Both axes are always named.
+/// An empty title draws nothing at all.
+///
+/// A time axis whose ticks already read "Aug 16" does not also need the word
+/// "Date" under it, and on a screen of eight charts that is eight lines of type
+/// carrying nothing. The value labels inside `Chart` are what VoiceOver and the
+/// Audio Graph read, and those are untouched.
 private struct ChartAxisTitles: ViewModifier {
     let xTitle: String
     let yTitle: String
@@ -880,14 +886,18 @@ private struct ChartAxisTitles: ViewModifier {
     func body(content: Content) -> some View {
         content
             .chartXAxisLabel(position: .bottom, alignment: .center) {
-                Text(xTitle)
-                    .font(.caption2.weight(.medium))
-                    .foregroundStyle(.secondary)
+                if !xTitle.isEmpty {
+                    Text(xTitle)
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(.secondary)
+                }
             }
             .chartYAxisLabel(position: .leading, alignment: .center) {
-                Text(yTitle)
-                    .font(.caption2.weight(.medium))
-                    .foregroundStyle(.secondary)
+                if !yTitle.isEmpty {
+                    Text(yTitle)
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(.secondary)
+                }
             }
     }
 }

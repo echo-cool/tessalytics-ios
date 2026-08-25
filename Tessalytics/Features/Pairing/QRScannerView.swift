@@ -67,7 +67,7 @@ final class QRScannerViewController: UIViewController {
     private func start() async {
         guard await Self.cameraIsPermitted() else {
             onUnavailable?(
-                "Camera access is off for Tessalytics. Turn it on in Settings → Tessalytics, or enter the code by hand."
+                "Camera access is off. Turn it on in Settings, or enter the code by hand."
             )
             return
         }
@@ -126,7 +126,7 @@ private final class ScannerSession: @unchecked Sendable {
                 // The simulator has no camera, and this is also what a hardware
                 // fault looks like. Either way there is a way forward that is not
                 // the camera.
-                onUnavailable("No camera is available here. Enter the code shown beside the QR symbol instead.")
+                onUnavailable("No camera here. Enter the code shown beside the QR symbol.")
                 return
             }
 

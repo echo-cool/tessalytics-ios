@@ -226,7 +226,7 @@ struct ProjectedRangeChart: View {
                         }
                     }
                 }
-                .tessalyticsChartAxes(x: "Week", y: "Projected range (\(distanceUnit))")
+                .tessalyticsChartAxes(x: "", y: "Projected range (\(distanceUnit))")
                 .tessalyticsChartStyle()
                 .frame(height: 230)
                 .accessibilityLabel("Projected range at a full charge over time, in \(distanceUnit)")
