@@ -1,0 +1,51 @@
+Tessalytics 1.9.3 — the last five Grafana dashboards, and a picker that ignored you.
+
+THE VARIANT PICKER
+
+On Vehicle rating, "Not set" could be tapped but never took: it always snapped
+back to whatever the trim badge suggested. A cleared variant was stored as
+nothing at all, and "nothing" already meant "you have not chosen yet" — which is
+exactly what licenses the guess. Two more were found beside it: the picker saved
+nothing at all for a car this iPhone had never written to its store, and a stored
+variant the model does not offer left the control with no row to mark.
+
+TESLAMATE'S DASHBOARDS ARE NOW ALL HERE
+
+Five of TeslaMate's Grafana dashboards had no answer in the app. They do now.
+
+- Efficiency (new): consumption against outside temperature, weighted by distance
+  so a short cold trip does not outweigh a long run; consumption by month; and
+  consumption against trip length.
+- Mileage (new): the odometer curve, distance and charging by month, and where
+  the period actually went — driving, charging, or standing still.
+- Standby drain, on the Battery page: one point per parked stretch of six hours
+  or more, against a rule at your typical daily loss. This is the vampire-drain
+  panel, and it is the one battery figure you can act on.
+
+The battery page's metric grid was two rows of three with only four filled. It
+carries six now — full cycles and standby drain join the four that were there —
+and so do the Overview, Drive, Charge and Mileage grids.
+
+LESS TEXT, EVERYWHERE
+
+Roughly ninety strings are shorter or gone, and about forty on-screen elements
+went with them: legends that named a single series already named in the card
+title, "Date" written under an axis whose ticks read "Aug 16", subtitles that
+repeated their own heading. All six languages moved in step.
+
+WHAT TO TEST
+
+Vehicle rating (tap the car's name on the home screen): every variant, including
+"Not set", should stick — and stay stuck after leaving and coming back.
+
+Analysis → Efficiency and Mileage, across several reporting periods. The
+temperature bands need drives in genuinely different weather to say anything, so
+a car with only a warm month of history will show one band and no cold penalty;
+that is correct, not broken.
+
+Analysis → Battery, scrolled to the bottom, for standby drain. If your figure
+looks high, Sentry is the usual reason — I would like to hear what you see either
+way, and whether the number matches what you would have guessed.
+
+And tell me if any screen now reads as too terse. Cutting text is easy to
+overdo, and a label I found redundant may be one you were relying on.
