@@ -73,7 +73,7 @@ struct OnboardingView: View {
                     VStack(spacing: 18) {
                         OnboardingFeatureRow(
                             title: "Deploy the backend first",
-                            detail: "Tessalytics connects to Tessalytics Backend, not to TeslaMate directly. Run it beside TeslaMate — the same Docker Compose file is fine — and enter its address here.",
+                            detail: "Run Tessalytics Backend beside TeslaMate — the same Docker Compose file is fine — and enter its address here.",
                             symbol: "shippingbox.fill",
                             tint: TessalyticsTheme.accent
                         )
@@ -137,7 +137,7 @@ struct OnboardingView: View {
             } header: {
                 Text("Tessalytics Backend")
             } footer: {
-                Text("Enter the address of Tessalytics Backend, not of TeslaMate or Grafana. HTTPS is strongly recommended. Insecure HTTP can be enabled for compatibility, including a public IP and port, but bearer tokens and vehicle data then travel without encryption. TLS validation is never disabled.")
+                Text("The backend's address, not TeslaMate's or Grafana's. HTTPS is strongly recommended; HTTP sends tokens and vehicle data unencrypted.")
             }
 
             Section("Authentication") {
@@ -160,7 +160,7 @@ struct OnboardingView: View {
                         .textContentType(.password)
                 case .none:
                     Label(
-                        "Use only on a trusted private network or VPN. Anyone who can reach the server may be able to view location history.",
+                        "Use only on a trusted network or VPN.",
                         systemImage: "exclamationmark.triangle.fill"
                     )
                     .font(.footnote)
@@ -179,7 +179,7 @@ struct OnboardingView: View {
                 .disabled(testing)
                 .accessibilityIdentifier("test-connection")
             } footer: {
-                Text("Tessalytics checks reachability, authentication, and API compatibility. Credentials are kept only in Keychain.")
+                Text("Credentials are kept only in the Keychain.")
             }
         }
         .scrollContentBackground(.hidden)
@@ -233,7 +233,7 @@ struct OnboardingView: View {
                         .buttonStyle(.bordered)
                 }
 
-                Text("If this fails, check that Tessalytics Backend is deployed beside TeslaMate, running, and reachable from this iPhone, and that the token is correct. A TeslaMate or Grafana address will not work here.")
+                Text("If this fails, check the backend is running and reachable, and that the token is correct.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }

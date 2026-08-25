@@ -503,8 +503,9 @@ enum DemoExperience {
     @MainActor
     private static func seedDrives(in context: ModelContext, now: Date) {
         let samples = DemoAnalyticsFactory.samples(now: now).drives
+        let ledger = batteryLedger(now: now)
         for sample in samples {
-            let fixture = driveFixture(sample, now: now)
+            let fixture = driveFixture(sample, now: now, ledger: ledger)
             let key = DriveRecord.key(serverID: profileID, carID: carID, id: sample.id)
             let recordDescriptor = FetchDescriptor<DriveRecord>(predicate: #Predicate { $0.cacheKey == key })
             if (try? context.fetch(recordDescriptor).first) == nil {
@@ -541,8 +542,9 @@ enum DemoExperience {
         let descriptor = FetchDescriptor<TrackRecord>(predicate: #Predicate { $0.cacheKey == key })
         guard (try? context.fetch(descriptor).first) == nil else { return }
 
+        let ledger = batteryLedger(now: now)
         let segments = DemoAnalyticsFactory.samples(now: now).drives
-            .map { driveFixture($0, now: now).detail.driveDetails.map(\.coordinate) }
+            .map { driveFixture($0, now: now, ledger: ledger).detail.driveDetails.map(\.coordinate) }
             .filter { $0.count > 1 }
         guard !segments.isEmpty else { return }
         context.insert(
@@ -553,8 +555,9 @@ enum DemoExperience {
     @MainActor
     private static func seedCharges(in context: ModelContext, now: Date) {
         let samples = DemoAnalyticsFactory.samples(now: now).charges
+        let ledger = batteryLedger(now: now)
         for sample in samples {
-            let fixture = chargeFixture(sample, now: now)
+            let fixture = chargeFixture(sample, now: now, ledger: ledger)
             let key = ChargeRecord.key(serverID: profileID, carID: carID, id: sample.id)
             let recordDescriptor = FetchDescriptor<ChargeRecord>(predicate: #Predicate { $0.cacheKey == key })
             if (try? context.fetch(recordDescriptor).first) == nil {
@@ -657,7 +660,66 @@ enum DemoExperience {
         return max(demoLatestOdometer - days * demoMilesPerDay, 500)
     }
 
-    private static func driveFixture(_ sample: AnalyticsDriveSample, now: Date) -> (summary: DriveSummaryDTO, detail: DriveDetailDTO) {
+    /// One event's battery level at each end.
+    private struct DemoLevelWindow: Sendable {
+        let start: Int
+        let end: Int
+    }
+
+    /// Battery levels that join up across the whole demo history.
+    ///
+    /// They used to be generated per event from its own id, so a drive could end
+    /// at 70% and the charge an hour later begin at 26%. Anything that reads the
+    /// gap *between* two events then saw a car losing half its charge overnight —
+    /// which is exactly what the standby-drain panel measures.
+    private static func batteryLedger(now: Date) -> [Int: DemoLevelWindow] {
+        enum Event {
+            case drive(AnalyticsDriveSample)
+            case charge(AnalyticsChargeSample)
+        }
+        let samples = DemoAnalyticsFactory.samples(now: now)
+        let events: [(start: Date, minutes: Int, event: Event)] =
+            (samples.drives.map { (start: $0.date, minutes: $0.durationMinutes ?? 28, event: Event.drive($0)) }
+                + samples.charges.map { (start: $0.date, minutes: $0.durationMinutes ?? 90, event: Event.charge($0)) })
+            .sorted { $0.start < $1.start }
+
+        // A percentage point of pack per 0.784 kWh, which is the demo car's.
+        let kilowattHoursPerPoint = 0.784
+        var ledger: [Int: DemoLevelWindow] = [:]
+        var level = 74.0
+        var previousEnd: Date?
+
+        for entry in events {
+            if let previousEnd, entry.start > previousEnd {
+                // Just over a point a day, which is what a healthy car with
+                // Sentry off actually loses while parked.
+                level = max(level - entry.start.timeIntervalSince(previousEnd) / 86_400 * 1.2, 8)
+            }
+            previousEnd = entry.start.addingTimeInterval(Double(entry.minutes) * 60)
+
+            switch entry.event {
+            case .drive(let drive):
+                let start = min(max(level, 14), 96)
+                let used = max((drive.energy ?? 3) / kilowattHoursPerPoint, 2)
+                let end = max(start - used, 8)
+                ledger[drive.id] = DemoLevelWindow(start: Int(start.rounded()), end: Int(end.rounded()))
+                level = end
+            case .charge(let charge):
+                let start = min(max(level, 8), 88)
+                let added = max((charge.energy ?? 24) / kilowattHoursPerPoint, 5)
+                let end = min(start + added, 90)
+                ledger[charge.id] = DemoLevelWindow(start: Int(start.rounded()), end: Int(end.rounded()))
+                level = end
+            }
+        }
+        return ledger
+    }
+
+    private static func driveFixture(
+        _ sample: AnalyticsDriveSample,
+        now: Date,
+        ledger: [Int: DemoLevelWindow]
+    ) -> (summary: DriveSummaryDTO, detail: DriveDetailDTO) {
         let startName = sample.id.isMultiple(of: 2) ? "Home" : "Office"
         let endName = sample.destination ?? "Downtown"
         let startCoordinate = coordinate(for: startName)
@@ -666,8 +728,10 @@ enum DemoExperience {
         let endDate = sample.date.addingTimeInterval(Double(duration) * 60)
         let distance = sample.distance ?? 12
         let odometerStart = odometer(at: sample.date, now: now) - distance
-        let startLevel = 62 + abs(sample.id) % 24
-        let endLevel = max(12, startLevel - Int(max(2, distance / 5)))
+        let window = ledger[sample.id]
+            ?? DemoLevelWindow(start: 74, end: max(12, 74 - Int(max(2, distance / 5))))
+        let startLevel = window.start
+        let endLevel = window.end
         let summary = DriveSummaryDTO(
             driveId: sample.id,
             startDate: FlexibleDate(sample.date),
@@ -738,13 +802,19 @@ enum DemoExperience {
         return (summary, detail)
     }
 
-    private static func chargeFixture(_ sample: AnalyticsChargeSample, now: Date) -> (summary: ChargeSummaryDTO, detail: ChargeDetailDTO) {
+    private static func chargeFixture(
+        _ sample: AnalyticsChargeSample,
+        now: Date,
+        ledger: [Int: DemoLevelWindow]
+    ) -> (summary: ChargeSummaryDTO, detail: ChargeDetailDTO) {
         let duration = sample.durationMinutes ?? 90
         let endDate = sample.date.addingTimeInterval(Double(duration) * 60)
         let energy = sample.energy ?? 24
         let chargeOdometer = odometer(at: sample.date, now: now)
-        let startLevel = 24 + abs(sample.id) % 18
-        let endLevel = min(92, startLevel + max(6, Int(energy / 0.75)))
+        let window = ledger[sample.id]
+            ?? DemoLevelWindow(start: 34, end: min(90, 34 + max(6, Int(energy / 0.784))))
+        let startLevel = window.start
+        let endLevel = window.end
         let summary = ChargeSummaryDTO(
             chargeId: sample.id,
             startDate: FlexibleDate(sample.date),
@@ -778,8 +848,8 @@ enum DemoExperience {
             return ChargePointDTO(
                 detailId: sample.id * 100 + index,
                 date: FlexibleDate(sample.date.addingTimeInterval(Double(duration * 60) * progress)),
-                batteryLevel: 22 + Int(progress * 58),
-                usableBatteryLevel: 21 + Int(progress * 58),
+                batteryLevel: startLevel + Int(progress * Double(endLevel - startLevel)),
+                usableBatteryLevel: max(startLevel - 1 + Int(progress * Double(endLevel - startLevel)), 0),
                 chargeEnergyAdded: energy * progress,
                 chargerDetails: ChargerDetailsDTO(
                     chargerActualCurrent: isFastCharge ? 180 - progress * 90 : 32,

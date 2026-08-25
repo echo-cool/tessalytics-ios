@@ -31,6 +31,7 @@
 		250B8352D10419E4A86D376B /* FleetStatisticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD58F56270ED9EE5AA34AD00 /* FleetStatisticsTests.swift */; };
 		258F2A5E9F6127C845D9904A /* SecretRedactor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3796E1397AB56D8301C1342B /* SecretRedactor.swift */; };
 		2750ED8E9CCC350A845D1BF5 /* CarDestinationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5E872FDD6FDA9D7DE38B03B /* CarDestinationTests.swift */; };
+		276A36742ADCD4FE9D9BE68F /* AnalyticsDeepDives.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D3A3AB109A9CE6974262D1D /* AnalyticsDeepDives.swift */; };
 		27AEBAB2940A2E7297506211 /* AnalyticsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28F714155C63878469AC8259 /* AnalyticsService.swift */; };
 		27E62C6D454786BC9CFC6B07 /* BatteryPackCatalogue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08ACF2A0F37DC980E638FACB /* BatteryPackCatalogue.swift */; };
 		27ECD1648D40604CB5419FED /* BatteryPackCatalogueTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0391D95748708137B54B1CD5 /* BatteryPackCatalogueTests.swift */; };
@@ -74,6 +75,7 @@
 		616325FCDB89DE10CACDAEBA /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC8E2BBB853FCEEA2FE25424 /* DashboardView.swift */; };
 		62D1BD53F29F1B0223138BD2 /* charges.json in Resources */ = {isa = PBXBuildFile; fileRef = B1188E6A2EA09BC3DC19035C /* charges.json */; };
 		634B29A27AC1DBB74A5AC2C7 /* SecretRedactorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CE17136B4BA6E218A3C65EF /* SecretRedactorTests.swift */; };
+		65EB58A31E3687D06ADBBCF1 /* StandbyDrain.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCB432E749F70DB07C312FC7 /* StandbyDrain.swift */; };
 		6609B21DA559A3D21BF2946A /* FakeEventStreamServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E74EA66EE097BA911C59C42E /* FakeEventStreamServer.swift */; };
 		69614DDB6CA0236C1396DFA5 /* PairedBrowsersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3E539ECF065D8C597EE482A /* PairedBrowsersView.swift */; };
 		6B940FBEAD06258509878008 /* FleetHistorySync.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAB5577362235478009EDDAA /* FleetHistorySync.swift */; };
@@ -260,6 +262,7 @@
 		5ACB9B62773489CE083DD358 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
 		5B92FDDD42CDBF40BBB4A1AA /* LiveChargingUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveChargingUITests.swift; sourceTree = "<group>"; };
 		5C64E8C37EA39F92E3F4382B /* VehicleSpecificationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VehicleSpecificationView.swift; sourceTree = "<group>"; };
+		5D3A3AB109A9CE6974262D1D /* AnalyticsDeepDives.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsDeepDives.swift; sourceTree = "<group>"; };
 		5E4902A8606A0CAFEDFAB8DB /* VINDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VINDecoder.swift; sourceTree = "<group>"; };
 		5FB265EB8DFADB85DF531C76 /* LiveRoutePathTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveRoutePathTests.swift; sourceTree = "<group>"; };
 		610FF9F35CCDBAF304DE520B /* DestinationsCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DestinationsCard.swift; sourceTree = "<group>"; };
@@ -325,6 +328,7 @@
 		C5D82A8357ABD2FC67D9A2AB /* DemoDriveSimulationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoDriveSimulationTests.swift; sourceTree = "<group>"; };
 		C6F4205799532D9F947BE00D /* QRScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerView.swift; sourceTree = "<group>"; };
 		C94E6BD412F4C91F394DE58F /* AnalyticsDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsDashboardView.swift; sourceTree = "<group>"; };
+		CCB432E749F70DB07C312FC7 /* StandbyDrain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StandbyDrain.swift; sourceTree = "<group>"; };
 		CD2E3E9E560B072FA7AB7C6F /* LiveMapScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveMapScreen.swift; sourceTree = "<group>"; };
 		CDEEF6BBA94C3B7DAE5FB611 /* BackendClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendClientTests.swift; sourceTree = "<group>"; };
 		CF42BFB43015DC8F460CA7FA /* ChartDomainTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartDomainTests.swift; sourceTree = "<group>"; };
@@ -410,6 +414,7 @@
 				5A310F5BA2391ED8763AFBE8 /* LiveRouteTrail.swift */,
 				2FB60C5FAA3FF44B9C6A3AC1 /* LiveTelemetryBuffer.swift */,
 				5A27A41A9E3BC183BBB2F82E /* SoftwareTimeline.swift */,
+				CCB432E749F70DB07C312FC7 /* StandbyDrain.swift */,
 				F5028BB1CBF189AE00FBBCF4 /* VisitedPlaces.swift */,
 			);
 			path = Analytics;
@@ -579,6 +584,7 @@
 			isa = PBXGroup;
 			children = (
 				C94E6BD412F4C91F394DE58F /* AnalyticsDashboardView.swift */,
+				5D3A3AB109A9CE6974262D1D /* AnalyticsDeepDives.swift */,
 				6F6420EFA70BE1BF7180F124 /* InsightsView.swift */,
 			);
 			path = Analytics;
@@ -1060,6 +1066,7 @@
 				70E86C1BAD22CB6F1C3F9444 /* Achievements.swift in Sources */,
 				29877F8632660366B00D12CB /* AchievementsView.swift in Sources */,
 				E0E6960CE176CA992B863D50 /* AnalyticsDashboardView.swift in Sources */,
+				276A36742ADCD4FE9D9BE68F /* AnalyticsDeepDives.swift in Sources */,
 				27AEBAB2940A2E7297506211 /* AnalyticsService.swift in Sources */,
 				7B8F2E9602339BCA4F461991 /* AppEnvironment.swift in Sources */,
 				2AA85370399BBC2E1BF24218 /* AppLanguage.swift in Sources */,
@@ -1136,6 +1143,7 @@
 				83FF03E475A2C2D2DB8FF6A1 /* SharePoster.swift in Sources */,
 				19B985B2C81A505E06834805 /* SoftwareTimeline.swift in Sources */,
 				F34ADBCF628380A9EDDBA036 /* SoftwareUpdatesView.swift in Sources */,
+				65EB58A31E3687D06ADBBCF1 /* StandbyDrain.swift in Sources */,
 				E766A0FA0414C3AA977217C6 /* StatusInterpretation.swift in Sources */,
 				2FD0061B933B4B37A44AD0E0 /* TessalyticsApp.swift in Sources */,
 				CFB3971DC18EB6F5131FBC5D /* TessalyticsBackendClient.swift in Sources */,

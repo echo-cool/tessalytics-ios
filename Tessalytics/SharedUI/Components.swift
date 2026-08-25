@@ -767,21 +767,18 @@ struct ChartNeedsMoreHistory: View {
             Text([("Needs \(needs)."), have].compactMap { $0 }.joined(separator: " "))
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            Text(Self.reassurance)
-                .font(.caption)
-                .foregroundStyle(.tertiary)
         }
         .multilineTextAlignment(.center)
-        .frame(maxWidth: .infinity, minHeight: 130)
+        .frame(maxWidth: .infinity, minHeight: 118)
         .padding(.horizontal, 8)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Still collecting. Needs \(needs). \(have ?? "") \(Self.reassurance)")
     }
 
-    /// One sentence, worded the same everywhere it appears, because a reader who
-    /// meets it on four charts should recognise it as the same situation rather
-    /// than four different problems.
-    static let reassurance = "TeslaMate records this as you drive and charge — check back in a few days."
+    /// Kept for the spoken label, where a screen-reader user has no icon and no
+    /// surrounding layout to tell "still filling up" from "broken". On screen it
+    /// was a fourth line repeating what the heading already said.
+    static let reassurance = "TeslaMate records this as you drive and charge."
 }
 
 struct LoadingPanel: View {

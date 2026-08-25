@@ -48,7 +48,7 @@ struct TyrePressureView: View {
         } else {
             EmptyState(
                 title: "No tyre readings",
-                message: "This vehicle has not reported a tyre pressure. TeslaMate reads these from the car while it is awake.",
+                message: "No tyre pressure reported yet. TeslaMate reads these while the car is awake.",
                 symbol: "gauge.with.dots.needle.bottom.50percent"
             )
         }
@@ -120,8 +120,8 @@ struct TyrePressureView: View {
                 }
                 Text(
                     isLive
-                        ? "Tyre pressures come from the car itself. They change with temperature, so a cold morning reads lower than the same tyre in the afternoon."
-                        : "The car is asleep and reports nothing, so this is the last reading taken while it was awake rather than a current one."
+                        ? "Read from the car. Pressures fall as the tyres cool."
+                        : "The car is asleep, so this is the last reading taken while it was awake."
                 )
                 .font(.caption)
                 .foregroundStyle(.secondary)

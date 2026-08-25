@@ -60,6 +60,10 @@ struct AnalyticsDriveSample: Identifiable, Sendable {
     let energy: Double?
     let efficiency: Double?
     let destination: String?
+    /// Average outside temperature over the drive, in the server's unit.
+    var temperature: Double?
+    /// Odometer at the end of the drive, in the server's length unit.
+    var odometer: Double?
 }
 
 struct AnalyticsChargeSample: Identifiable, Sendable {
@@ -184,6 +188,56 @@ struct AnalyticsChargeRelationshipPoint: Identifiable, Sendable {
     let location: String
 }
 
+/// Average consumption in one outside-temperature band.
+struct AnalyticsTemperaturePoint: Identifiable, Sendable {
+    let id: Int
+    let label: String
+    let lowerBound: Double
+    let consumption: Double
+    let distance: Double
+    let drives: Int
+}
+
+/// One drive placed by how far it went and what it used.
+struct AnalyticsConsumptionPoint: Identifiable, Sendable {
+    let id: Int
+    let distance: Double
+    let consumption: Double
+    let temperature: Double?
+}
+
+/// A calendar month's totals.
+struct AnalyticsMonthlyPoint: Identifiable, Sendable {
+    let month: Date
+    let distance: Double
+    let chargingEnergy: Double
+    let chargingCost: Double
+    let consumption: Double?
+    let drives: Int
+    let charges: Int
+    var id: Date { month }
+}
+
+struct AnalyticsOdometerPoint: Identifiable, Sendable {
+    let id: Int
+    let date: Date
+    let odometer: Double
+}
+
+/// Where the period went: driving, charging, or standing still.
+struct AnalyticsTimeSplit: Sendable {
+    let drivingMinutes: Int
+    let chargingMinutes: Int
+    let spanMinutes: Int
+
+    var idleMinutes: Int { max(spanMinutes - drivingMinutes - chargingMinutes, 0) }
+    var isMeasurable: Bool { spanMinutes > 0 }
+
+    func share(_ minutes: Int) -> Double {
+        spanMinutes > 0 ? Double(minutes) / Double(spanMinutes) : 0
+    }
+}
+
 struct AnalyticsCoverage: Sendable {
     let drives: Int
     let drivesWithDistance: Int
@@ -205,11 +259,19 @@ struct AnalyticsDashboardSnapshot: Sendable {
     let chargingLocations: [AnalyticsCategoryPoint]
     let efficiencyTrend: [AnalyticsEfficiencyPoint]
     let chargeRelationships: [AnalyticsChargeRelationshipPoint]
+    let efficiencyByTemperature: [AnalyticsTemperaturePoint]
+    let consumptionByDistance: [AnalyticsConsumptionPoint]
+    let monthly: [AnalyticsMonthlyPoint]
+    let odometerTrail: [AnalyticsOdometerPoint]
+    let timeSplit: AnalyticsTimeSplit
     let coverage: AnalyticsCoverage
 }
 
 struct AnalyticsDashboardBuilder {
     var calendar = Calendar.current
+    /// How wide an outside-temperature band is, in the server's unit. Five
+    /// degrees is a readable band in Celsius and far too narrow in Fahrenheit.
+    var temperatureBucketWidth: Double = 5
 
     func make(
         drives: [AnalyticsDriveSample],
@@ -244,7 +306,112 @@ struct AnalyticsDashboardBuilder {
                     location: shortPlace(charge.location)
                 )
             },
+            efficiencyByTemperature: efficiencyByTemperature(selectedDrives),
+            consumptionByDistance: selectedDrives.compactMap { drive in
+                guard let distance = drive.distance, distance > 0, let consumption = drive.efficiency,
+                      consumption > 0 else { return nil }
+                return AnalyticsConsumptionPoint(
+                    id: drive.id, distance: distance, consumption: consumption, temperature: drive.temperature
+                )
+            },
+            monthly: monthly(drives: selectedDrives, charges: selectedCharges),
+            odometerTrail: odometerTrail(selectedDrives),
+            timeSplit: timeSplit(drives: selectedDrives, charges: selectedCharges, window: window),
             coverage: coverage(drives: selectedDrives, charges: selectedCharges)
+        )
+    }
+
+    /// Consumption averaged inside fixed temperature bands.
+    ///
+    /// Weighted by distance rather than by drive, because a two-mile trip from
+    /// cold and a hundred-mile motorway run are not one observation each: the
+    /// short one is nearly all warm-up and would drag a plain mean with it.
+    private func efficiencyByTemperature(_ drives: [AnalyticsDriveSample]) -> [AnalyticsTemperaturePoint] {
+        let width = max(temperatureBucketWidth, 1)
+        let usable = drives.filter { $0.temperature != nil && ($0.efficiency ?? 0) > 0 && ($0.distance ?? 0) > 0 }
+        let groups = Dictionary(grouping: usable) { drive in
+            Int((drive.temperature! / width).rounded(.down))
+        }
+        return groups.map { band, values in
+            let distance = values.compactMap(\.distance).reduce(0, +)
+            let energy = values.reduce(0.0) { total, drive in
+                total + (drive.efficiency ?? 0) * (drive.distance ?? 0)
+            }
+            let lower = Double(band) * width
+            return AnalyticsTemperaturePoint(
+                id: band,
+                label: "\(Int(lower))–\(Int(lower + width))°",
+                lowerBound: lower,
+                consumption: distance > 0 ? energy / distance : 0,
+                distance: distance,
+                drives: values.count
+            )
+        }
+        .sorted { $0.lowerBound < $1.lowerBound }
+    }
+
+    private func monthly(drives: [AnalyticsDriveSample], charges: [AnalyticsChargeSample]) -> [AnalyticsMonthlyPoint] {
+        func month(_ date: Date) -> Date {
+            calendar.dateInterval(of: .month, for: date)?.start ?? calendar.startOfDay(for: date)
+        }
+        let driveGroups = Dictionary(grouping: drives) { month($0.date) }
+        let chargeGroups = Dictionary(grouping: charges) { month($0.date) }
+        let months = Set(driveGroups.keys).union(chargeGroups.keys)
+        return months.map { start in
+            let monthDrives = driveGroups[start] ?? []
+            let monthCharges = chargeGroups[start] ?? []
+            let distance = monthDrives.compactMap(\.distance).reduce(0, +)
+            let weighted = monthDrives.reduce(0.0) { total, drive in
+                guard let consumption = drive.efficiency, let travelled = drive.distance else { return total }
+                return total + consumption * travelled
+            }
+            let measured = monthDrives
+                .filter { $0.efficiency != nil }
+                .compactMap(\.distance)
+                .reduce(0, +)
+            return AnalyticsMonthlyPoint(
+                month: start,
+                distance: distance,
+                chargingEnergy: monthCharges.compactMap(\.energy).reduce(0, +),
+                chargingCost: monthCharges.compactMap(\.cost).reduce(0, +),
+                consumption: measured > 0 ? weighted / measured : nil,
+                drives: monthDrives.count,
+                charges: monthCharges.count
+            )
+        }
+        .sorted { $0.month < $1.month }
+    }
+
+    /// The odometer as it read at the end of each drive that reported one.
+    private func odometerTrail(_ drives: [AnalyticsDriveSample]) -> [AnalyticsOdometerPoint] {
+        drives
+            .compactMap { drive in
+                drive.odometer.map { AnalyticsOdometerPoint(id: drive.id, date: drive.date, odometer: $0) }
+            }
+            .sorted { $0.date < $1.date }
+    }
+
+    /// How the period divided between driving, charging and standing still.
+    ///
+    /// The span is the selected window, clipped to now so a month that has not
+    /// finished is not reported as mostly idle before it happens.
+    private func timeSplit(
+        drives: [AnalyticsDriveSample],
+        charges: [AnalyticsChargeSample],
+        window: AnalyticsTimeWindow,
+        now: Date = .now
+    ) -> AnalyticsTimeSplit {
+        let dates = drives.map(\.date) + charges.map(\.date)
+        let start = window.current?.lowerBound ?? dates.min()
+        let end = min(window.current?.upperBound ?? now, now)
+        let span: Int = {
+            guard let start, end > start else { return 0 }
+            return Int(end.timeIntervalSince(start) / 60)
+        }()
+        return AnalyticsTimeSplit(
+            drivingMinutes: drives.compactMap(\.durationMinutes).reduce(0, +),
+            chargingMinutes: charges.compactMap(\.durationMinutes).reduce(0, +),
+            spanMinutes: span
         )
     }
 
@@ -398,7 +565,9 @@ enum DemoAnalyticsFactory {
                         durationMinutes: Int(distance * 1.7) + 5,
                         energy: distance * (0.15 + Double(dayOffset % 5) * 0.006),
                         efficiency: 148 + Double((dayOffset * 7) % 34),
-                        destination: destinations[dayOffset % destinations.count]
+                        destination: destinations[dayOffset % destinations.count],
+                        temperature: temperature(dayOffset: dayOffset),
+                        odometer: odometer(dayOffset: dayOffset)
                     )
                 )
                 if dayOffset % 4 == 1 {
@@ -411,7 +580,9 @@ enum DemoAnalyticsFactory {
                             durationMinutes: 18 + dayOffset % 12,
                             energy: 1.4 + Double(dayOffset % 4) * 0.3,
                             efficiency: 154 + Double((dayOffset * 5) % 27),
-                            destination: destinations[(dayOffset + 2) % destinations.count]
+                            destination: destinations[(dayOffset + 2) % destinations.count],
+                            temperature: temperature(dayOffset: dayOffset) + 2,
+                            odometer: odometer(dayOffset: dayOffset) + 6
                         )
                     )
                 }
@@ -435,5 +606,16 @@ enum DemoAnalyticsFactory {
         }
 
         return (drives.sorted { $0.date > $1.date }, charges.sorted { $0.date > $1.date })
+    }
+
+    /// A seasonal swing, so the consumption-against-temperature panel has a shape
+    /// to show rather than one band.
+    private static func temperature(dayOffset: Int) -> Double {
+        14 + 12 * sin(Double(dayOffset) / 62 * 2 * .pi)
+    }
+
+    /// Counts up towards the demo car's odometer as the days approach today.
+    private static func odometer(dayOffset: Int) -> Double {
+        18_642 - Double(dayOffset) * 21
     }
 }

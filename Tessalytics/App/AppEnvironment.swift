@@ -1524,13 +1524,34 @@ final class AppEnvironment {
     /// suggestion came from.
     var selectedVIN: TeslaVIN? { VINDecoder.decode(selectedVehicle?.vin) }
 
+    /// What is stored when the owner picks "not set".
+    ///
+    /// A nil column cannot carry that answer: nil already means "they have not
+    /// said", which is what licenses the guess from the trim badge. Writing nil
+    /// for an explicit clear made the guess come straight back, so the option
+    /// could be tapped but never took.
+    static let clearedPackVariant = "none"
+
     /// The variant to look a pack up with: the owner's choice, or a guess from
     /// the trim badge until they make one.
     func packVariant(serverID: UUID, carID: Int) -> VehicleVariant? {
         let record = vehicleRecord(serverID: serverID, carID: carID)
-        if let stored = record?.packVariant, let variant = VehicleVariant(rawValue: stored) { return variant }
-        guard let model = VINDecoder.decode(record?.vin)?.model else { return nil }
+        let model = VINDecoder.decode(record?.vin)?.model
+        if let stored = record?.packVariant {
+            guard stored != Self.clearedPackVariant, let variant = VehicleVariant(rawValue: stored) else { return nil }
+            return isOffered(variant, forModel: model) ? variant : nil
+        }
+        guard let model else { return nil }
         return VehicleVariant.suggestion(fromTrim: record?.trim, model: model)
+    }
+
+    /// Whether a variant is one the picker actually offers for this model.
+    ///
+    /// A stored value the list does not contain leaves the picker with no row to
+    /// mark, which reads on screen as a control that ignores every tap.
+    private func isOffered(_ variant: VehicleVariant, forModel model: String?) -> Bool {
+        guard let model else { return true }
+        return VehicleVariant.choices(forModel: model).contains(variant)
     }
 
     var selectedPackVariant: VehicleVariant? {
@@ -1541,11 +1562,18 @@ final class AppEnvironment {
     /// Records the variant the owner confirmed, and re-derives everything that
     /// depends on the pack.
     func savePackVariant(_ variant: VehicleVariant?) {
-        guard let profile = selectedProfile, let vehicle = selectedVehicle,
-              let record = vehicleRecord(serverID: profile.id, carID: vehicle.id) else { return }
-        record.packVariant = variant?.rawValue
+        guard let profile = selectedProfile, let vehicle = selectedVehicle else { return }
+        // A car cached in memory but never written to the store had no row to
+        // save into, so the picker moved and then snapped back.
+        let record = vehicleRecord(serverID: profile.id, carID: vehicle.id) ?? {
+            let created = VehicleRecord(vehicle: vehicle)
+            container.mainContext.insert(created)
+            return created
+        }()
+        record.packVariant = variant?.rawValue ?? Self.clearedPackVariant
         try? container.mainContext.save()
         recomputeFleetStatistics(profile: profile, vehicle: vehicle)
+        historyRevision += 1
     }
 
     var selectedSpecification: VehicleSpecification {

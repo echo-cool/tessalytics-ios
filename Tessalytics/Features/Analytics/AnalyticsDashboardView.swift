@@ -17,6 +17,7 @@ struct AnalyticsDashboardView: View {
     @State private var chargeSamples: [AnalyticsChargeSample] = []
     @State private var dashboard: AnalyticsDashboardSnapshot?
     @State private var distanceUnit = UnitsDTO.metricDefaults.lengthSymbol
+    @State private var temperatureUnit = UnitsDTO.metricDefaults.temperatureSymbol
 
     init(
         embedded: Bool = false,
@@ -66,6 +67,22 @@ struct AnalyticsDashboardView: View {
                                 comparisonLabel: window.comparisonLabel,
                                 sites: chargingSites
                             )
+                        case .efficiency:
+                            EfficiencyAnalyticsDashboard(
+                                snapshot: dashboard,
+                                periodLabel: window.label,
+                                comparisonLabel: window.comparisonLabel,
+                                distanceUnit: distanceUnit,
+                                temperatureUnit: temperatureUnit
+                            )
+                        case .mileage:
+                            MileageAnalyticsDashboard(
+                                snapshot: dashboard,
+                                periodLabel: window.label,
+                                comparisonLabel: window.comparisonLabel,
+                                distanceUnit: distanceUnit,
+                                odometer: environment.status?.odometer
+                            )
                         }
                     } else {
                         LoadingPanel(title: "Building analytics dashboard", symbol: "chart.xyaxis.line")
@@ -107,6 +124,22 @@ struct AnalyticsDashboardView: View {
                             periodLabel: window.label,
                             comparisonLabel: window.comparisonLabel,
                             sites: chargingSites
+                        )
+                    case .efficiency:
+                        EfficiencyAnalyticsDashboard(
+                            snapshot: dashboard,
+                            periodLabel: window.label,
+                            comparisonLabel: window.comparisonLabel,
+                            distanceUnit: distanceUnit,
+                            temperatureUnit: temperatureUnit
+                        )
+                    case .mileage:
+                        MileageAnalyticsDashboard(
+                            snapshot: dashboard,
+                            periodLabel: window.label,
+                            comparisonLabel: window.comparisonLabel,
+                            distanceUnit: distanceUnit,
+                            odometer: environment.status?.odometer
                         )
                     }
                     AnalyticsSourceNote(coverage: dashboard.coverage)
@@ -177,6 +210,7 @@ struct AnalyticsDashboardView: View {
             driveSamples = samples.drives
             chargeSamples = samples.charges
             distanceUnit = DemoExperience.units.lengthSymbol
+            temperatureUnit = DemoExperience.units.temperatureSymbol
             if let profile = environment.selectedProfile, let vehicle = environment.selectedVehicle {
                 chargingSites = ChargingSiteBuilder.sites(
                     from: ChargeRepository(context: context).cached(serverID: profile.id, carID: vehicle.id)
@@ -205,7 +239,12 @@ struct AnalyticsDashboardView: View {
                     durationMinutes: record.durationMinutes,
                     energy: record.energy,
                     efficiency: record.efficiency,
-                    destination: record.endAddress
+                    destination: record.endAddress,
+                    // Converted here rather than at the chart: the temperature
+                    // bands are labelled in the unit the owner reads, and a
+                    // Celsius reading in a Fahrenheit band is off by 30 degrees.
+                    temperature: environment.statusUnits?.displayTemperature(record.outsideTemp) ?? record.outsideTemp,
+                    odometer: record.odometerEnd
                 )
             }
         let chargeRecords = ChargeRepository(context: context).cached(serverID: profile.id, carID: vehicle.id)
@@ -227,11 +266,15 @@ struct AnalyticsDashboardView: View {
         distanceUnit = (try? context.fetch(descriptor).first?.lengthUnit)
             ?? environment.statusUnits?.lengthSymbol
             ?? UnitsDTO.metricDefaults.lengthSymbol
+        temperatureUnit = environment.statusUnits?.temperatureSymbol ?? UnitsDTO.metricDefaults.temperatureSymbol
         rebuildDashboard()
     }
 
     private func rebuildDashboard() {
-        dashboard = AnalyticsDashboardBuilder().make(drives: driveSamples, charges: chargeSamples, window: window)
+        let builder = AnalyticsDashboardBuilder(
+            temperatureBucketWidth: temperatureUnit.contains("F") ? 10 : 5
+        )
+        dashboard = builder.make(drives: driveSamples, charges: chargeSamples, window: window)
     }
 }
 
@@ -239,6 +282,8 @@ enum AnalyticsSection: String, CaseIterable, Identifiable {
     case overview = "Overview"
     case driving = "Driving"
     case charging = "Charging"
+    case efficiency = "Efficiency"
+    case mileage = "Mileage"
     var id: Self { self }
 }
 
@@ -255,7 +300,7 @@ private struct AnalyticsHero: View {
         DashboardHeroCard(
             eyebrow: "Analytics hub",
             title: title,
-            subtitle: "Movement, efficiency, cost and data quality.",
+            subtitle: "Movement, efficiency and cost.",
             symbol: "chart.xyaxis.line",
             badge: windowLabel
         )
@@ -345,6 +390,32 @@ private struct AnalyticsOverviewDashboard: View {
                     detail: comparison(snapshot.summary.chargingCost, snapshot.previousSummary?.chargingCost, label: comparisonLabel),
                     tint: TessalyticsTheme.steel
                 )
+                MetricCard(
+                    title: "Trips",
+                    value: snapshot.summary.driveCount.formatted(),
+                    symbol: "car.side.fill",
+                    detail: comparison(
+                        Double(snapshot.summary.driveCount),
+                        snapshot.previousSummary.map { Double($0.driveCount) },
+                        label: comparisonLabel
+                    ),
+                    tint: TessalyticsTheme.accent
+                )
+                MetricCard(
+                    title: "Consumption",
+                    value: ValueFormatting.number(
+                        snapshot.summary.averageEfficiency,
+                        unit: distanceUnit.isEmpty ? "" : "Wh/\(distanceUnit)",
+                        digits: 0
+                    ),
+                    symbol: "leaf.fill",
+                    detail: comparison(
+                        snapshot.summary.averageEfficiency,
+                        snapshot.previousSummary?.averageEfficiency,
+                        label: comparisonLabel
+                    ),
+                    tint: TessalyticsTheme.warning
+                )
             }
 
             DailyDistanceChart(points: snapshot.dailyDriving, periodLabel: periodLabel, distanceUnit: distanceUnit)
@@ -391,6 +462,20 @@ private struct DrivingAnalyticsDashboard: View {
                     detail: averageTripDuration,
                     tint: TessalyticsTheme.steel
                 )
+                MetricCard(
+                    title: "Distance",
+                    value: ValueFormatting.number(snapshot.summary.distance, unit: distanceUnit, digits: 0),
+                    symbol: "road.lanes",
+                    detail: comparison(snapshot.summary.distance, snapshot.previousSummary?.distance, label: comparisonLabel),
+                    tint: TessalyticsTheme.accent
+                )
+                MetricCard(
+                    title: "Energy used",
+                    value: ValueFormatting.number(drivingEnergy, unit: "kWh", digits: 0),
+                    symbol: "bolt.horizontal.fill",
+                    detail: drivingEnergy == nil ? "Not reported" : "While driving",
+                    tint: TessalyticsTheme.positive
+                )
             }
 
             DailyDistanceChart(points: snapshot.dailyDriving, periodLabel: periodLabel, distanceUnit: distanceUnit)
@@ -399,7 +484,7 @@ private struct DrivingAnalyticsDashboard: View {
             TimeOfDayMixChart(points: snapshot.timeOfDayMix)
             RankedCategoryChart(
                 title: "Common destinations",
-                subtitle: "By completed trips",
+                subtitle: "Most visited",
                 symbol: "flag.checkered",
                 tint: TessalyticsTheme.accent,
                 points: snapshot.destinations,
@@ -410,6 +495,11 @@ private struct DrivingAnalyticsDashboard: View {
     }
 
     private var efficiencyUnit: String { distanceUnit.isEmpty ? "reported" : "Wh/\(distanceUnit)" }
+
+    private var drivingEnergy: Double? {
+        let total = snapshot.dailyDriving.map(\.energy).reduce(0, +)
+        return total > 0 ? total : nil
+    }
 
     private var averageTripDuration: String {
         guard snapshot.summary.driveCount > 0 else { return "No trips recorded" }
@@ -459,6 +549,22 @@ private struct ChargingAnalyticsDashboard: View {
                     detail: averageSessionEnergy,
                     tint: TessalyticsTheme.steel
                 )
+                MetricCard(
+                    title: "Time charging",
+                    value: ValueFormatting.duration(minutes: snapshot.timeSplit.chargingMinutes),
+                    symbol: "clock.fill",
+                    detail: snapshot.timeSplit.isMeasurable
+                        ? ValueFormatting.percentage(snapshot.timeSplit.share(snapshot.timeSplit.chargingMinutes), digits: 1)
+                        : nil,
+                    tint: TessalyticsTheme.accent
+                )
+                MetricCard(
+                    title: "Top location",
+                    value: snapshot.chargingLocations.first?.label ?? "Unavailable",
+                    symbol: "mappin.and.ellipse",
+                    detail: topLocationDetail,
+                    tint: TessalyticsTheme.positive
+                )
             }
 
             if !isRenderingPoster { ChargingMapCard(sites: sites) }
@@ -467,7 +573,7 @@ private struct ChargingAnalyticsDashboard: View {
             ChargeCostRelationshipChart(points: snapshot.chargeRelationships)
             RankedCategoryChart(
                 title: "Charging by location",
-                subtitle: "Six most-used locations",
+                subtitle: "Most used",
                 symbol: "mappin.and.ellipse",
                 tint: TessalyticsTheme.positive,
                 points: snapshot.chargingLocations,
@@ -476,6 +582,11 @@ private struct ChargingAnalyticsDashboard: View {
             )
             AnalyticsCoverageCard(coverage: snapshot.coverage)
         }
+    }
+
+    private var topLocationDetail: String? {
+        guard let top = snapshot.chargingLocations.first else { return nil }
+        return AppText.format("%@ charged", ValueFormatting.number(top.value, unit: "kWh", digits: 0))
     }
 
     private var averageSessionEnergy: String {
@@ -501,7 +612,7 @@ private struct DailyDistanceChart: View {
     var body: some View {
         SectionCard("Distance by day", subtitle: periodLabel, symbol: "chart.bar.fill") {
             if points.isEmpty {
-                ChartEmptyState(message: "No distance observations in this period.")
+                ChartEmptyState(message: "No drives in this period.")
             } else {
                 ChartSelectionReadout(
                     title: selectedPoint?.date.formatted(date: .abbreviated, time: .omitted) ?? "Select a day",
@@ -565,7 +676,7 @@ private struct ChargingEnergyChart: View {
     var body: some View {
         SectionCard("Charging energy", subtitle: periodLabel, symbol: "bolt.fill", tint: TessalyticsTheme.positive) {
             if points.isEmpty {
-                ChartEmptyState(message: "No charging-energy observations in this period.")
+                ChartEmptyState(message: "No charging in this period.")
             } else {
                 ChartSelectionReadout(
                     title: selectedPoint?.date.formatted(date: .abbreviated, time: .omitted) ?? "Select a charging day",
@@ -626,7 +737,7 @@ private struct ChargingCostChart: View {
     var body: some View {
         SectionCard("Charging cost trend", subtitle: periodLabel, symbol: "chart.xyaxis.line", tint: TessalyticsTheme.neutral) {
             if points.count < 8 {
-                ChartEmptyState(message: "At least eight charging days are needed for a meaningful cost trend. \(points.count) available.")
+                ChartEmptyState(message: "Needs eight charging days. \(points.count) so far.")
             } else {
                 Chart(points) { point in
                     LineMark(x: .value("Date", point.date), y: .value("Charging cost", point.cost))
@@ -673,7 +784,7 @@ private struct EfficiencyTrendChart: View {
     var body: some View {
         SectionCard("Efficiency trend", subtitle: AppText.format("%@ drives", "\(points.count)"), symbol: "leaf.fill", tint: TessalyticsTheme.warning) {
             if points.count < 8 {
-                ChartEmptyState(message: "At least eight drives with efficiency data are needed for a meaningful trend. \(points.count) available.")
+                ChartEmptyState(message: "Needs eight drives reporting efficiency. \(points.count) so far.")
             } else {
                 Chart(points) { point in
                     LineMark(x: .value("Date", point.date), y: .value("Reported efficiency", point.value))
@@ -724,7 +835,7 @@ private struct WeekdayActivityChart: View {
     var body: some View {
         SectionCard("Activity by weekday", subtitle: "Total distance", symbol: "calendar.badge.clock", tint: TessalyticsTheme.neutral) {
             if points.allSatisfy({ $0.value == 0 }) {
-                ChartEmptyState(message: "No weekday distance data in this period.")
+                ChartEmptyState(message: "No drives in this period.")
             } else {
                 Chart(points) { point in
                     BarMark(x: .value("Weekday", point.label), y: .value("Distance", point.value))
@@ -770,7 +881,7 @@ private struct TimeOfDayMixChart: View {
     var body: some View {
         SectionCard("Trip timing", subtitle: "By local start time", symbol: "clock.badge") {
             if points.allSatisfy({ $0.count == 0 }) {
-                ChartEmptyState(message: "No trip start times in this period.")
+                ChartEmptyState(message: "No trips in this period.")
             } else {
                 Chart(points) { point in
                     BarMark(x: .value("Trips", point.count), y: .value("All trips", "Trips"))
@@ -821,7 +932,7 @@ private struct ChargeCostRelationshipChart: View {
     var body: some View {
         SectionCard("Energy and cost", subtitle: "One point per charge", symbol: "circle.hexagongrid.fill", tint: TessalyticsTheme.neutral) {
             if points.count < 12 {
-                ChartEmptyState(message: "At least 12 complete charging sessions are needed to reveal a reliable relationship. \(points.count) available.")
+                ChartEmptyState(message: "Needs 12 priced sessions. \(points.count) so far.")
             } else {
                 Chart(points) { point in
                     PointMark(x: .value("Energy added", point.energy), y: .value("Charging cost", point.cost))
@@ -885,7 +996,7 @@ private struct RankedCategoryChart: View {
     var body: some View {
         SectionCard(title, subtitle: subtitle, symbol: symbol, tint: tint) {
             if points.isEmpty {
-                ChartEmptyState(message: "No reported location data in this period.")
+                ChartEmptyState(message: "No locations reported.")
             } else {
                 Chart(points) { point in
                     BarMark(x: .value(valueLabel, point.value), y: .value("Location", point.label))
@@ -929,7 +1040,7 @@ private struct AnalyticsCoverageCard: View {
     let coverage: AnalyticsCoverage
 
     var body: some View {
-        SectionCard("Data coverage", subtitle: "Synchronized field completeness", symbol: "checkmark.seal.fill", tint: TessalyticsTheme.neutral) {
+        SectionCard("Data coverage", subtitle: "Fields reported", symbol: "checkmark.seal.fill", tint: TessalyticsTheme.neutral) {
             VStack(spacing: 14) {
                 CoverageRow(title: "Drive distance", available: coverage.drivesWithDistance, total: coverage.drives, tint: TessalyticsTheme.accent)
                 CoverageRow(title: "Drive efficiency", available: coverage.drivesWithEfficiency, total: coverage.drives, tint: TessalyticsTheme.warning)
@@ -995,25 +1106,20 @@ private struct ChartSelectionReadout: View {
 
 /// The panel every analytics chart falls back to.
 ///
-/// Carries the same closing sentence as the other still-filling-up panels: on a
-/// new install most of this screen is empty at once, and eight identical-looking
-/// blanks read as a broken screen unless they say what they are waiting for.
-private struct ChartEmptyState: View {
+/// One line, not two. On a new install most of this screen is empty at once, and
+/// repeating the same paragraph of reassurance under eight blanks made the screen
+/// read as mostly explanation.
+struct ChartEmptyState: View {
     let message: String
 
     var body: some View {
-        VStack(spacing: 6) {
-            Label(message, systemImage: "chart.xyaxis.line")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            Text(ChartNeedsMoreHistory.reassurance)
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-        }
-        .frame(maxWidth: .infinity, minHeight: 120)
-        .multilineTextAlignment(.center)
-        .padding(.horizontal)
-        .accessibilityElement(children: .combine)
+        Label(message, systemImage: "chart.xyaxis.line")
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, minHeight: 96)
+            .multilineTextAlignment(.center)
+            .padding(.horizontal)
+            .accessibilityElement(children: .combine)
     }
 }
 
@@ -1021,16 +1127,14 @@ private struct AnalyticsSourceNote: View {
     let coverage: AnalyticsCoverage?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Label("TeslaMate source data", systemImage: "externaldrive.connected.to.line.below")
-                .font(.caption.weight(.semibold))
-            Text("Missing values are excluded, not counted as zero.")
+        VStack(alignment: .leading, spacing: 4) {
+            Label("From TeslaMate · missing values excluded", systemImage: "externaldrive.connected.to.line.below")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
             if let date = coverage?.latestActivity {
                 Text(AppText.format("Latest activity %@", date.formatted(date: .abbreviated, time: .shortened)))
                     .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.tertiary)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -1038,7 +1142,7 @@ private struct AnalyticsSourceNote: View {
     }
 }
 
-private func comparison(_ current: Double?, _ previous: Double?, label: String?) -> String? {
+func comparison(_ current: Double?, _ previous: Double?, label: String?) -> String? {
     guard let current, let previous, previous != 0, let label else { return nil }
     let percent = (current - previous) / abs(previous) * 100
     let prefix = percent > 0 ? "+" : ""

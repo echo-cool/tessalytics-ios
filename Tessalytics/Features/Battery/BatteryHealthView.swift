@@ -14,6 +14,7 @@ struct BatteryHealthView: View {
     @State private var capacityObservations: [CapacityObservation] = []
     @State private var capacityMedians: [CapacityObservation] = []
     @State private var projectedRange: [ProjectedRangePoint] = []
+    @State private var standbyPeriods: [StandbyPeriod] = []
 
     /// The effective figures: the owner's rating when they supplied one, and the
     /// derived estimate otherwise.
@@ -34,7 +35,10 @@ struct BatteryHealthView: View {
                 units: environment.statusUnits,
                 capacityNew: capacityNew,
                 maxRangeNew: maxRangeNew,
-                isOwnerRated: effective?.isSpecificationOverridden == true
+                isOwnerRated: effective?.isSpecificationOverridden == true,
+                cycles: environment.fleet.charging.cycles(capacityNew: capacityNew),
+                energyAdded: environment.fleet.charging.energyAdded,
+                standby: standbyPeriods
             )
             CapacityByMileageChart(
                 observations: capacityObservations,
@@ -52,6 +56,7 @@ struct BatteryHealthView: View {
             if observations.count > 1 {
                 BatteryHealthTrendChart(observations: observations)
             }
+            StandbyDrainChart(periods: standbyPeriods, units: environment.statusUnits)
             if !embedded {
                 BatteryEstimateNote(observedAt: observation.observedAt)
             }
@@ -106,7 +111,7 @@ struct BatteryHealthView: View {
                 } else {
                     EmptyState(
                         title: "Battery health unavailable",
-                        message: message ?? "Not enough charging history yet for an estimate.",
+                        message: message ?? "Not enough charging history yet.",
                         symbol: "battery.0percent"
                     )
                 }
@@ -174,6 +179,7 @@ struct BatteryHealthView: View {
             capacityObservations = []
             capacityMedians = []
             projectedRange = []
+            standbyPeriods = []
             return
         }
         let charges = ChargeRepository(context: context).cached(serverID: profile.id, carID: vehicle.id)
@@ -188,6 +194,7 @@ struct BatteryHealthView: View {
         )
         capacityMedians = CapacityModel.semiMonthlyMedians(capacityObservations)
         projectedRange = ProjectedRangeModel.points(drives: drives, charges: charges)
+        standbyPeriods = StandbyDrainModel.periods(drives: drives, charges: charges)
     }
 
     private func fetch() async {
@@ -247,9 +254,9 @@ private struct BatteryHealthHero: View {
         .frame(width: 100, height: 100)
 
         VStack(alignment: .leading, spacing: 8) {
-            Text("Estimated battery condition")
+            Text("Battery condition")
                 .font(.title2.bold())
-            StatusBadge(text: "Estimate · not a diagnostic", color: tint)
+            StatusBadge(text: "Estimate", color: tint)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -262,6 +269,11 @@ private struct BatteryMetricGrid: View {
     let capacityNew: Double?
     let maxRangeNew: Double?
     let isOwnerRated: Bool
+    /// Equivalent full charges over the whole recorded history.
+    let cycles: Double?
+    /// Lifetime energy that reached the pack, kWh.
+    let energyAdded: Double
+    let standby: [StandbyPeriod]
 
     var body: some View {
         MetricGrid {
@@ -293,7 +305,37 @@ private struct BatteryMetricGrid: View {
                 detail: rangeDetail,
                 tint: TessalyticsTheme.neutral
             )
+            MetricCard(
+                title: "Full cycles",
+                value: cycles.map { $0.formatted(.number.precision(.fractionLength(0))) } ?? "—",
+                symbol: "arrow.triangle.2.circlepath",
+                detail: cyclesDetail,
+                tint: TessalyticsTheme.warning
+            )
+            MetricCard(
+                title: "Standby drain",
+                value: standbyPercent.map { "\($0.formatted(.number.precision(.fractionLength(1))))%/day" } ?? "—",
+                symbol: "moon.zzz.fill",
+                detail: standbyDetail,
+                tint: TessalyticsTheme.steel
+            )
         }
+    }
+
+    private var standbyPercent: Double? { StandbyDrainModel.medianPercentPerDay(standby) }
+
+    /// The energy behind the cycle count, which is what makes it checkable.
+    private var cyclesDetail: String {
+        guard cycles != nil, energyAdded > 0 else { return "Needs charging history" }
+        return AppText.format("%@ charged", ValueFormatting.number(energyAdded, unit: "kWh", digits: 0))
+    }
+
+    private var standbyDetail: String {
+        guard standbyPercent != nil else { return "Needs longer parked spells" }
+        if let range = StandbyDrainModel.medianRangePerDay(standby) {
+            return AppText.format("%@ a day", ValueFormatting.distance(range, units: units, digits: 1))
+        }
+        return AppText.format("%@ parked spells", "\(standby.count)")
     }
 
     /// How much of the modelled-new figure remains, and the absolute shortfall —
@@ -339,10 +381,7 @@ private struct BatteryCapacityChart: View {
     var body: some View {
         SectionCard("Capacity comparison", subtitle: "Estimated, kWh", symbol: "battery.100percent", tint: TessalyticsTheme.positive) {
             if points.count < 2 {
-                Text("Both maximum and current estimates are needed for comparison.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, minHeight: 100)
+                ChartEmptyState(message: "Needs both a maximum and a current estimate.")
             } else {
                 Chart(points) { point in
                     BarMark(x: .value("Capacity", point.value), y: .value("Estimate", point.label))
@@ -397,10 +436,7 @@ private struct BatteryRangeChart: View {
     var body: some View {
         SectionCard("Range comparison", subtitle: AppText.format("Estimated, %@", distanceUnit), symbol: "point.bottomleft.forward.to.point.topright.scurvepath", tint: TessalyticsTheme.neutral) {
             if points.count < 2 {
-                Text("Needs both a maximum and a current estimate.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, minHeight: 100)
+                ChartEmptyState(message: "Needs both a maximum and a current estimate.")
             } else {
                 Chart(points) { point in
                     BarMark(x: .value("Range", point.value), y: .value("Estimate", point.label))
@@ -485,10 +521,76 @@ private struct BatteryEstimateNote: View {
     let observedAt: Date
 
     var body: some View {
-        SectionCard("Estimated, not measured", subtitle: AppText.format("Updated %@", ValueFormatting.date(observedAt)), symbol: "info.circle.fill", tint: TessalyticsTheme.warning) {
-            Text("Derived from charging and range data. Temperature and calibration shift the numbers.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+        Label(
+            AppText.format("Estimated from charging history · updated %@", ValueFormatting.date(observedAt)),
+            systemImage: "info.circle"
+        )
+        .font(.caption2)
+        .foregroundStyle(.secondary)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 4)
+    }
+}
+
+/// Vampire drain: what the pack loses while the car is doing nothing.
+///
+/// TeslaMate ships this as its own Grafana dashboard, and it is the one battery
+/// figure an owner can actually act on — Sentry, cabin overheat protection and a
+/// third-party integration polling the car all show up here and nowhere else.
+private struct StandbyDrainChart: View {
+    let periods: [StandbyPeriod]
+    let units: UnitsDTO?
+
+    private var median: Double? { StandbyDrainModel.medianPercentPerDay(periods) }
+
+    var body: some View {
+        SectionCard("Standby drain", subtitle: "While parked", symbol: "moon.zzz.fill", tint: TessalyticsTheme.steel) {
+            if periods.count < 3 {
+                ChartEmptyState(message: "Needs three parked spells of six hours or more.")
+            } else {
+                Chart(periods) { period in
+                    PointMark(
+                        x: .value("Parked from", period.start),
+                        y: .value("Loss per day", period.percentPerDay)
+                    )
+                    .foregroundStyle(TessalyticsTheme.steel)
+                    .symbolSize(max(24, min(140, period.hours * 2)))
+                    if let median {
+                        RuleMark(y: .value("Typical loss", median))
+                            .foregroundStyle(TessalyticsTheme.accent)
+                            .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                    }
+                }
+                .chartXAxis {
+                    AxisMarks(values: .automatic(desiredCount: 5)) {
+                        AxisGridLine().foregroundStyle(.secondary.opacity(0.12))
+                        AxisTick()
+                        AxisValueLabel(format: .dateTime.month(.abbreviated).day())
+                            .font(.caption2)
+                    }
+                }
+                .chartYAxis {
+                    AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { value in
+                        AxisGridLine().foregroundStyle(.secondary.opacity(0.16))
+                        AxisValueLabel {
+                            if let number = value.as(Double.self) {
+                                Text(number.formatted(.number.precision(.fractionLength(0...1))))
+                                    .font(.caption2.monospacedDigit())
+                            }
+                        }
+                    }
+                }
+                .chartYScale(domain: 0...max(1, (periods.map(\.percentPerDay).max() ?? 1) * 1.15))
+                .tessalyticsChartAxes(x: "Parked from", y: "Charge lost (% per day)")
+                .tessalyticsChartStyle()
+                .frame(height: 220)
+                .accessibilityLabel("Charge lost per day while parked, across \(periods.count) spells")
+
+                ChartLegend([
+                    .init("One parked spell", color: TessalyticsTheme.steel),
+                    .init("Typical", color: TessalyticsTheme.accent)
+                ])
+            }
         }
     }
 }

@@ -60,7 +60,7 @@ struct OwnerAPIConnectionView: View {
         } header: {
             Label("Owner API", systemImage: "bolt.car.fill")
         } footer: {
-            Text("Live state and confirmed commands use the selected vehicle. TeslaMate remains the history source.")
+            Text("TeslaMate remains the history source.")
         }
 
         if let error = environment.ownerLastError {
@@ -111,7 +111,7 @@ struct OwnerAPIConnectionView: View {
             } header: {
                 Text("Refresh token")
             } footer: {
-                Text("Generate an Owner API refresh token in Auth for Tesla, or another token generator you trust, and paste it here. Tessalytics exchanges it for an access token itself — you do not need to paste one. Never enter your Tesla password here. Both tokens stay in this iPhone's Keychain.")
+                Text("Paste an Owner API refresh token from a generator you trust; Tessalytics exchanges it for an access token. Never enter your Tesla password. Both tokens stay in the Keychain.")
             }
 
             Section {

@@ -28,7 +28,7 @@ struct LiveChartSettingsView: View {
             } header: {
                 Label("Charts while driving", systemImage: "chart.xyaxis.line")
             } footer: {
-                Text("Drawn on the home screen under the vehicle card, in this order, for as long as the car is moving.")
+                Text("Drawn under the vehicle card while the car is moving.")
             }
 
             Section {

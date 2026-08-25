@@ -119,7 +119,7 @@ struct EditServerView: View {
                 }
                 .accessibilityIdentifier("remove-server")
             } footer: {
-                Text("Deletes its synchronized history and credentials from this iPhone. Your server keeps everything.")
+                Text("Removes the local copy only. Your server keeps everything.")
             }
 
             if let message {

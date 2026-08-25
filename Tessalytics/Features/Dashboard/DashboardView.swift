@@ -525,7 +525,7 @@ struct DashboardView: View {
                     Text(span)
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    Text("Capacity, projected range and the trend charts need a week or two of driving and charging before they mean anything. They fill in on their own.")
+                    Text("Capacity, projected range and the trend charts fill in after a week or two of driving.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Button("Got it") { dismissedHistoryNotice = true }

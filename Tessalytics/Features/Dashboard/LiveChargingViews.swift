@@ -70,6 +70,20 @@ struct LiveChargeSection: View {
                     detail: completesDetail,
                     tint: TessalyticsTheme.accentBright
                 )
+                MetricCard(
+                    title: "Now",
+                    value: status?.batteryDetails?.batteryLevel.map { "\($0)%" } ?? "—",
+                    symbol: "battery.75percent",
+                    detail: gainedLevelDetail,
+                    tint: TessalyticsTheme.accent
+                )
+                MetricCard(
+                    title: "Range added",
+                    value: ValueFormatting.distance(session.rangeGained, units: units, digits: 0),
+                    symbol: "arrow.up.right",
+                    detail: session.rangeGained == nil ? "Waiting for readings" : "Since the cable went in",
+                    tint: TessalyticsTheme.steel
+                )
             }
         }
         // A container, not a bare identifier: on a card full of figures a plain
@@ -119,6 +133,12 @@ struct LiveChargeSection: View {
         guard let projection, let date = projection.completesAt else { return nil }
         let minutes = max(Int(date.timeIntervalSince(projection.start) / 60), 1)
         return AppText.format("%1$@%% · %2$@ away", "\(Int(projection.limit.rounded()))", ValueFormatting.duration(minutes: minutes))
+    }
+
+    /// How far the level has climbed while the app has been watching.
+    private var gainedLevelDetail: String? {
+        guard let gained = session.levelGained, gained >= 1 else { return nil }
+        return AppText.format("+%@ points", "\(Int(gained.rounded()))")
     }
 
     private var spanLabel: String {

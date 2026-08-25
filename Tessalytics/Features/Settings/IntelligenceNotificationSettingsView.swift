@@ -24,7 +24,7 @@ struct IntelligenceNotificationSettingsView: View {
                 } header: {
                     Label("Notifications", systemImage: "bell.badge.fill")
                 } footer: {
-                    Text("Alerts are created locally. Tessalytics does not send vehicle history to a notification service.")
+                    Text("Alerts are created on this device.")
                 }
 
                 Section("Vehicle alerts") {
@@ -41,7 +41,7 @@ struct IntelligenceNotificationSettingsView: View {
                 } header: {
                     Text("Analytics alerts")
                 } footer: {
-                    Text("Anomaly alerts cover material efficiency changes and other high-priority signals. Forecasts remain available in the app even when alerts are off.")
+                    Text("Forecasts stay available in the app even with alerts off.")
                 }
                 .disabled(!enabled)
 
@@ -56,7 +56,7 @@ struct IntelligenceNotificationSettingsView: View {
                             .foregroundStyle(message.contains("Unable") ? TessalyticsTheme.critical : .secondary)
                     }
                 } footer: {
-                    Text("Status conditions are evaluated whenever Tessalytics refreshes the vehicle. A predicted charging-completion alert is then scheduled to work after the app closes.")
+                    Text("Checked on each refresh. A charging-completion alert is then scheduled to fire after the app closes.")
                 }
             }
             .scrollContentBackground(.hidden)

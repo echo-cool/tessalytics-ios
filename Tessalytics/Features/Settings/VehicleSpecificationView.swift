@@ -51,7 +51,7 @@ struct VehicleSpecificationView: View {
                     }
                 }
                 if capacityIsRejected {
-                    Text("Enter a pack size between 1 and 400 kWh.")
+                    Text("Between 1 and 400 kWh.")
                         .font(.caption)
                         .foregroundStyle(TessalyticsTheme.critical)
                 }
@@ -66,14 +66,14 @@ struct VehicleSpecificationView: View {
                     }
                 }
                 if rangeIsRejected {
-                    Text(AppText.format("Enter a range between 1 and 2000 %@.", distanceUnit))
+                    Text(AppText.format("Between 1 and 2000 %@.", distanceUnit))
                         .font(.caption)
                         .foregroundStyle(TessalyticsTheme.critical)
                 }
             } header: {
                 Text("Manufacturer rating")
             } footer: {
-                Text("Leave blank to use the figures derived from your history, or the pack below when your VIN identifies one.")
+                Text("Leave blank to use the derived figures.")
             }
 
             packSection
@@ -192,11 +192,11 @@ struct VehicleSpecificationView: View {
                 .accessibilityIdentifier("specification-pack-\(pack.code)")
             }
         } else if environment.selectedPackVariant == nil {
-            Text("Choose the variant to look up the pack.")
+            Text("Choose a variant to look up the pack.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         } else {
-            Text("The table has no pack recorded for this variant, factory and year.")
+            Text("No pack recorded for this variant, factory and year.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -204,12 +204,12 @@ struct VehicleSpecificationView: View {
 
     private var packFooter: String {
         guard let match = environment.selectedPackMatch else {
-            return "Your VIN names the model, the factory and the model year. The variant is not in it, so it has to be confirmed."
+            return "A VIN does not name the variant, so it has to be confirmed."
         }
         if match.isAmbiguous {
-            return "Tesla fitted more than one pack to this variant at \(match.factory.displayName) during \(match.modelYear). Pick the one that matches your car — a delivery invoice or the original range figure will say which."
+            return "More than one pack was fitted at \(match.factory.displayName) during \(match.modelYear). A delivery invoice or the original range figure says which."
         }
-        return "Tapping this fills the capacity field above. Nothing is applied until you save, and your own figure always wins."
+        return "Tapping fills the field above. Nothing applies until you save."
     }
 
     /// Health as it would read once saved, so the effect is visible before the

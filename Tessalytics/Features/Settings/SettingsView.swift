@@ -6,15 +6,13 @@ struct SettingsView: View {
     /// Says what each choice does, because "From the car" is the only one whose
     /// meaning is not obvious from its name.
     private var unitFooter: String {
-        let language = locale.appString("Language applies to Tessalytics only and takes effect straight away.")
+        let language = locale.appString("Language applies to Tessalytics only.")
         let units: String
         switch environment.unitPreference {
         case .automatic:
             units = locale.appString("Units follow the vehicle's own setting.")
         case .metric, .imperial:
-            units = locale.appString(
-                "Values reported by the car are converted for display; the car's own setting is unchanged."
-            )
+            units = locale.appString("Converted for display; the car's own setting is unchanged.")
         }
         return "\(language) \(units)"
     }
@@ -61,7 +59,7 @@ struct SettingsView: View {
                         } header: {
                             Label("Demo experience", systemImage: "play.circle.fill")
                         } footer: {
-                            Text("All visible vehicle and activity information is generated on this device.")
+                            Text("Everything shown is generated on this device.")
                         }
 
                         Section {
@@ -84,7 +82,7 @@ struct SettingsView: View {
                         } header: {
                             Label("Live data", systemImage: "dot.radiowaves.left.and.right")
                         } footer: {
-                            Text("Charts of the live stream. Generated demo data feeds them here.")
+                            Text("Charts drawn from the live stream.")
                         }
                     } else {
                         ServerListSection(editing: $editingProfile) {
@@ -107,7 +105,7 @@ struct SettingsView: View {
                         } header: {
                             Label("Vehicle", systemImage: "car.side.fill")
                         } footer: {
-                            Text("Set the capacity and range your car was rated at when new.")
+                            Text("What the car was rated at when new.")
                         }
 
                         Section {
@@ -142,7 +140,7 @@ struct SettingsView: View {
                         } header: {
                             Label("Live data & controls", systemImage: "dot.radiowaves.left.and.right")
                         } footer: {
-                            Text("Connect an Owner API token pair for live state and confirmed vehicle commands. Paired browsers are the read-only web sessions this phone has signed in.")
+                            Text("Owner API tokens enable live state and confirmed commands. Paired browsers are read-only web sessions.")
                         }
 
                         Section {

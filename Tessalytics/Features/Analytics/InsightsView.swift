@@ -4,6 +4,8 @@ private enum AnalysisSection: String, CaseIterable, Identifiable {
     case overview = "Overview"
     case driving = "Drive"
     case charging = "Charge"
+    case efficiency = "Efficiency"
+    case mileage = "Mileage"
     case forecast = "Forecast"
     case battery = "Battery"
 
@@ -11,7 +13,7 @@ private enum AnalysisSection: String, CaseIterable, Identifiable {
 
     var helpTitle: String {
         switch self {
-        case .overview, .driving, .charging: "Dashboard help"
+        case .overview, .driving, .charging, .efficiency, .mileage: "Dashboard help"
         case .forecast: "Forecast help"
         case .battery: "Battery help"
         }
@@ -19,10 +21,12 @@ private enum AnalysisSection: String, CaseIterable, Identifiable {
 
     var helpText: String {
         switch self {
-        case .overview, .driving, .charging:
-            "Charts summarize synchronized drives and charging sessions for the selected period. Drag across supported charts to inspect a day."
+        case .overview, .driving, .charging, .mileage:
+            "Charts cover synchronized drives and charges for the selected period. Drag across a chart to inspect a day."
+        case .efficiency:
+            "Consumption is weighted by distance, so a short cold trip does not count the same as a long one."
         case .forecast:
-            "Forecasts use recent synchronized history. The shaded range shows expected variation; predictions are estimates, not vehicle commands."
+            "Forecasts use recent history. The shaded range shows expected variation."
         case .battery:
             "Battery values are estimates from charging and range data. Temperature and calibration affect them."
         }
@@ -45,6 +49,10 @@ struct InsightsView: View {
                     AnalyticsDashboardView(embedded: true, initialSection: .driving, showsSectionControl: false)
                 case .charging:
                     AnalyticsDashboardView(embedded: true, initialSection: .charging, showsSectionControl: false)
+                case .efficiency:
+                    AnalyticsDashboardView(embedded: true, initialSection: .efficiency, showsSectionControl: false)
+                case .mileage:
+                    AnalyticsDashboardView(embedded: true, initialSection: .mileage, showsSectionControl: false)
                 case .forecast:
                     IntelligenceView(embedded: true)
                 case .battery:

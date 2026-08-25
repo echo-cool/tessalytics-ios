@@ -39,7 +39,7 @@ struct VehicleSettingsView: View {
         } header: {
             Label("This vehicle", systemImage: "car.fill")
         } footer: {
-            Text("The name and model come from TeslaMate. Rename the car in the Tesla app and it follows here.")
+            Text("Name and model come from TeslaMate.")
         }
     }
 
@@ -56,9 +56,7 @@ struct VehicleSettingsView: View {
         } header: {
             Label("Rating when new", systemImage: "gauge.with.dots.needle.100percent")
         } footer: {
-            Text(
-                "Every as-new figure the app derives is the best your recorded history can support, which is wrong when logging began after the pack had aged. Stating the manufacturer's rating corrects health, capacity lost and equivalent cycles together."
-            )
+            Text("Derived figures understate a pack that had already aged when logging began. State the rating to correct them.")
         }
     }
 
@@ -124,7 +122,7 @@ struct VehicleSettingsView: View {
         } header: {
             Label("On the server", systemImage: "externaldrive.fill")
         } footer: {
-            Text("What TeslaMate holds for this car, which is not necessarily what has been synchronized to this iPhone.")
+            Text("What TeslaMate holds, not what this iPhone has synchronized.")
         }
     }
 }
