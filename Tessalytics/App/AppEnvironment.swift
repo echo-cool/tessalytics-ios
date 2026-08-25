@@ -6,7 +6,45 @@ import SwiftUI
 @MainActor
 @Observable
 final class AppEnvironment {
-    enum Phase: Equatable { case loading, onboarding, ready }
+    enum Phase: Equatable {
+        case loading
+        case onboarding
+        /// The first sync after a server is added, with the screen showing what
+        /// is being fetched. Not `ready`: a home screen whose every card reads
+        /// "drive more to collect data" while the history is downloading is
+        /// telling the owner something untrue about their own car.
+        case preparing
+        case ready
+    }
+
+    /// What the first sync is doing, for the screen that shows it.
+    struct PreparationProgress: Equatable {
+        enum Step: Equatable {
+            case vehicles
+            case status
+            case history
+            case battery
+            case finishing
+
+            var title: String {
+                switch self {
+                case .vehicles: "Finding your vehicles"
+                case .status: "Reading the current status"
+                case .history: "Downloading drives and charges"
+                case .battery: "Modelling battery health"
+                case .finishing: "Preparing your screens"
+                }
+            }
+        }
+
+        var step: Step = .vehicles
+        var drives = 0
+        var charges = 0
+        /// Nil until the history leg starts. The API reports no total, so this
+        /// is a count of what has arrived, never a percentage — a bar that
+        /// invents a denominator is worse than an honest counter.
+        var isCountingHistory = false
+    }
     enum OwnerConnectionState: Equatable { case disconnected, connecting, connected, failed }
 
     var phase: Phase = .loading
@@ -159,10 +197,14 @@ final class AppEnvironment {
     /// whether or not this device has paged it.
     private(set) var serverTotals: BackendTotals?
     private(set) var isSyncingHistory = false
+    private(set) var preparation = PreparationProgress()
     /// Bumped whenever history is written, so views can recompute off it.
     private(set) var historyRevision = 0
 
     private let container: ModelContainer
+    /// The account's key-value store, or nil when there is none to talk to —
+    /// tests, and any device the owner has not signed in to iCloud.
+    private let ubiquitousStore: (any UbiquitousStore)?
     /// The store the app writes through. Exposed so a test can read back what a
     /// streamed reading was supposed to have cached.
     var modelContext: ModelContext { container.mainContext }
@@ -244,11 +286,17 @@ final class AppEnvironment {
         keychain: any CredentialStore = KeychainCredentialStore(),
         ownerCredentialStore: any OwnerCredentialStore = KeychainOwnerCredentialStore(),
         ownerTransport: any HTTPTransport = URLSession.shared,
-        userDefaults: UserDefaults = .standard
+        userDefaults: UserDefaults = .standard,
+        // Nil under test: `NSUbiquitousKeyValueStore` on a simulator with no
+        // Apple Account signed in is inert, and a test should not depend on
+        // whichever account the machine happens to hold.
+        ubiquitousStore: (any UbiquitousStore)? = ProcessInfo.processInfo
+            .environment["XCTestConfigurationFilePath"] == nil ? NSUbiquitousKeyValueStore.default : nil
     ) {
         self.container = container
         self.keychain = keychain
         self.userDefaults = userDefaults
+        self.ubiquitousStore = ubiquitousStore
         ownerAPI = OwnerAPISession(store: ownerCredentialStore, transport: ownerTransport)
         if let stored = userDefaults.string(forKey: AppLanguage.storageKey),
            let restored = AppLanguage(rawValue: stored) {
@@ -368,6 +416,10 @@ final class AppEnvironment {
     }
 
     private func startConfiguredSession() async {
+        // Before reading what this device knows: whatever the owner's other
+        // devices know. A fresh install signed in to the same Apple Account
+        // finds its servers already configured rather than an empty onboarding.
+        adoptSyncedProfiles()
         let context = container.mainContext
         let descriptor = FetchDescriptor<ServerProfileRecord>(sortBy: [SortDescriptor(\.name)])
         let records = (try? context.fetch(descriptor)) ?? []
@@ -673,15 +725,22 @@ final class AppEnvironment {
         let context = container.mainContext
         let existing = try context.fetch(FetchDescriptor<ServerProfileRecord>())
         existing.forEach { $0.isSelected = false }
-        context.insert(ServerProfileRecord(profile: profile, isSelected: true))
+        // Adding a server the account already knows about — one adopted from
+        // another device — updates that record rather than inserting a twin.
+        if let twin = existing.first(where: { $0.id == profile.id }) {
+            twin.name = profile.name
+            twin.baseURLString = profile.baseURL.absoluteString
+            twin.authenticationMethodRaw = profile.authenticationMethod.rawValue
+            twin.allowsLocalHTTP = profile.allowsLocalHTTP
+            twin.isSelected = true
+        } else {
+            context.insert(ServerProfileRecord(profile: profile, isSelected: true))
+        }
         try context.save()
         profiles = (try context.fetch(FetchDescriptor<ServerProfileRecord>())).compactMap(\.profile)
+        publishSyncedProfiles()
         selectedProfile = profile
-        phase = .ready
-        // Fetch the vehicle list, then let refreshVehicles start the status poller.
-        // Without this the dashboard sat on "Status not available yet" until the
-        // user changed vehicle or backgrounded the app.
-        await refreshVehicles(profile: profile)
+        await prepareFirstSession(profile: profile)
         startHistoryPolling()
         Task { [weak self] in await self?.restoreOwnerConnection() }
     }
@@ -690,6 +749,124 @@ final class AppEnvironment {
     ///
     /// The name is only a label, so this deliberately does not re-verify the
     /// connection or re-sync: a typo in "Home" should not cost 800 drives.
+    /// Leaves the preparation screen early, at the owner's request.
+    ///
+    /// The sync is not cancelled — it carries on behind the dashboard, which is
+    /// where it used to live. What changes is that this is now a choice rather
+    /// than the only behaviour.
+    func finishPreparing() {
+        guard phase == .preparing else { return }
+        phase = .ready
+    }
+
+    /// Fetches enough to show a real home screen, in front of the owner.
+    ///
+    /// This used to be background work behind `phase = .ready`, which meant a
+    /// new install landed on a dashboard where every card showed its own
+    /// still-collecting state — "drive more to collect data" — while the drives
+    /// were in fact downloading. The screen was describing an empty database
+    /// rather than a busy one, and for an owner with a year of history it was
+    /// simply wrong.
+    ///
+    /// Ordered by what the home screen needs first: the vehicle list, then the
+    /// live status, then history. It gives up its hold on the screen after the
+    /// history leg — battery modelling and the route track can finish behind a
+    /// dashboard that already has something to show.
+    private func prepareFirstSession(profile: ServerProfile) async {
+        preparation = PreparationProgress(step: .vehicles)
+        phase = .preparing
+
+        await refreshVehicles(profile: profile)
+        guard let vehicle = selectedVehicle else {
+            // No vehicle to prepare for. The dashboard says so better than a
+            // progress screen that would never finish.
+            phase = .ready
+            return
+        }
+
+        preparation.step = .status
+        await refreshStatus(profile: profile, vehicle: vehicle)
+
+        preparation.step = .history
+        preparation.isCountingHistory = true
+        await runFirstHistorySync(profile: profile, vehicle: vehicle)
+
+        preparation.step = .finishing
+        recomputeFleetStatistics(profile: profile, vehicle: vehicle)
+        historyRevision += 1
+        phase = .ready
+    }
+
+    /// The first history pass, reporting each page as it lands.
+    ///
+    /// Separate from `performHistorySync` because that one is the quiet
+    /// background sync and this one is the visible first run: it reports
+    /// progress, and it deliberately does not fail the whole preparation when a
+    /// leg errors — a partial history still beats sitting on a spinner.
+    private func runFirstHistorySync(profile: ServerProfile, vehicle: Vehicle) async {
+        let sync = FleetHistorySync(context: container.mainContext)
+        let mode = sync.mode(serverID: profile.id, carID: vehicle.id)
+        isSyncingHistory = true
+        defer { isSyncingHistory = false }
+        do {
+            let client = try client(for: profile)
+            _ = try await sync.run(
+                client: client, serverID: profile.id, carID: vehicle.id, mode: mode
+            ) { [weak self] progress in
+                guard let self else { return }
+                self.preparation.drives = progress.drivesSeen
+                self.preparation.charges = progress.chargesSeen
+            }
+            preparation.step = .battery
+            await refreshBatteryHealth(profile: profile, vehicle: vehicle, client: client)
+            serverTotals = try? await backendClient(for: profile).totals(carID: vehicle.id)
+            await refreshTrack(profile: profile, vehicle: vehicle)
+            isOffline = false
+        } catch {
+            if error is CancellationError { return }
+            isOffline = true
+            lastError = error.userFacingMessage
+            diagnostics.record(.failure, error.userFacingMessage, detail: String(describing: error))
+        }
+    }
+
+    /// Merges the account's server list into this device's store.
+    ///
+    /// Additive by design: a server this device has never seen is inserted, and
+    /// one the account has not heard of is left alone and published on the next
+    /// write. Nothing is deleted here — absence from the shared list cannot be
+    /// told apart from a device that has not written yet.
+    func adoptSyncedProfiles() {
+        guard let store = ubiquitousStore else { return }
+        let remote = ServerProfileSync.read(from: store)
+        guard !remote.isEmpty else { return }
+        let context = container.mainContext
+        let existing = (try? context.fetch(FetchDescriptor<ServerProfileRecord>())) ?? []
+        let known = Set(existing.map(\.id))
+        var inserted = false
+        for synced in remote where !known.contains(synced.id) {
+            guard let profile = synced.profile else { continue }
+            context.insert(ServerProfileRecord(profile: profile, isSelected: false))
+            inserted = true
+        }
+        if inserted { try? context.save() }
+    }
+
+    /// Writes this device's server list to the account.
+    func publishSyncedProfiles() {
+        guard let store = ubiquitousStore else { return }
+        let context = container.mainContext
+        let records = (try? context.fetch(FetchDescriptor<ServerProfileRecord>())) ?? []
+        let local = records.compactMap { record -> SyncedServerProfile? in
+            record.profile.flatMap { SyncedServerProfile(profile: $0) }
+        }
+        let merged = ServerProfileSync.merge(
+            local: local,
+            remote: ServerProfileSync.read(from: store)
+        )
+        ServerProfileSync.write(merged, to: store)
+    }
+
     func renameProfile(_ profile: ServerProfile, to name: String) throws {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { throw ClientError.invalidConfiguration }

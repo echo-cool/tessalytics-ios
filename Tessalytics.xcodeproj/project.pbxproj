@@ -125,6 +125,7 @@
 		B0628B0C50A29B2C126E5937 /* VehicleSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F98CEEC267997D8530269F83 /* VehicleSettingsView.swift */; };
 		B1A27DAE47A11CC279468424 /* NotificationPresenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A92AA31928B006A6F83C681A /* NotificationPresenter.swift */; };
 		B2AEC655261286C5592F2570 /* LiveMetrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FEFDB871920BB9F0F3D947A /* LiveMetrics.swift */; };
+		B65E3225F25B97BC9C8F4039 /* PreparingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D525C9F6FCB85D3C0D6AFC2 /* PreparingView.swift */; };
 		B700A4372E697A2C4E395D9B /* OwnerCommandAuthorization.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C51341E85FE293B71D96C15 /* OwnerCommandAuthorization.swift */; };
 		B7A99FE7A6837A3B9F37EFAF /* ChartInteractionUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F59C8724992095D365E50D5D /* ChartInteractionUITests.swift */; };
 		B83F84CA133B23F5E06B6E4C /* PageSharingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C88CD14142D6439F4E61500 /* PageSharingTests.swift */; };
@@ -132,6 +133,7 @@
 		B98F75DA9489F9474A95284F /* LiveChartSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 950EDD42935461F27CF65B06 /* LiveChartSettingsView.swift */; };
 		B9C5FE1DFC1E352329690EEF /* ChargeProjectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FD1608AB20B21F494BEAE68 /* ChargeProjectionTests.swift */; };
 		C5F45DC6E0947445550E284E /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DD4E74EF9DBC45F5220DCEB /* SettingsView.swift */; };
+		C678E1A463C1EBBE534ADFE8 /* ServerProfileSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CD6F22A1E1CAE80F1C319C1 /* ServerProfileSync.swift */; };
 		C7C6796808B3E231294EF56B /* LiveStreamRefreshTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2659CAF96E322B15E2BCFAA9 /* LiveStreamRefreshTests.swift */; };
 		C88BA6DD9FCD74AF06B6D19D /* HistoryPreviews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74B179789D528ABB0D91F124 /* HistoryPreviews.swift */; };
 		C8F2B8EF685CDEC5BFE4A274 /* ServerListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47FA48AE6F542F32703F5107 /* ServerListView.swift */; };
@@ -263,6 +265,7 @@
 		5B92FDDD42CDBF40BBB4A1AA /* LiveChargingUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveChargingUITests.swift; sourceTree = "<group>"; };
 		5C64E8C37EA39F92E3F4382B /* VehicleSpecificationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VehicleSpecificationView.swift; sourceTree = "<group>"; };
 		5D3A3AB109A9CE6974262D1D /* AnalyticsDeepDives.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsDeepDives.swift; sourceTree = "<group>"; };
+		5D525C9F6FCB85D3C0D6AFC2 /* PreparingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreparingView.swift; sourceTree = "<group>"; };
 		5E4902A8606A0CAFEDFAB8DB /* VINDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VINDecoder.swift; sourceTree = "<group>"; };
 		5FB265EB8DFADB85DF531C76 /* LiveRoutePathTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveRoutePathTests.swift; sourceTree = "<group>"; };
 		610FF9F35CCDBAF304DE520B /* DestinationsCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DestinationsCard.swift; sourceTree = "<group>"; };
@@ -291,6 +294,7 @@
 		9422653083765E928907924D /* drives.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = drives.json; sourceTree = "<group>"; };
 		94CC45DF24EDA0FF2613043C /* VehicleStatusCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VehicleStatusCache.swift; sourceTree = "<group>"; };
 		950EDD42935461F27CF65B06 /* LiveChartSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveChartSettingsView.swift; sourceTree = "<group>"; };
+		9CD6F22A1E1CAE80F1C319C1 /* ServerProfileSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerProfileSync.swift; sourceTree = "<group>"; };
 		9DD4E74EF9DBC45F5220DCEB /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		9E1DD1FA0AD4F9851B0E723C /* GameCenterService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameCenterService.swift; sourceTree = "<group>"; };
 		9F0EC991E0D93F84AA26F15F /* status.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = status.json; sourceTree = "<group>"; };
@@ -466,6 +470,7 @@
 				EAB5577362235478009EDDAA /* FleetHistorySync.swift */,
 				74B179789D528ABB0D91F124 /* HistoryPreviews.swift */,
 				736A99C71F59EF76B9A1A2CA /* HistoryRepositories.swift */,
+				9CD6F22A1E1CAE80F1C319C1 /* ServerProfileSync.swift */,
 				94CC45DF24EDA0FF2613043C /* VehicleStatusCache.swift */,
 			);
 			path = Synchronization;
@@ -594,6 +599,7 @@
 			isa = PBXGroup;
 			children = (
 				DE3DAE5214CDEEF2FCE5C095 /* OnboardingView.swift */,
+				5D525C9F6FCB85D3C0D6AFC2 /* PreparingView.swift */,
 			);
 			path = Onboarding;
 			sourceTree = "<group>";
@@ -1132,6 +1138,7 @@
 				A6DFFC7861B59B82533BB61C /* PageSharing.swift in Sources */,
 				69614DDB6CA0236C1396DFA5 /* PairedBrowsersView.swift in Sources */,
 				A79B925305CDB8B8455F5FC5 /* PersistenceModels.swift in Sources */,
+				B65E3225F25B97BC9C8F4039 /* PreparingView.swift in Sources */,
 				8D8D162D404F248854025BFF /* QRScannerView.swift in Sources */,
 				DBF9DB2FCFAA76600E57034B /* RootView.swift in Sources */,
 				AF3D5F6B1C6726A8B6D48CDE /* RoutePosterMap.swift in Sources */,
@@ -1139,6 +1146,7 @@
 				EBEF22E127154D99D8AE6981 /* RouteSnapshotView.swift in Sources */,
 				258F2A5E9F6127C845D9904A /* SecretRedactor.swift in Sources */,
 				C8F2B8EF685CDEC5BFE4A274 /* ServerListView.swift in Sources */,
+				C678E1A463C1EBBE534ADFE8 /* ServerProfileSync.swift in Sources */,
 				C5F45DC6E0947445550E284E /* SettingsView.swift in Sources */,
 				83FF03E475A2C2D2DB8FF6A1 /* SharePoster.swift in Sources */,
 				19B985B2C81A505E06834805 /* SoftwareTimeline.swift in Sources */,
@@ -1401,6 +1409,8 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.echocool.Tessalytics;
 				PRODUCT_NAME = Tessalytics;
 				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -1448,6 +1458,8 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.echocool.Tessalytics;
 				PRODUCT_NAME = Tessalytics;
 				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};

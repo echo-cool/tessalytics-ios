@@ -192,6 +192,7 @@
 "Consumption by trip length" = "Verbrauch nach Fahrtlänge";
 "Consumption is weighted by distance, so a short cold trip does not count the same as a long one." = "Der Verbrauch wird nach Strecke gewichtet, damit eine kurze Kaltfahrt nicht so zählt wie eine lange.";
 "Continental" = "Kontinental";
+"Continue without waiting" = "Ohne Warten fortfahren";
 "Control vehicle" = "Fahrzeug steuern";
 "Controls stay optional" = "Steuerung bleibt optional";
 "Converted for display; the car's own setting is unchanged." = "Zur Anzeige umgerechnet; die Einstellung im Fahrzeug bleibt unverändert.";
@@ -247,6 +248,7 @@
 "Distance travelled" = "Zurückgelegte Strecke";
 "Done" = "Fertig";
 "Doors" = "Türen";
+"Downloading drives and charges" = "Fahrten und Ladevorgänge werden geladen";
 "Draw not reported" = "Kein Bezug gemeldet";
 "Drawn from the outlet" = "Aus der Steckdose bezogen";
 "Drawn under the vehicle card while the car is moving." = "Wird unter der Fahrzeugkarte gezeichnet, solange das Auto fährt.";
@@ -304,6 +306,7 @@
 "Filter drives" = "Fahrten filtern";
 "Filter places" = "Orte filtern";
 "Find pairing" = "Kopplung finden";
+"Finding your vehicles" = "Fahrzeuge werden gesucht";
 "Follow the vehicle" = "Fahrzeug folgen";
 "Follow the vehicle's own setting" = "Der Einstellung des Fahrzeugs folgen";
 "Forecast" = "Prognose";
@@ -329,6 +332,7 @@
 "Gear" = "Gang";
 "Generated sample" = "Erzeugtes Beispiel";
 "Generated sample data" = "Erzeugte Beispieldaten";
+"Getting your history" = "Ihre Historie wird geladen";
 "Got it" = "Verstanden";
 "Health with these figures" = "Zustand mit diesen Werten";
 "Help" = "Hilfe";
@@ -426,6 +430,7 @@
 "Modeled per charge" = "Je Ladevorgang modelliert";
 "Modeled per charge, by odometer" = "Je Ladevorgang modelliert, nach Kilometerstand";
 "Modeled — read the median, not the points" = "Modelliert - lies den Median, nicht die Punkte";
+"Modelling battery health" = "Batteriezustand wird modelliert";
 "Moderate confidence" = "Mittlere Verlässlichkeit";
 "Most visited" = "Am häufigsten";
 "Movement, efficiency and cost." = "Bewegung, Effizienz und Kosten.";
@@ -565,6 +570,7 @@
 "Predicted charging completion" = "Voraussichtliches Ladeende";
 "Prepare an export" = "Export vorbereiten";
 "Preparing" = "Wird vorbereitet";
+"Preparing your screens" = "Ihre Ansichten werden vorbereitet";
 "Presentation" = "Darstellung";
 "Pressures" = "Reifendruck";
 "Privacy" = "Datenschutz";
@@ -586,6 +592,9 @@
 "Read from the car. Pressures fall as the tyres cool." = "Aus dem Fahrzeug gelesen. Der Druck sinkt, wenn die Reifen abkühlen.";
 "Read-only access until %@." = "Nur-Lese-Zugriff bis %@.";
 "Reading" = "Messwert";
+"Reading %@." = "%@ wird gelesen.";
+"Reading the current status" = "Aktueller Status wird gelesen";
+"Reading your TeslaMate server." = "Ihr TeslaMate-Server wird gelesen.";
 "Rear left" = "Hinten links";
 "Rear right" = "Hinten rechts";
 "Recent" = "Zuletzt";
@@ -672,6 +681,7 @@
 "Start not reported" = "Kein Start gemeldet";
 "Start ten drives between midnight and 4am" = "Zehn Fahrten zwischen Mitternacht und 4 Uhr beginnen";
 "Started" = "Beginn";
+"Starting" = "Startet";
 "State" = "Zustand";
 "Status" = "Status";
 "Still collecting" = "Sammelt noch";
@@ -746,6 +756,7 @@
 "This chart has no synchronized values yet." = "Für dieses Diagramm gibt es noch keine synchronisierten Werte.";
 "This drive" = "Diese Fahrt";
 "This drive could not be loaded." = "Diese Fahrt konnte nicht geladen werden.";
+"This happens once. Later launches only fetch what is new." = "Das passiert einmal. Spätere Starts holen nur Neues.";
 "This operation is disabled or forbidden by the server." = "Dieser Vorgang ist deaktiviert oder vom Server untersagt.";
 "This project is an unofficial community tool and is not affiliated with, endorsed by, or supported by the official TeslaMate project or Tesla, Inc. \\\"TeslaMate\\\" and \\\"Tesla\\\" are the trademarks of their respective owners and are used here only to say what this app connects to." = "Dieses Projekt ist ein inoffizielles Community-Werkzeug und steht in keiner Verbindung zum offiziellen TeslaMate-Projekt oder zu Tesla, Inc., wird von ihnen weder unterstützt noch gebilligt. „TeslaMate“ und „Tesla“ sind Marken ihrer jeweiligen Inhaber und werden hier nur genannt, um zu sagen, womit sich diese App verbindet.";
 "This vehicle" = "Dieses Fahrzeug";

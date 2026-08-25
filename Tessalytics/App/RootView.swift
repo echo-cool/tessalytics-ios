@@ -5,11 +5,42 @@ struct RootView: View {
 
     var body: some View {
         Group {
+            #if DEBUG
+            // The first-run screen exists only between adding a server and its
+            // history arriving — a window neither a test nor a screenshot run
+            // can otherwise stand in. Checked before the phase, because that
+            // window is milliseconds wide when there is no server to talk to.
+            if ProcessInfo.processInfo.arguments.contains("-ui-preparing") {
+                PreparingView(
+                    progress: .init(step: .history, drives: 412, charges: 96, isCountingHistory: true),
+                    serverName: "Garage"
+                )
+            } else {
+                phaseContent
+            }
+            #else
+            phaseContent
+            #endif
+        }
+        .tint(TessalyticsTheme.accent)
+        // Once, at launch. Game Center may answer "signed out", which is fine:
+        // the achievements are computed on the device either way.
+        .task { environment.gameCenter.authenticate() }
+    }
+
+    @ViewBuilder private var phaseContent: some View {
+        Group {
             switch environment.phase {
             case .loading:
                 ProgressView("Opening Tessalytics…")
             case .onboarding:
                 OnboardingView()
+            case .preparing:
+                PreparingView(
+                    progress: environment.preparation,
+                    serverName: environment.selectedProfile?.name,
+                    onSkip: { environment.finishPreparing() }
+                )
             case .ready:
                 #if DEBUG
                 if ProcessInfo.processInfo.arguments.contains("-ui-drive-detail") {
@@ -34,9 +65,5 @@ struct RootView: View {
                 #endif
             }
         }
-        .tint(TessalyticsTheme.accent)
-        // Once, at launch. Game Center may answer "signed out", which is fine:
-        // the achievements are computed on the device either way.
-        .task { environment.gameCenter.authenticate() }
     }
 }

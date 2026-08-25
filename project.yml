@@ -42,6 +42,12 @@ targets:
         # the setting that used to be here produced no key at all.
         INFOPLIST_FILE: SupportingFiles/Info.plist
         TARGETED_DEVICE_FAMILY: "1,2"
+        # Runs on Apple Silicon Macs as the iPad build, unmodified. Not Catalyst:
+        # there is no Mac-specific UI here to justify a second target, its own
+        # provisioning and its own store screenshots, and the sidebar-adaptable
+        # tab view already behaves in a resizable window.
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: YES
+        SUPPORTS_MACCATALYST: NO
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
         SWIFT_EMIT_LOC_STRINGS: YES

@@ -192,6 +192,7 @@
 "Consumption by trip length" = "Consumption by trip length";
 "Consumption is weighted by distance, so a short cold trip does not count the same as a long one." = "Consumption is weighted by distance, so a short cold trip does not count the same as a long one.";
 "Continental" = "Continental";
+"Continue without waiting" = "Continue without waiting";
 "Control vehicle" = "Control vehicle";
 "Controls stay optional" = "Controls stay optional";
 "Converted for display; the car's own setting is unchanged." = "Converted for display; the car's own setting is unchanged.";
@@ -247,6 +248,7 @@
 "Distance travelled" = "Distance travelled";
 "Done" = "Done";
 "Doors" = "Doors";
+"Downloading drives and charges" = "Downloading drives and charges";
 "Draw not reported" = "Draw not reported";
 "Drawn from the outlet" = "Drawn from the outlet";
 "Drawn under the vehicle card while the car is moving." = "Drawn under the vehicle card while the car is moving.";
@@ -304,6 +306,7 @@
 "Filter drives" = "Filter drives";
 "Filter places" = "Filter places";
 "Find pairing" = "Find pairing";
+"Finding your vehicles" = "Finding your vehicles";
 "Follow the vehicle" = "Follow the vehicle";
 "Follow the vehicle's own setting" = "Follow the vehicle's own setting";
 "Forecast" = "Forecast";
@@ -329,6 +332,7 @@
 "Gear" = "Gear";
 "Generated sample" = "Generated sample";
 "Generated sample data" = "Generated sample data";
+"Getting your history" = "Getting your history";
 "Got it" = "Got it";
 "Health with these figures" = "Health with these figures";
 "Help" = "Help";
@@ -426,6 +430,7 @@
 "Modeled per charge" = "Modeled per charge";
 "Modeled per charge, by odometer" = "Modeled per charge, by odometer";
 "Modeled — read the median, not the points" = "Modeled — read the median, not the points";
+"Modelling battery health" = "Modelling battery health";
 "Moderate confidence" = "Moderate confidence";
 "Most visited" = "Most visited";
 "Movement, efficiency and cost." = "Movement, efficiency and cost.";
@@ -565,6 +570,7 @@
 "Predicted charging completion" = "Predicted charging completion";
 "Prepare an export" = "Prepare an export";
 "Preparing" = "Preparing";
+"Preparing your screens" = "Preparing your screens";
 "Presentation" = "Presentation";
 "Pressures" = "Pressures";
 "Privacy" = "Privacy";
@@ -586,6 +592,9 @@
 "Read from the car. Pressures fall as the tyres cool." = "Read from the car. Pressures fall as the tyres cool.";
 "Read-only access until %@." = "Read-only access until %@.";
 "Reading" = "Reading";
+"Reading %@." = "Reading %@.";
+"Reading the current status" = "Reading the current status";
+"Reading your TeslaMate server." = "Reading your TeslaMate server.";
 "Rear left" = "Rear left";
 "Rear right" = "Rear right";
 "Recent" = "Recent";
@@ -672,6 +681,7 @@
 "Start not reported" = "Start not reported";
 "Start ten drives between midnight and 4am" = "Start ten drives between midnight and 4am";
 "Started" = "Started";
+"Starting" = "Starting";
 "State" = "State";
 "Status" = "Status";
 "Still collecting" = "Still collecting";
@@ -746,6 +756,7 @@
 "This chart has no synchronized values yet." = "This chart has no synchronized values yet.";
 "This drive" = "This drive";
 "This drive could not be loaded." = "This drive could not be loaded.";
+"This happens once. Later launches only fetch what is new." = "This happens once. Later launches only fetch what is new.";
 "This operation is disabled or forbidden by the server." = "This operation is disabled or forbidden by the server.";
 "This project is an unofficial community tool and is not affiliated with, endorsed by, or supported by the official TeslaMate project or Tesla, Inc. \\\"TeslaMate\\\" and \\\"Tesla\\\" are the trademarks of their respective owners and are used here only to say what this app connects to." = "This project is an unofficial community tool and is not affiliated with, endorsed by, or supported by the official TeslaMate project or Tesla, Inc. \\\"TeslaMate\\\" and \\\"Tesla\\\" are the trademarks of their respective owners and are used here only to say what this app connects to.";
 "This vehicle" = "This vehicle";

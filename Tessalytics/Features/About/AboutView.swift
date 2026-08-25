@@ -74,7 +74,7 @@ struct PrivacyView: View {
         TessalyticsScreen {
             List {
                 Section { Text("Tessalytics connects directly from this device to each TeslaMate server and, when enabled, Tesla's Owner API. No Tessalytics-operated service receives your vehicle data.") } header: { Label("Direct connection", systemImage: "network") }
-                Section { Text("Server credentials are stored in iOS Keychain. Owner API tokens use When Unlocked, This Device Only protection and are never stored in app preferences or the offline database.") } header: { Label("Credentials", systemImage: "key.fill") }
+                Section { Text("Server credentials and Owner API tokens are stored in iCloud Keychain, end-to-end encrypted, so they follow your Apple Account to your other devices. They are readable only while a device is unlocked, and are never stored in app preferences or the offline database.") } header: { Label("Credentials", systemImage: "key.fill") }
                 Section { Text("Historical drives, routes, charging sessions, battery estimates, and updates may be stored on this device for offline use and are partitioned by server and vehicle.") } header: { Label("Local data", systemImage: "internaldrive.fill") }
                 Section { Text("Tessalytics contains no advertising, analytics SDK, or third-party tracking.") } header: { Label("No tracking", systemImage: "hand.raised.fill") }
             }

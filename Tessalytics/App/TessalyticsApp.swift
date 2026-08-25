@@ -18,6 +18,11 @@ struct TessalyticsApp: App {
             FirmwareUpdateRecord.self, GlobalSettingsRecord.self, SyncMetadataRecord.self,
             TrackRecord.self
         ])
+        // One local store, as before. Server profiles follow the owner's Apple
+        // Account through `ServerProfileSync` and the credentials through iCloud
+        // Keychain — neither needs this store to be mirrored, and mirroring it
+        // would mean dropping the nine `@Attribute(.unique)` cache keys the
+        // history dedupe is built on.
         let configuration = ModelConfiguration(
             "Tessalytics",
             schema: schema,

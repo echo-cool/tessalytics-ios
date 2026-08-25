@@ -7,7 +7,7 @@
    merely happens to match it. */
 
 "%1$@ drive and %2$@ charge observations analyzed" = "走行 %1$@ 件・充電 %2$@ 件を分析";
-"%1$@ drives · %2$@ charges" = "走行 %1$@ 件・充電 %2$@ 件";
+"%1$@ drives · %2$@ charges" = "%1$@ 走行 · %2$@ 充電";
 "%1$@ of %2$@" = "%2$@ 中 %1$@";
 "%1$@ · %2$@ days" = "%1$@ · %2$@ 日";
 "%1$@ · distance-weighted, %2$@" = "%1$@ · 距離で重み付け、%2$@";
@@ -192,6 +192,7 @@
 "Consumption by trip length" = "走行距離別の電費";
 "Consumption is weighted by distance, so a short cold trip does not count the same as a long one." = "電費は距離で重み付けされるため、短い寒冷時の走行は長い走行と同じには数えません。";
 "Continental" = "大陸横断";
+"Continue without waiting" = "待たずに続ける";
 "Control vehicle" = "車両を操作";
 "Controls stay optional" = "操作機能は任意のまま";
 "Converted for display; the car's own setting is unchanged." = "表示用に換算します。車両側の設定は変わりません。";
@@ -247,6 +248,7 @@
 "Distance travelled" = "走行距離";
 "Done" = "完了";
 "Doors" = "ドア";
+"Downloading drives and charges" = "走行と充電をダウンロードしています";
 "Draw not reported" = "取り込み量の報告なし";
 "Drawn from the outlet" = "コンセントからの取り込み";
 "Drawn under the vehicle card while the car is moving." = "走行中は車両カードの下に表示されます。";
@@ -304,6 +306,7 @@
 "Filter drives" = "走行を絞り込む";
 "Filter places" = "場所を絞り込む";
 "Find pairing" = "ペアリングを探す";
+"Finding your vehicles" = "車両を検索しています";
 "Follow the vehicle" = "車両を追尾";
 "Follow the vehicle's own setting" = "車両側の設定に従う";
 "Forecast" = "予測";
@@ -329,6 +332,7 @@
 "Gear" = "シフト";
 "Generated sample" = "生成サンプル";
 "Generated sample data" = "生成されたサンプルデータ";
+"Getting your history" = "履歴を取得しています";
 "Got it" = "了解";
 "Health with these figures" = "この数値での健全性";
 "Help" = "ヘルプ";
@@ -426,6 +430,7 @@
 "Modeled per charge" = "充電ごとにモデル化";
 "Modeled per charge, by odometer" = "走行距離別、充電ごとのモデル";
 "Modeled — read the median, not the points" = "モデル値 — 点ではなく中央値を読んでください";
+"Modelling battery health" = "バッテリー状態を推定しています";
 "Moderate confidence" = "信頼度：中";
 "Most visited" = "訪問回数順";
 "Movement, efficiency and cost." = "移動・電費・コスト。";
@@ -565,6 +570,7 @@
 "Predicted charging completion" = "充電完了の予測";
 "Prepare an export" = "書き出しを準備";
 "Preparing" = "準備中";
+"Preparing your screens" = "画面を準備しています";
 "Presentation" = "表示";
 "Pressures" = "空気圧";
 "Privacy" = "プライバシー";
@@ -586,6 +592,9 @@
 "Read from the car. Pressures fall as the tyres cool." = "車両から読み取った値です。タイヤが冷えると圧力は下がります。";
 "Read-only access until %@." = "%@ まで読み取り専用でアクセスできます。";
 "Reading" = "測定値";
+"Reading %@." = "%@ を読み込んでいます。";
+"Reading the current status" = "現在の状態を読み込んでいます";
+"Reading your TeslaMate server." = "TeslaMate サーバーを読み込んでいます。";
 "Rear left" = "左後";
 "Rear right" = "右後";
 "Recent" = "最近";
@@ -672,6 +681,7 @@
 "Start not reported" = "出発地の報告なし";
 "Start ten drives between midnight and 4am" = "0 時から 4 時の間に 10 回出発する";
 "Started" = "開始";
+"Starting" = "開始しています";
 "State" = "状態";
 "Status" = "ステータス";
 "Still collecting" = "収集中";
@@ -746,6 +756,7 @@
 "This chart has no synchronized values yet." = "このグラフにはまだ同期された値がありません。";
 "This drive" = "この走行";
 "This drive could not be loaded." = "この走行を読み込めませんでした。";
+"This happens once. Later launches only fetch what is new." = "これは一度だけです。次回以降は新しい分だけを取得します。";
 "This operation is disabled or forbidden by the server." = "この操作はサーバーによって無効化または禁止されています。";
 "This project is an unofficial community tool and is not affiliated with, endorsed by, or supported by the official TeslaMate project or Tesla, Inc. \\\"TeslaMate\\\" and \\\"Tesla\\\" are the trademarks of their respective owners and are used here only to say what this app connects to." = "本プロジェクトは非公式のコミュニティ製ツールであり、公式の TeslaMate プロジェクトや Tesla, Inc. とは関係がなく、両者による承認も支援も受けていません。「TeslaMate」および「Tesla」は各権利者の商標であり、本アプリが何に接続するかを示す目的でのみ使用しています。";
 "This vehicle" = "この車両";

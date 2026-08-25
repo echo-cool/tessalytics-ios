@@ -7,7 +7,7 @@
    merely happens to match it. */
 
 "%1$@ drive and %2$@ charge observations analyzed" = "已分析 %1$@ 段行程與 %2$@ 次充電";
-"%1$@ drives · %2$@ charges" = "%1$@ 段行程 · %2$@ 次充電";
+"%1$@ drives · %2$@ charges" = "%1$@ 次行駛 · %2$@ 次充電";
 "%1$@ of %2$@" = "%1$@ / %2$@";
 "%1$@ · %2$@ days" = "%1$@ · %2$@ 天";
 "%1$@ · distance-weighted, %2$@" = "%1$@ · 按里程加權，%2$@";
@@ -192,6 +192,7 @@
 "Consumption by trip length" = "按行程長度的能耗";
 "Consumption is weighted by distance, so a short cold trip does not count the same as a long one." = "能耗按里程加權，因此一次寒冷的短途行程不會與長途同等計入。";
 "Continental" = "橫貫大陸";
+"Continue without waiting" = "不等待，直接繼續";
 "Control vehicle" = "控制車輛";
 "Controls stay optional" = "控制功能始終可選";
 "Converted for display; the car's own setting is unchanged." = "僅用於顯示換算；車輛自身設定不變。";
@@ -247,6 +248,7 @@
 "Distance travelled" = "行駛里程";
 "Done" = "完成";
 "Doors" = "車門";
+"Downloading drives and charges" = "正在下載行駛與充電紀錄";
 "Draw not reported" = "未上報取電量";
 "Drawn from the outlet" = "從電源取用";
 "Drawn under the vehicle card while the car is moving." = "車輛行駛時繪製在車輛卡片下方。";
@@ -304,6 +306,7 @@
 "Filter drives" = "篩選行程";
 "Filter places" = "篩選地點";
 "Find pairing" = "查詢配對";
+"Finding your vehicles" = "正在尋找你的車輛";
 "Follow the vehicle" = "跟隨車輛";
 "Follow the vehicle's own setting" = "跟隨車輛自身的設定";
 "Forecast" = "預測";
@@ -329,6 +332,7 @@
 "Gear" = "擋位";
 "Generated sample" = "生成的示例";
 "Generated sample data" = "生成的示例資料";
+"Getting your history" = "正在取得你的歷史資料";
 "Got it" = "知道了";
 "Health with these figures" = "按此數值計算的健康度";
 "Help" = "幫助";
@@ -426,6 +430,7 @@
 "Modeled per charge" = "按每次充電推算";
 "Modeled per charge, by odometer" = "按里程推算的每次充電結果";
 "Modeled — read the median, not the points" = "模型推算 — 請看中位線，而非單個點";
+"Modelling battery health" = "正在推算電池健康";
 "Moderate confidence" = "中等可信度";
 "Most visited" = "最常去";
 "Movement, efficiency and cost." = "行駛、能耗與費用。";
@@ -565,6 +570,7 @@
 "Predicted charging completion" = "預計充滿時間";
 "Prepare an export" = "準備匯出";
 "Preparing" = "準備中";
+"Preparing your screens" = "正在準備你的介面";
 "Presentation" = "顯示";
 "Pressures" = "胎壓";
 "Privacy" = "隱私";
@@ -586,6 +592,9 @@
 "Read from the car. Pressures fall as the tyres cool." = "讀取自車輛。輪胎變冷時胎壓會下降。";
 "Read-only access until %@." = "只讀訪問許可權有效至 %@。";
 "Reading" = "讀數";
+"Reading %@." = "正在讀取 %@。";
+"Reading the current status" = "正在讀取目前狀態";
+"Reading your TeslaMate server." = "正在讀取你的 TeslaMate 伺服器。";
 "Rear left" = "左後";
 "Rear right" = "右後";
 "Recent" = "最近去過";
@@ -672,6 +681,7 @@
 "Start not reported" = "未上報起點";
 "Start ten drives between midnight and 4am" = "在午夜至凌晨 4 點之間出發十次";
 "Started" = "開始時間";
+"Starting" = "開始中";
 "State" = "狀態";
 "Status" = "狀態";
 "Still collecting" = "仍在收集";
@@ -746,6 +756,7 @@
 "This chart has no synchronized values yet." = "此圖表尚無已同步的數值。";
 "This drive" = "本次行程";
 "This drive could not be loaded." = "無法載入此段行程。";
+"This happens once. Later launches only fetch what is new." = "只會進行一次。之後啟動只取得新增內容。";
 "This operation is disabled or forbidden by the server." = "伺服器禁用或拒絕了此操作。";
 "This project is an unofficial community tool and is not affiliated with, endorsed by, or supported by the official TeslaMate project or Tesla, Inc. \\\"TeslaMate\\\" and \\\"Tesla\\\" are the trademarks of their respective owners and are used here only to say what this app connects to." = "本專案是非官方的社群工具，與 TeslaMate 官方專案及 Tesla, Inc. 無關，未獲其認可或支援。“TeslaMate”與“Tesla”是各自所有者的商標，此處僅用於說明本應用所連線的物件。";
 "This vehicle" = "本車輛";
