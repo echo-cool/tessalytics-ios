@@ -93,13 +93,42 @@ enum TessalyticsLayout {
 
 /// Centres and width-limits scrolling content. Without this, every card on an
 /// iPad stretches edge to edge and the screens stop looking like the phone app.
+///
+/// The cap grows with the window rather than being one number. A fixed 760 is
+/// right on a phone and right in an iPad portrait sheet, and wrong in an iPad
+/// landscape window: there the sidebar takes about 280 points and the remaining
+/// 1,096 carried a 760-point column, so a third of the usable width was empty
+/// margin. The column now takes a share of whatever it is given, floored at the
+/// screen's own preference so nothing ever gets narrower than it was, and
+/// ceilinged at `wideReadableWidth` so a value four characters long is still not
+/// stretched across half a metre of glass.
 private struct ReadableWidthModifier: ViewModifier {
     let maximum: CGFloat
+    @State private var available: CGFloat = 0
+
+    /// Leaves a margin either side rather than filling to the edge: the cards
+    /// need to read as a column, not as the window itself.
+    private static let share: CGFloat = 0.82
+
+    private var resolved: CGFloat {
+        guard available > 0 else { return maximum }
+        return min(max(maximum, available * Self.share), TessalyticsLayout.wideReadableWidth)
+    }
 
     func body(content: Content) -> some View {
         content
-            .frame(maxWidth: maximum)
+            .frame(maxWidth: resolved)
             .frame(maxWidth: .infinity)
+            // Measured in a background so it reports the container's width
+            // without taking part in the layout that produces it.
+            .background(
+                GeometryReader { proxy in
+                    Color.clear
+                        .onAppear { available = proxy.size.width }
+                        .onChange(of: proxy.size.width) { _, width in available = width }
+                }
+                .accessibilityHidden(true)
+            )
     }
 }
 

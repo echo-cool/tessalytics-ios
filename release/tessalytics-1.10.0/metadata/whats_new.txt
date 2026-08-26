@@ -1,0 +1,22 @@
+Now on iPad and Mac.
+
+Tessalytics runs on iPad, and on Apple Silicon Macs as the iPad app. On a wide
+screen the tab bar becomes a sidebar and the cards stop stretching.
+
+Your servers follow your Apple Account. Add a server on your iPhone and your iPad
+already has it — server settings sync through iCloud, and credentials through
+iCloud Keychain, which is end-to-end encrypted. Cached driving history stays on
+each device and is re-read from your own server.
+
+A proper first run. Connecting a server with a long history used to drop you on a
+dashboard that said there was nothing to show while it was still downloading.
+Now it shows what it is fetching, and counts your drives and charges as they
+arrive.
+
+Two new analysis views. Efficiency plots consumption against outside temperature
+and trip length; Mileage covers the odometer, distance and charging by month, and
+where your time actually goes. The home screen chart now carries the odometer
+beside the battery over the same week.
+
+Also: the shared image keeps its map on a slow connection, the vehicle rating
+picker accepts "Not set", and there is a good deal less text throughout.

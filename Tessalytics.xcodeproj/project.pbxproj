@@ -125,6 +125,7 @@
 		B0628B0C50A29B2C126E5937 /* VehicleSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F98CEEC267997D8530269F83 /* VehicleSettingsView.swift */; };
 		B1A27DAE47A11CC279468424 /* NotificationPresenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A92AA31928B006A6F83C681A /* NotificationPresenter.swift */; };
 		B2AEC655261286C5592F2570 /* LiveMetrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FEFDB871920BB9F0F3D947A /* LiveMetrics.swift */; };
+		B598ED8391A2F95F9B5E0D07 /* DashboardBoard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 665881A9F81FA4237EEC2871 /* DashboardBoard.swift */; };
 		B65E3225F25B97BC9C8F4039 /* PreparingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D525C9F6FCB85D3C0D6AFC2 /* PreparingView.swift */; };
 		B700A4372E697A2C4E395D9B /* OwnerCommandAuthorization.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C51341E85FE293B71D96C15 /* OwnerCommandAuthorization.swift */; };
 		B7A99FE7A6837A3B9F37EFAF /* ChartInteractionUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F59C8724992095D365E50D5D /* ChartInteractionUITests.swift */; };
@@ -272,6 +273,7 @@
 		61482FA95A6694984ACDC349 /* WebPairing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebPairing.swift; sourceTree = "<group>"; };
 		618889EA704730D832D5F209 /* LiveMetricsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveMetricsTests.swift; sourceTree = "<group>"; };
 		63D85125EF993F7004CF9C23 /* AchievementTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AchievementTests.swift; sourceTree = "<group>"; };
+		665881A9F81FA4237EEC2871 /* DashboardBoard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardBoard.swift; sourceTree = "<group>"; };
 		69B44CC97FFD4A1612AE9764 /* BatteryHealthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatteryHealthView.swift; sourceTree = "<group>"; };
 		6F6420EFA70BE1BF7180F124 /* InsightsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightsView.swift; sourceTree = "<group>"; };
 		6FD1608AB20B21F494BEAE68 /* ChargeProjectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChargeProjectionTests.swift; sourceTree = "<group>"; };
@@ -753,6 +755,7 @@
 		E8B48B18F1C2E0F0C5D78449 /* Dashboard */ = {
 			isa = PBXGroup;
 			children = (
+				665881A9F81FA4237EEC2871 /* DashboardBoard.swift */,
 				AC8E2BBB853FCEEA2FE25424 /* DashboardView.swift */,
 				A8628070B08C47B53C21DA09 /* DirectTeslaControlsCard.swift */,
 				DE6F030D8FB62AF67E691EC0 /* LiveChargingViews.swift */,
@@ -1092,6 +1095,7 @@
 				3A91A61B9AA68CA36351A3FC /* ChargingMapCard.swift in Sources */,
 				45DB2678083C7EF9804C0B91 /* ChartExplorer.swift in Sources */,
 				0F4F801C8F6DE89482942C5D /* Components.swift in Sources */,
+				B598ED8391A2F95F9B5E0D07 /* DashboardBoard.swift in Sources */,
 				616325FCDB89DE10CACDAEBA /* DashboardView.swift in Sources */,
 				1690CBBD5373175A6A16E77E /* DemoDriveSimulation.swift in Sources */,
 				E06BBD548816FE116919EE2D /* DemoExperience.swift in Sources */,

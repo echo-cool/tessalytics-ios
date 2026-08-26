@@ -66,16 +66,39 @@
 
   <h2>Credentials</h2>
   <ul>
-    <li>TeslaMate bearer tokens and HTTP Basic credentials are stored only in the
-        iOS Keychain, protected with <code>kSecAttrAccessibleAfterFirstUnlock</code>.</li>
-    <li>Optional Tesla Owner API access and refresh tokens are stored in a
-        separate Keychain item with
-        <code>kSecAttrAccessibleWhenUnlockedThisDeviceOnly</code>, so they are
-        readable only while the device is unlocked and never migrate to another
-        device or backup.</li>
+    <li>TeslaMate bearer tokens, HTTP Basic credentials, and optional Tesla Owner
+        API access and refresh tokens are stored in the iOS Keychain, marked
+        <code>kSecAttrSynchronizable</code> and protected with
+        <code>kSecAttrAccessibleWhenUnlocked</code>. They are readable only while
+        a device is unlocked, and they synchronise through iCloud Keychain to the
+        other devices signed in to the same Apple Account.</li>
+    <li>iCloud Keychain is end-to-end encrypted. The keys derive from your own
+        devices and passcode, and Apple cannot read the contents — nor can the
+        developer, who has no access to your Apple Account.</li>
+    <li>Before version 1.10.0 these items were
+        <code>kSecAttrAccessibleWhenUnlockedThisDeviceOnly</code> and did not leave
+        the device. That guarantee was deliberately traded for synchronisation, so
+        that owners with more than one device need not configure each by hand. If
+        you prefer the old behaviour, turn off iCloud Keychain in iOS Settings and
+        the items stay local to the device.</li>
     <li>Credentials are never written to the app database, <code>UserDefaults</code>,
-        <code>Info.plist</code>, source code, or diagnostics.</li>
+        <code>Info.plist</code>, source code, or diagnostics, and are never placed
+        in iCloud key-value storage.</li>
   </ul>
+
+  <h2>Data synchronised through iCloud</h2>
+  <p>
+    The server profiles you configure — the profile name, the server address, the
+    authentication method, and whether insecure HTTP was permitted for that
+    profile — are stored in iCloud key-value storage and synchronise to your other
+    devices. This is your own Apple Account storage; the developer has no access
+    to it.
+  </p>
+  <p>
+    Cached driving history is <em>not</em> synchronised. Drives, charges, routes,
+    battery observations and firmware history stay on the device that fetched
+    them, and are read again from your own server on another device.
+  </p>
 
   <h2>Data stored on your device</h2>
   <p>

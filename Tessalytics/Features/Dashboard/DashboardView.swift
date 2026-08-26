@@ -25,6 +25,10 @@ struct DashboardView: View {
     @State private var heroDestination: VehicleHeroDestination?
     @State private var heroSnapshot = RoutePosterSnapshot()
     @State private var placesSnapshot = RoutePosterSnapshot()
+    /// The owner's card order, remembered across launches.
+    @AppStorage("dashboardCardOrder") private var dashboardCardOrder = ""
+    @State private var isArranging = false
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.isRenderingSharePoster) private var isRenderingPoster
 
@@ -66,6 +70,11 @@ struct DashboardView: View {
                 // Top left, where a car's screen sends people looking for it: the
                 // dashboard shows a code and this is the thing that reads it.
                 ToolbarItem(placement: .topBarLeading) { pairingButton }
+                // Only where the board has more than one column: on a phone the
+                // cards are a single list and dragging them buys nothing.
+                if horizontalSizeClass == .regular {
+                    ToolbarItem(placement: .topBarTrailing) { arrangeButton }
+                }
                 ToolbarItem(placement: .topBarTrailing) { vehicleMenu }
             }
             .safeAreaInset(edge: .top) { statusBanner }
@@ -337,164 +346,217 @@ struct DashboardView: View {
 
     private var dashboardContent: some View {
         ScrollView {
-            LazyVStack(spacing: TessalyticsLayout.stackSpacing) {
-                VehicleHeroCard(
-                    posterMap: heroSnapshot.image,
-                    vehicle: environment.selectedVehicle,
-                    status: environment.status,
-                    units: environment.statusUnits,
-                    freshnessLabel: freshnessLabel,
-                    freshnessColor: freshnessColor,
-                    updatedAt: environment.statusFetchedAt,
-                    battery: environment.fleet.battery,
-                    activity: recentDrivePoints,
-                    efficiency: recentEfficiency,
-                    batteryLevels: batteryLevels,
-            odometerReadings: odometerReadings,
-                    chargeProjection: environment.chargeProjection,
-                    chargeSession: environment.liveChargeSession,
-                    // A sleeping car reports 0 psi at every corner, so fall
-                    // back to the last reading taken while it was awake.
-                    tyres: environment.status?.tpmsDetails?.hasAnyReading == true
-                        ? environment.status?.tpmsDetails
-                        : environment.lastLiveStatus?.tpmsDetails,
-                    route: environment.liveMapRoute,
-                    liveTotals: environment.liveDriveTotals,
-                    isStreaming: environment.isStreamingLive,
-                    isDriving: environment.isLiveDriving,
-                    coordinate: environment.liveCoordinate ?? environment.status?.carGeodata?.location,
-                    placeName: environment.livePlace.name,
-                    onOpen: open
-                )
-
-                historyNotice
-
-                DashboardQuickLinks()
-
-                // Behind the debug unlock — see the note in SettingsView.
-                if environment.diagnostics.isUnlocked,
-                   environment.hasOwnerCredentials,
-                   environment.isOwnerConnected {
-                    DirectTeslaControlsCard()
-                }
-
-                // Parked: somewhere to go. Driving: what the car is doing. The two
-                // are never both useful at once.
-                if !environment.isLiveDriving, !visitedPlaces.isEmpty {
-                    DestinationsCard(places: visitedPlaces)
-                }
-
-                if environment.isLiveDriving {
-                    LiveDriveSection(
-                        buffer: environment.liveTelemetry,
-                        totals: environment.liveDriveTotals,
-                        units: environment.statusUnits
-                    )
-                }
-
-                if environment.isLiveCharging {
-                    LiveChargeSection(
-                        session: environment.liveChargeSession,
-                        projection: environment.chargeProjection,
-                        status: environment.status,
-                        units: environment.statusUnits
-                    )
-                }
-
-                // Capacity against mileage, in place of the five-figure strip
-                // that used to sit in the hero card.
-                NavigationSectionCard(
-                    "Battery capacity",
-                    subtitle: capacitySubtitle,
-                    symbol: "battery.100percent",
-                    tint: TessalyticsTheme.positive
-                ) {
-                    ChartExplorerView(chart: capacityExplorable)
-                } content: {
-                    CapacityByMileageChart(
-                        observations: capacityObservations,
-                        medians: capacityMedians,
-                        capacityNew: environment.fleet.battery?.capacityNew,
-                        units: environment.statusUnits,
-                        showsHeader: false
-                    )
-                }
-
-                NavigationSectionCard(
-                    "Places",
-                    subtitle: placesSubtitle,
-                    symbol: "map.fill",
-                    tint: TessalyticsTheme.neutral
-                ) {
-                    VisitedPlacesScreen()
-                } content: {
-                    if visitedPlaces.isEmpty {
-                        ChartNeedsMoreHistory(
-                            needs: "one synced drive with coordinates",
-                            symbol: "map"
-                        )
-                    } else {
-                        if isRenderingPoster {
-                            RoutePosterMap(height: 190, snapshot: placesSnapshot.image)
-                        } else {
-                            VisitedPlacesMap(places: visitedPlaces, segments: visitedSegments)
-                                .frame(height: 190)
-                                .clipShape(.rect(cornerRadius: TessalyticsTheme.compactRadius, style: .continuous))
-                                .allowsHitTesting(false)
-                        }
-                    }
-                }
-
-                if let status = environment.status {
-                    NavigationSectionCard(
-                        "Recent driving",
-                        subtitle: AppText.format("7 days · %@", ValueFormatting.distance(weeklyDistance, units: environment.statusUnits, digits: 0)),
-                        symbol: "chart.bar.fill",
-                        tint: TessalyticsTheme.accent
-                    ) {
-                        ChartExplorerView(chart: recentDrivingExplorable)
-                    } content: {
-                        RecentDrivingChart(points: recentDrivePoints, units: environment.statusUnits)
-                    }
-
-                    VehicleTelemetryGrid(
-                        status: status,
-                        units: environment.statusUnits,
-                        history: history
-                    )
-
-                    if let latest = recentDrives.first {
-                        LatestDriveCard(record: latest)
-                    }
-
-                    DriveStatsCard(stats: environment.fleet.drives, units: environment.statusUnits, isComplete: environment.fleet.isComplete)
-                    ChargingSummaryCard(
-                        stats: environment.fleet.charging,
-                        capacityNew: environment.fleet.battery?.capacityNew,
-                        isComplete: environment.fleet.isComplete
-                    )
-                    ChargingStatusCard(status: status)
-                    VehicleSecurityCard(
-                        status: status,
-                        lastLive: environment.lastLiveStatus,
-                        lastLiveAt: environment.lastLiveStatusAt
-                    )
-                    TirePressureCard(status: status, units: environment.statusUnits)
-                    VehicleActivityCard(vehicle: environment.selectedVehicle, weeklyDrives: history.weeklyDrives)
-                    VehicleDetailsCard(status: status, placeName: environment.livePlace.name)
-                } else {
-                    StatusRefreshCard(
-                        isRefreshing: environment.isStatusRefreshing,
-                        message: environment.lastError
-                    ) {
-                        environment.requestStatusRefresh()
-                    }
-                }
-            }
+            DashboardBoard(
+                cards: dashboardCards,
+                storedOrder: $dashboardCardOrder,
+                isArranging: isArranging
+            )
             .tessalyticsScreenPadding()
-            .tessalyticsReadableWidth()
         }
         .refreshable { await refreshAll() }
+    }
+
+    /// Toggles the board between reading and rearranging.
+    private var arrangeButton: some View {
+        Button {
+            withAnimation(.snappy) { isArranging.toggle() }
+        } label: {
+            if isArranging {
+                Text("Done").fontWeight(.semibold)
+            } else {
+                Image(systemName: "square.grid.2x2")
+            }
+        }
+        .contextMenu {
+            Button("Reset arrangement", systemImage: "arrow.uturn.backward") {
+                var arrangement = DashboardArrangement(stored: dashboardCardOrder)
+                arrangement.reset()
+                dashboardCardOrder = arrangement.stored
+            }
+        }
+        .accessibilityLabel(isArranging ? "Finish arranging" : "Arrange cards")
+        .accessibilityIdentifier("arrange-dashboard")
+    }
+
+    /// Every card the current state has something to say with.
+    ///
+    /// Built as a list rather than laid out inline so the board can order it,
+    /// split it across columns, and let the owner move a card without any of
+    /// that knowledge living in the cards themselves.
+    private var dashboardCards: [DashboardCard] {
+        var cards: [DashboardCard] = []
+
+        cards.append(DashboardCard(.hero) {
+            VehicleHeroCard(
+                posterMap: heroSnapshot.image,
+                vehicle: environment.selectedVehicle,
+                status: environment.status,
+                units: environment.statusUnits,
+                freshnessLabel: freshnessLabel,
+                freshnessColor: freshnessColor,
+                updatedAt: environment.statusFetchedAt,
+                battery: environment.fleet.battery,
+                activity: recentDrivePoints,
+                efficiency: recentEfficiency,
+                batteryLevels: batteryLevels,
+                odometerReadings: odometerReadings,
+                chargeProjection: environment.chargeProjection,
+                chargeSession: environment.liveChargeSession,
+                // A sleeping car reports 0 psi at every corner, so fall back to
+                // the last reading taken while it was awake.
+                tyres: environment.status?.tpmsDetails?.hasAnyReading == true
+                    ? environment.status?.tpmsDetails
+                    : environment.lastLiveStatus?.tpmsDetails,
+                route: environment.liveMapRoute,
+                liveTotals: environment.liveDriveTotals,
+                isStreaming: environment.isStreamingLive,
+                isDriving: environment.isLiveDriving,
+                coordinate: environment.liveCoordinate ?? environment.status?.carGeodata?.location,
+                placeName: environment.livePlace.name,
+                onOpen: open
+            )
+        })
+
+        cards.append(DashboardCard(.historyNotice) { historyNotice })
+        cards.append(DashboardCard(.quickLinks) { DashboardQuickLinks() })
+
+        // Behind the debug unlock — see the note in SettingsView.
+        if environment.diagnostics.isUnlocked,
+           environment.hasOwnerCredentials,
+           environment.isOwnerConnected {
+            cards.append(DashboardCard(.directTesla) { DirectTeslaControlsCard() })
+        }
+
+        // Parked: somewhere to go. Driving: what the car is doing. The two are
+        // never both useful at once.
+        if !environment.isLiveDriving, !visitedPlaces.isEmpty {
+            cards.append(DashboardCard(.destinations) { DestinationsCard(places: visitedPlaces) })
+        }
+
+        if environment.isLiveDriving {
+            cards.append(DashboardCard(.liveDrive) {
+                LiveDriveSection(
+                    buffer: environment.liveTelemetry,
+                    totals: environment.liveDriveTotals,
+                    units: environment.statusUnits
+                )
+            })
+        }
+
+        if environment.isLiveCharging {
+            cards.append(DashboardCard(.liveCharge) {
+                LiveChargeSection(
+                    session: environment.liveChargeSession,
+                    projection: environment.chargeProjection,
+                    status: environment.status,
+                    units: environment.statusUnits
+                )
+            })
+        }
+
+        // Capacity against mileage, in place of the five-figure strip that used
+        // to sit in the hero card.
+        cards.append(DashboardCard(.batteryCapacity) {
+            NavigationSectionCard(
+                "Battery capacity",
+                subtitle: capacitySubtitle,
+                symbol: "battery.100percent",
+                tint: TessalyticsTheme.positive
+            ) {
+                ChartExplorerView(chart: capacityExplorable)
+            } content: {
+                CapacityByMileageChart(
+                    observations: capacityObservations,
+                    medians: capacityMedians,
+                    capacityNew: environment.fleet.battery?.capacityNew,
+                    units: environment.statusUnits,
+                    showsHeader: false
+                )
+            }
+        })
+
+        cards.append(DashboardCard(.places) {
+            NavigationSectionCard(
+                "Places",
+                subtitle: placesSubtitle,
+                symbol: "map.fill",
+                tint: TessalyticsTheme.neutral
+            ) {
+                VisitedPlacesScreen()
+            } content: {
+                if visitedPlaces.isEmpty {
+                    ChartNeedsMoreHistory(needs: "one synced drive with coordinates", symbol: "map")
+                } else if isRenderingPoster {
+                    RoutePosterMap(height: 190, snapshot: placesSnapshot.image)
+                } else {
+                    VisitedPlacesMap(places: visitedPlaces, segments: visitedSegments)
+                        .frame(height: 190)
+                        .clipShape(.rect(cornerRadius: TessalyticsTheme.compactRadius, style: .continuous))
+                        .allowsHitTesting(false)
+                }
+            }
+        })
+
+        if let status = environment.status {
+            cards.append(DashboardCard(.recentDriving) {
+                NavigationSectionCard(
+                    "Recent driving",
+                    subtitle: AppText.format("7 days · %@", ValueFormatting.distance(weeklyDistance, units: environment.statusUnits, digits: 0)),
+                    symbol: "chart.bar.fill",
+                    tint: TessalyticsTheme.accent
+                ) {
+                    ChartExplorerView(chart: recentDrivingExplorable)
+                } content: {
+                    RecentDrivingChart(points: recentDrivePoints, units: environment.statusUnits)
+                }
+            })
+            cards.append(DashboardCard(.telemetry) {
+                VehicleTelemetryGrid(status: status, units: environment.statusUnits, history: history)
+            })
+            if let latest = recentDrives.first {
+                cards.append(DashboardCard(.latestDrive) { LatestDriveCard(record: latest) })
+            }
+            cards.append(DashboardCard(.driveStats) {
+                DriveStatsCard(
+                    stats: environment.fleet.drives,
+                    units: environment.statusUnits,
+                    isComplete: environment.fleet.isComplete
+                )
+            })
+            cards.append(DashboardCard(.chargingSummary) {
+                ChargingSummaryCard(
+                    stats: environment.fleet.charging,
+                    capacityNew: environment.fleet.battery?.capacityNew,
+                    isComplete: environment.fleet.isComplete
+                )
+            })
+            cards.append(DashboardCard(.chargingStatus) { ChargingStatusCard(status: status) })
+            cards.append(DashboardCard(.security) {
+                VehicleSecurityCard(
+                    status: status,
+                    lastLive: environment.lastLiveStatus,
+                    lastLiveAt: environment.lastLiveStatusAt
+                )
+            })
+            cards.append(DashboardCard(.tyres) { TirePressureCard(status: status, units: environment.statusUnits) })
+            cards.append(DashboardCard(.activity) {
+                VehicleActivityCard(vehicle: environment.selectedVehicle, weeklyDrives: history.weeklyDrives)
+            })
+            cards.append(DashboardCard(.details) {
+                VehicleDetailsCard(status: status, placeName: environment.livePlace.name)
+            })
+        } else {
+            cards.append(DashboardCard(.statusRefresh) {
+                StatusRefreshCard(
+                    isRefreshing: environment.isStatusRefreshing,
+                    message: environment.lastError
+                ) {
+                    environment.requestStatusRefresh()
+                }
+            })
+        }
+
+        return cards
     }
 
     /// Distance covered over the seven days the chart above shows, so the
