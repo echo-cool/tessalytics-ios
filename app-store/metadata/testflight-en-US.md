@@ -3,12 +3,14 @@
 ## Beta description
 
 Test Tessalytics, a privacy-focused native companion for self-hosted TeslaMate
-data. Connect your own protected TeslaMateApi server to review vehicle status,
+data on iPhone, iPad, and Mac. Connect your own Tessalytics Backend — the
+read-only API service you deploy beside TeslaMate — to review vehicle status,
 offline drive and charging history, native analytics, battery-health estimates,
-forecasts, and local alerts. Optional Owner API connectivity adds confirmed,
-device-authenticated controls. Please report the TeslaMateApi version and
-affected screen when sending feedback, but never include tokens, VINs, routes,
-addresses, or precise locations.
+forecasts, and local alerts. Server settings and credentials follow your Apple
+Account through iCloud. Optional Owner API connectivity adds confirmed,
+device-authenticated controls. Please report your Tessalytics Backend version,
+your device, and the affected screen when sending feedback, but never include
+tokens, VINs, routes, addresses, or precise locations.
 
 ## What to Test — 1.1.0 (5)
 

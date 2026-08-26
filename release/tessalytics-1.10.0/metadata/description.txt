@@ -1,31 +1,3 @@
-# App Store metadata — English (U.S.)
-
-## Name
-
-Tessalytics: TeslaMate Client
-
-## Subtitle
-
-Private TeslaMate companion
-
-## Promotional text
-
-Private vehicle insights, offline history, native charts, evidence-based forecasts, local alerts, and optional confirmed controls—from your own data.
-
-## What's New
-
-Introducing Tessalytics, a private TeslaMate companion for iPhone.
-
-• A compact vehicle status dashboard
-• Offline drive and charging history
-• Native analytics, forecasts, and battery-health estimates
-• Local alerts and multi-server support
-• Optional confirmed vehicle controls
-
-This release also improves API compatibility, metric-unit clarity, navigation, and visual polish.
-
-## Description
-
 Understand every drive.
 
 Tessalytics is a private, native companion for your self-hosted TeslaMate installation, on iPhone, iPad, and Mac. Connect it to your own Tessalytics Backend to monitor vehicle status, explore driving and charging history, and turn your data into useful insights.
@@ -47,10 +19,14 @@ HISTORY THAT WORKS OFFLINE
 
 ANALYSIS BEYOND A DASHBOARD
 • Distance, driving time, energy, cost, efficiency, and destination trends
-• Interactive native charts with period comparisons
-• Battery capacity, range, and health estimates
+• Consumption against outside temperature and trip length
+• Odometer, distance and charging by month, and where your time actually goes
+• Battery capacity, range, health, and standby-drain estimates
 • On-device travel, charging-time, cost, and efficiency forecasts
 • Optional local notifications for low battery, charge completion, software updates, and important changes
+
+BUILT FOR EVERY SCREEN
+On iPad and Mac the dashboard becomes a two- or three-column board you can rearrange, and it remembers where you put each card.
 
 PRIVATE BY DESIGN
 Your device connects directly to the server you configure. Tessalytics has no developer-operated cloud, advertising, tracking, or analytics SDK. Server settings follow your Apple Account through iCloud, and credentials through iCloud Keychain, which is end-to-end encrypted — turn iCloud Keychain off and they stay on one device. Synchronized history is never uploaded; it stays on the device that fetched it.
@@ -59,23 +35,3 @@ OPTIONAL DIRECT CONNECTION
 Advanced users can add an Owner API access/refresh-token pair generated outside Tessalytics for direct live state and a small set of controls. The app never asks for your Tesla password. Every command requires confirmation and Face ID or the device passcode. This unofficial API is optional and may change.
 
 Tessalytics is an unofficial community tool and is not affiliated with, endorsed by, or supported by the official TeslaMate project or Tesla, Inc. Battery health and predictions are estimates, not diagnostics, guarantees, or safety guidance.
-
-## Keywords
-
-electric,vehicle,drives,charging,battery,analytics,privacy,self-hosted,energy,car
-
-## Support URL
-
-https://github.com/echo-cool/tessalytics-ios/issues
-
-## Marketing URL
-
-https://github.com/echo-cool/tessalytics-ios
-
-## Privacy Policy URL
-
-https://github.com/echo-cool/tessalytics-ios/blob/main/PRIVACY.md
-
-## Copyright
-
-2026 Echo Cool
