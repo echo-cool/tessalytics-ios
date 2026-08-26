@@ -1,7 +1,18 @@
 # Tessalytics 1.10.0 (202608251308)
 
-TestFlight build, uploaded 2026-08-25 13:13:20 US/Pacific from `main`.
-Not yet submitted for review — see **Blocked on the account holder** below.
+**Superseded by build 202608251806.** That build carries everything below plus
+the multi-column iPad dashboard, and is the one in review.
+
+Build `202608251308` was uploaded 2026-08-25 13:13:20, submitted, then withdrawn
+so the board could ship in this submission rather than the next one. Build
+`202608251806` was uploaded 18:11:08 from `main` at `4d66902`, processed `VALID`,
+and submitted as review submission `5c5e76a1-1ad5-41ea-b370-27baacea8485`. Build
+resource `6b7a58c4-5188-4a1f-8a91-3726b92c6e8f`, TestFlight expiry 2026-11-23,
+export compliance exempt, minimum iOS 18.0.
+
+The marketing version did not move: 1.10.0 has never been released, so a new
+build replaces the binary on the same version record rather than opening a new
+one. Withdrawing forfeited the queue position both times.
 
     ASC_METADATA=release/tessalytics-1.10.0/metadata:app-store/metadata
 
@@ -89,24 +100,51 @@ Mileage dashboards, the dual-axis hero chart and the text trim.
   imperceptible — but it is a resample, and if Apple later accepts 2064×2752 for
   this slot the native captures should be used instead.
 
-## Blocked on the account holder
+## The iPad board (build 202608251806)
 
-This build is **not submitted**. Four things are outside what can be done from a
-terminal, and three of them would produce a bad submission if guessed:
+The dashboard was a single 760-point column. On an iPad Pro 13 in landscape the
+sidebar takes about 280 points and leaves 1,072, so a third of the usable width
+was margin. It is now three columns in landscape, two in portrait, one on a
+phone, and the cards can be rearranged and stay where they are put.
 
-1. **The privacy questionnaire has changed.** The previous answer was that
-   credentials never leave the device. That is no longer true. The form is not in
-   the App Store Connect API this repo's `scripts/asc.py` speaks; it is a web form
-   on the account. Submitting against stale answers risks rejection, or worse,
-   passing review while being wrong.
+The column step is at 1,050 points because that sits between the two widths this
+actually runs at — 1,008 portrait, 1,072 landscape — so turning the iPad gains a
+column instead of stretching cards. A first attempt used 1,150 and never reached
+three: a guess that had not accounted for the sidebar.
+
+Dragging did not work at first either. The cards' gestures are suppressed while
+arranging so a chart cannot scrub under the finger, but `allowsHitTesting(false)`
+was on the same view as `draggable` and disabled the drag with it — the board
+scrolled instead of moving the card. The content is now inert inside a container
+that stays live.
+
+Arranging is an explicit mode rather than always-on dragging, because these cards
+hold charts that scrub and maps that pan. Five cards are pinned: the hero, the
+still-collecting notice, both live sections, the status fallback. Reset is in the
+Arrange button's context menu.
+
+The iPad screenshots were re-taken against this build. The set pushed with
+202608251308 showed the old single narrow column and would have misrepresented
+the app.
+
+## Still outside what a terminal can do
+
+The submission is in, but two of these remain unset and affect it:
+
+1. **The privacy questionnaire needs nothing** — an earlier claim in this kit
+   that it did was wrong and is corrected here. Verified: no location APIs, no
+   third-party SDKs, an empty `NSPrivacyCollectedDataTypes`, and Apple's
+   definition of "collect" turns on the developer having access, which for the
+   user's own iCloud is not the case. What *did* need fixing was the policy page
+   the listing links to, `tessalytics.echo.cool/privacy`, which still promised
+   tokens never leave the device. That page is corrected in the tree but **not
+   deployed** — a Cloudflare publish, and the live page currently contradicts the
+   build in review.
 2. **The version is `1.10.0`,** chosen as a minor for new platforms plus a sync
-   feature. It is baked into the uploaded build; changing it means another build,
-   and it must be settled before submission rather than after.
+   feature, and now submitted as such.
 3. **Mac availability is a checkbox** under Pricing and Availability, not part of
    the binary. Without it the app ships iPhone- and iPad-only whatever the build
    supports.
-4. **1.6.0 still holds the editable version record** at `WAITING_FOR_REVIEW`, and
-   withdrawing it forfeits its queue position the moment it happens. If it is
-   close to being picked up, letting it clear may cost less time than withdrawing
-   now. That is a judgement about the queue that the account holder can see and
-   this cannot.
+4. **1.6.0 was withdrawn** and its record renamed to 1.10.0. Three withdrawals
+   happened in total on 25 August — 1.6.0, then 1.10.0 twice — each forfeiting
+   the queue position. Worth weighing before the next one.
